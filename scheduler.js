@@ -4,7 +4,7 @@
  * 1. L=2 新朋友禁排邏輯 (每月 8-14 號)
  * 2. 嚴格的分數排序演算法 ([權重分, 歷史次數, 技能數量, 隨機數])
  * 3. 執行流程：執事 -> 跨堂預排 -> 家庭預排 -> 單堂填充 -> 補位 -> 最終 Refill
- * 4. FA 絕對同日同崗位，FB 絕對同日異崗位
+ * 4. FA 絕對同日同崗位，FB 同堂 (同崗位或異崗位皆可)
  * 5. FA/FB 終極防落單替換機制 (依服事次數踢人)
  * 6. 完美平衡：配對預查機制 (Lookahead)，兼顧配對與次數平均。
  * 7. 【全新大升級】技能稀缺性保護與「弱者錨點」機制，保證多技能的高手優先被分配到高階崗位，不被家庭綁定浪費！
@@ -53,6 +53,12 @@ const ScheduleEngine = {
             if (qs) {
                 if (qs.newcomer_rule !== undefined && qs.newcomer_rule !== null) m.newcomer_rule = qs.newcomer_rule;
                 if (qs.dual_service_pref !== undefined && qs.dual_service_pref !== null) m.dual_service_pref = qs.dual_service_pref;
+                
+                // 【新增：一季一次防呆】確保狀態同步，並強制解除跨堂偏好
+                if (qs.availability_status) m.availability_status = qs.availability_status;
+                if (m.availability_status === '一季一次') {
+                    m.dual_service_pref = 0; // 強制設為單堂，防止原子綁定給他塞兩堂
+                }
             }
         }
     });
@@ -131,6 +137,12 @@ const ScheduleEngine = {
     const { roleName, session, posId } = slot;
     
     if (['暫停服事', '安息季'].includes(m.availability_status)) return false;
+    
+    // 【新增：一季一次硬限制】只要本季總服事次數達到 1 次，就絕對不再排班
+    if (m.availability_status === '一季一次' && (state.totalUsage[m.id] || 0) >= 1) {
+        return false;
+    }
+
     if (Array.isArray(m.unavailable_dates) && m.unavailable_dates.includes(context.dateStr)) return false;
     if (!state.memberSkills[m.id].has(posId)) return false;
 
@@ -197,9 +209,8 @@ const ScheduleEngine = {
                 
                 if (myGroupId.startsWith('FA')) {
                     if (!familyRoles.has(roleName)) return false;
-                } else if (myGroupId.startsWith('FB')) {
-                    if (familyRoles.has(roleName)) return false;
-                }
+                } 
+                // FB 放寬規則：同崗或異崗皆可，因此移除了原本的阻擋邏輯！
             }
         }
     }
@@ -210,9 +221,31 @@ const ScheduleEngine = {
   _getScore(m, slot, state, context) {
     let weight = 0;
 
+    // 【修復】加回遺失的領袖層優先邏輯
     if (['執事輪值', '司會'].includes(slot.roleName)) {
-       const currentUsage = state.roleUsage[m.id][slot.posId] || 0;
+       const currentUsage = state.roleUsage[m.id]?.[slot.posId] || 0;
        if (currentUsage === 0) weight -= 20000;
+    }
+
+    const myGroupId = state.memberGroups[m.id];
+    if (myGroupId && (myGroupId.startsWith('FA') || myGroupId.startsWith('FB'))) {
+       const myShiftsCount = (context.dailyAssignments[m.id] || []).length;
+       if (myShiftsCount === 0) {
+           const assignedFamilyIds = Object.keys(context.dailyAssignments).filter(
+               assignedId => assignedId !== m.id && state.memberGroups[assignedId] === myGroupId
+           );
+           
+           if (assignedFamilyIds.length > 0) {
+               const familyRoles = new Set();
+               assignedFamilyIds.forEach(fid => context.dailyAssignments[fid].forEach(r => familyRoles.add(r)));
+               
+               if (myGroupId.startsWith('FA') && familyRoles.has(slot.roleName)) {
+                   weight -= 15000; 
+               } else if (myGroupId.startsWith('FB')) {
+                   weight -= 15000; // FB 不限制崗位，只要能跟家人在同一天排班，就給予最高拉攏獎勵！
+               }
+           }
+       }
     }
 
     const dayRoles = context.dailyAssignments[m.id] || [];
@@ -346,7 +379,7 @@ const ScheduleEngine = {
               // 因此多技能高手在這裡會自然被優先塞進高階稀缺崗位
               for (let tRole of roleOrder) {
                   if (isFA && !familyRoles.has(tRole)) continue;
-                  if (isFB && familyRoles.has(tRole)) continue;
+                  // FB 規則放寬：同崗位或異崗位都可以，因此不再 continue 阻擋
 
                   const slotN = context.availableSlots.find(s => s.session === tSess && s.roleName === tRole);
                   if (!slotN) continue;
@@ -505,9 +538,13 @@ const ScheduleEngine = {
 
          unassignedMembers.sort((a, b) => (state.totalUsage[a.id] || 0) - (state.totalUsage[b.id] || 0));
 
+         // 【新增機制】動態記錄目前已經成功配對上場的家人數量
+         let currentAssignedCount = assignedMembers.length;
+
          unassignedMembers.forEach(unM => {
             let assigned = false;
             
+            // 1. 溫和地尋找「同堂」的現成空缺
             const targetSlots = context.availableSlots.filter(s => s.session === targetSession && s.needed > 0);
             for (let s of targetSlots) {
                if (this._canAssign(unM, s, state, context, 0, true)) {
@@ -517,6 +554,7 @@ const ScheduleEngine = {
                }
             }
 
+            // 2. 溫和地尋找「跨堂」的現成空缺
             if (!assigned) {
                 const otherSlots = context.availableSlots.filter(s => s.session !== targetSession && s.needed > 0);
                 for (let s of otherSlots) {
@@ -528,8 +566,22 @@ const ScheduleEngine = {
                 }
             }
 
+            // 若成功補入空缺，將安全計數器 +1
+            if (assigned) {
+                currentAssignedCount++;
+            }
+
+            // 3. 【全新安全煞車】如果找不到現成空缺了...
             if (!assigned) {
-                this._forceSwapForFamily(unM, assignedMembers[0], state, context, members);
+                if (currentAssignedCount >= 2) {
+                    // 已經有 2 個人(含)以上配對成功(不落單了)
+                    // 不啟動補救踢人機制，直接放棄幫這個剩下的家人搶位子！
+                    return; 
+                } else {
+                    // 只有 1 人上場，會落單，才啟動強制踢人
+                    this._forceSwapForFamily(unM, assignedMembers[0], state, context, members);
+                    currentAssignedCount++; // 假設踢人成功，人數+1
+                }
             }
          });
       }
