@@ -597,7 +597,12 @@ const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, 
     };
 
     const renderOriginalDataAnalysis = () => {
-        if (!dashboardStats) return null;
+        if (!dashboardStats) return (
+            <div className="h-full flex flex-col items-center justify-center p-8 text-slate-400 font-bold bg-slate-50">
+                <Database size={48} className="mb-4 opacity-50 text-slate-400" />
+                <p>尚無可分析的排班資料，請先至「排班作業」建立或載入班表。</p>
+            </div>
+        );
         return (
             <div className="h-full overflow-y-auto custom-scrollbar p-6 lg:p-8 animate-fade-in pb-20 bg-slate-50">
                 <div className="flex flex-col xl:flex-row gap-6 mb-8">
@@ -761,6 +766,187 @@ const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, 
                             {stats.distinctRolesCount === 0 && <p className="text-[11px] text-slate-400 text-center py-1">本季尚無安排服事</p>}
                         </div>
                     </div>
+                </div>
+            </div>
+        );
+    };
+
+    const renderSchedulingView = () => {
+        if (schedulingPhase === 'setup') {
+            return (
+                <div className="flex-1 flex items-center justify-center bg-slate-100 p-6 animate-fade-in overflow-y-auto">
+                    <div className="w-full max-w-xl bg-white p-10 lg:p-12 rounded-[3rem] shadow-sm border border-slate-200 relative">
+                        <button onClick={goBack} className="absolute top-8 left-8 p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors" title="返回首頁"><ChevronLeft size={20} /></button>
+                        <div className="text-center mb-10">
+                            <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4"><Calendar size={32} /></div>
+                            <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-2">排班作業</h2>
+                        </div>
+                        <div className="flex bg-slate-100 p-1.5 rounded-2xl mb-8">
+                            <button onClick={() => setAppMode('schedule')} className={`flex-1 py-3.5 flex items-center justify-center gap-2 text-sm font-black rounded-xl transition-all ${appMode === 'schedule' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/50'}`}><Play size={18} /> 預排作業</button>
+                            <button onClick={() => setAppMode('query')} className={`flex-1 py-3.5 flex items-center justify-center gap-2 text-sm font-black rounded-xl transition-all ${appMode === 'query' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/50'}`}><Search size={18} /> 編輯班表</button>
+                        </div>
+                        {appMode === 'schedule' ? (
+                            <div className="animate-fade-in">
+                                <div className="grid grid-cols-2 gap-6 mb-10">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-black text-slate-400 ml-2">年份</label>
+                                        <input type="number" value={year} onChange={e => setYear(parseInt(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-3xl px-6 py-5 font-bold focus:ring-4 focus:ring-indigo-50 focus:bg-white outline-none transition-all" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-black text-slate-400 ml-2">季度</label>
+                                        <select value={quarter} onChange={e => setQuarter(parseInt(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-3xl px-6 py-5 font-bold focus:ring-4 focus:ring-indigo-50 focus:bg-white outline-none transition-all">
+                                            <option value={1}>Q1 (1-3月)</option><option value={2}>Q2 (4-6月)</option><option value={3}>Q3 (7-9月)</option><option value={4}>Q4 (10-12月)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <button onClick={runAutoSchedule} disabled={isLoading} className="w-full bg-slate-900 hover:bg-black disabled:bg-slate-300 text-white font-black py-5 rounded-2xl flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl">
+                                    {isLoading ? <RefreshCw className="animate-spin" /> : <><Play size={20} fill="currentColor"/> 建立新班表</>}
+                                </button>
+                                {!dbData.memberQuarterSettings.some(s => s.quarter === `${year}-Q${quarter}`) && !isLoading && (
+                                    <p className="text-rose-500 text-[13px] font-bold text-center mt-4 flex items-center justify-center gap-1.5 animate-pulse">
+                                        <AlertCircle size={16} /> 尚未建立 {year}Q{quarter} 同工資料，請先至首頁「同工資料中心」新增。
+                                    </p>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="animate-fade-in">
+                                <div className="grid grid-cols-2 gap-6 mb-10">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-black text-slate-400 ml-2">年份</label>
+                                        <input type="number" value={queryYear} onChange={e => setQueryYear(parseInt(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-3xl px-6 py-5 font-bold focus:ring-4 focus:ring-indigo-50 focus:bg-white outline-none transition-all" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-black text-slate-400 ml-2">季度</label>
+                                        <select value={queryQuarter} onChange={e => setQueryQuarter(parseInt(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-3xl px-6 py-5 font-bold focus:ring-4 focus:ring-indigo-50 focus:bg-white outline-none transition-all">
+                                            <option value={1}>Q1 (1-3月)</option><option value={2}>Q2 (4-6月)</option><option value={3}>Q3 (7-9月)</option><option value={4}>Q4 (10-12月)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <button onClick={runQuerySchedule} disabled={isLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-black py-5 rounded-2xl flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl shadow-indigo-200">
+                                    {isLoading ? <RefreshCw className="animate-spin" /> : <><Search size={20} strokeWidth={3}/> 開始編輯</>}
+                                </button>
+                                {!hasQuerySchedule && !isLoading && (
+                                    <p className="text-rose-500 text-[13px] font-bold text-center mt-4 flex items-center justify-center gap-1.5 animate-pulse">
+                                        <AlertCircle size={16} /> 尚未建立 {queryYear}Q{queryQuarter} 排班資料，請至「預排作業」新增。
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        const tableData = {};
+        generatedDraft.forEach(d => {
+            const key = `${d.service_date}_${d.session}`;
+            if (!tableData[key]) tableData[key] = { date: d.service_date, session: d.session, positions: {} };
+            if (!tableData[key].positions[d._positionName]) tableData[key].positions[d._positionName] = [];
+            tableData[key].positions[d._positionName].push(d);
+        });
+        const groupedBySession = Object.values(tableData).sort((a, b) => a.session !== b.session ? a.session.localeCompare(b.session) : a.date.localeCompare(b.date)).reduce((acc, row) => {
+            if (!acc[row.session]) acc[row.session] = []; acc[row.session].push(row); return acc;
+        }, {});
+        const rowsToDisplay = groupedBySession[activeSessionTab] || [];
+
+        const getTagClass = (item) => {
+            let cls = `name-tag ${activeSlot?.temp_id === item.temp_id ? 'active' : ''}`;
+            if (item.is_empty) return cls + ' empty-slot';
+            if (item._positionName !== '執事輪值') {
+                if (conflictIds.has(item.temp_id)) return cls + ' conflict';
+                if (orphanIds.has(item.temp_id)) return cls + ' orphan';
+            }
+            if (item.is_emergency) return cls + ' emergency';
+            return cls;
+        };
+
+        const ScheduleCell = ({ row, positionName, gridCols = 1 }) => {
+            const items = row.positions[positionName] || [];
+            const gridClass = gridCols > 1 ? `grid grid-cols-${gridCols} gap-x-2 gap-y-0.5` : 'flex flex-col gap-0';
+            return (
+                <td>
+                    <div className={`${gridClass} min-h-[34px] w-max mx-auto`}>
+                        {items.map((item, i) => (
+                            <div key={item.temp_id} draggable={!item.is_empty} onDragStart={(e) => handleDragStart(e, item)} onDragEnd={handleDragEnd} onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, row.date, row.session, positionName, i)} onClick={() => { setActiveSlot(item); setSearchTerm(''); }} className={getTagClass(item)}>
+                                {item._memberName}
+                            </div>
+                        ))}
+                    </div>
+                </td>
+            );
+        };
+
+        return (
+            <div className="flex-1 flex flex-col overflow-hidden animate-fade-in bg-slate-50">
+                <div className="p-6 lg:px-8 lg:py-6 bg-white border-b border-slate-200 shrink-0 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 shadow-sm z-10">
+                    <div>
+                        <div className="flex items-center gap-3 mb-1">
+                            <button onClick={() => { setSchedulingPhase('setup'); setActiveSlot(null); }} className="text-slate-400 hover:text-indigo-600 transition-colors p-1 rounded hover:bg-slate-50" title="返回上一頁"><ChevronLeft size={24} /></button>
+                            <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3 tracking-tight">{year}Q{quarter} {appMode === 'schedule' ? '預排預覽' : '編輯預覽'}</h2>
+                        </div>
+                        <div className="mt-3 flex flex-wrap items-center gap-6 ml-10">
+                            <p className="text-slate-500 text-xs font-bold flex items-center gap-1.5"><Search size={14} className="text-indigo-500"/> 點擊姓名選擇合適替代人選</p>
+                            <p className="text-slate-500 text-xs font-bold flex items-center gap-1.5"><GripVertical size={14} className="text-indigo-500"/> 拖曳姓名可交換位置</p>
+                        </div>
+                        <div className="flex gap-3 mt-2 pt-2 border-t border-slate-100 flex-wrap ml-10">
+                            <p className="text-rose-600 text-[10px] font-black flex items-center gap-1.5 bg-rose-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-rose-500"></span> 紅色：崗位兼任</p>
+                            <p className="text-sky-600 text-[10px] font-black flex items-center gap-1.5 bg-sky-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-sky-500"></span> 藍色：群組落單</p>
+                            {appMode === 'schedule' && <p className="text-orange-600 text-[10px] font-black flex items-center gap-1.5 bg-orange-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-orange-500"></span> 橘色：落單自動替換</p>}
+                        </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-3 mt-4 xl:mt-0 w-full xl:w-auto">
+                        <div className="flex items-center gap-3 flex-wrap justify-end">
+                            <div className="flex bg-slate-100 p-1.5 rounded-2xl w-full md:w-auto overflow-x-auto custom-scrollbar shadow-inner border border-slate-200">
+                                {['第一堂', '第二堂', '📊 數據分析'].map(tab => (
+                                    <button key={tab} onClick={() => { setActiveSessionTab(tab); if(tab === '📊 數據分析') setActiveSlot(null); }} className={`px-5 py-2 rounded-xl text-sm font-black transition-all whitespace-nowrap ${activeSessionTab === tab ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>{tab}</button>
+                                ))}
+                                {appMode === 'schedule' && (
+                                    <>
+                                        <div className="w-px h-6 bg-slate-300 mx-2 self-center"></div>
+                                        <button onClick={runAutoSchedule} disabled={isLoading} className="px-4 py-2 rounded-xl text-sm font-black transition-all whitespace-nowrap text-indigo-600 hover:bg-white hover:shadow-sm flex items-center gap-1.5"><RefreshCw size={16} className={isLoading ? "animate-spin" : ""} /> 重新排班</button>
+                                    </>
+                                )}
+                            </div>
+                            <div className="flex bg-slate-100 p-1.5 rounded-2xl w-full md:w-auto overflow-x-auto custom-scrollbar shadow-inner border border-slate-200">
+                                <button onClick={exportToCSV} className="px-4 py-2 rounded-xl text-sm font-black transition-all whitespace-nowrap text-emerald-600 hover:bg-white hover:shadow-sm flex items-center gap-1.5"><Download size={16} /> 匯出 CSV</button>
+                                <button onClick={handlePublishClick} disabled={isSaving} className="px-4 py-2 rounded-xl text-sm font-black transition-all whitespace-nowrap bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm flex items-center gap-1.5 disabled:bg-indigo-400">{isSaving ? <RefreshCw className="animate-spin" size={16} /> : <><Save size={16}/> 發布班表</>}</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+                    <div className="flex-1 flex flex-col h-full relative overflow-hidden">
+                        {activeSessionTab === '📊 數據分析' ? renderOriginalDataAnalysis() : (
+                            <div className="flex flex-col h-full bg-slate-50 relative">
+                                <div className="overflow-x-auto shadow-inner bg-slate-50/50 custom-scrollbar flex-1 p-6 relative">
+                                    <table className="w-max schedule-table border-collapse min-w-full mx-auto bg-white rounded-2xl overflow-hidden shadow-sm">
+                                        <thead>
+                                            <tr>
+                                                <th className="sticky left-0 z-20 bg-slate-200/95 backdrop-blur whitespace-nowrap text-center px-4 w-[110px]">日期</th>
+                                                <th className="whitespace-nowrap">司會</th><th className="whitespace-nowrap">執事</th><th className="whitespace-nowrap">接待</th>
+                                                <th className="whitespace-nowrap">收奉獻</th><th className="whitespace-nowrap">主餐</th><th className="whitespace-nowrap">PPT</th><th className="whitespace-nowrap">新朋友關懷</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {rowsToDisplay.length > 0 ? (
+                                                rowsToDisplay.map((row, idx) => {
+                                                    const isEven = idx % 2 === 0; const rowBg = isEven ? 'bg-white' : 'bg-slate-50/50'; const stickyBg = isEven ? 'bg-white/95' : 'bg-slate-50/95';
+                                                    return (
+                                                        <tr key={idx} className={rowBg}>
+                                                            <td className={`sticky left-0 z-10 font-bold text-slate-500 text-center whitespace-nowrap px-4 backdrop-blur-sm border-r border-slate-100 ${stickyBg}`}>{row.date}</td>
+                                                            <ScheduleCell row={row} positionName="司會" /><ScheduleCell row={row} positionName="執事輪值" /><ScheduleCell row={row} positionName="接待" gridCols={2} />
+                                                            <ScheduleCell row={row} positionName="收奉獻" gridCols={2} /><ScheduleCell row={row} positionName="主餐" gridCols={2} /><ScheduleCell row={row} positionName="PPT" /><ScheduleCell row={row} positionName="新朋友關懷" gridCols={2} />
+                                                        </tr>
+                                                    );
+                                                })
+                                            ) : (<tr><td colSpan="8" className="text-center py-16 text-slate-400 font-bold bg-white">此堂別尚無排班資料</td></tr>)}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    {activeSessionTab !== '📊 數據分析' && activeSlot && renderRecommendationPanel()}
                 </div>
             </div>
         );
