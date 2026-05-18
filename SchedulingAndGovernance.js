@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Calendar, Play, Search, ChevronLeft, GripVertical, RefreshCw, Download, Save, AlertCircle, CheckCircle2, HeartPulse, Activity, Layers, ShieldAlert, UserCog, BarChart3, Info, HandHeart, ArrowLeftRight, Users, TrendingUp, CalendarDays, GitBranch, Lightbulb, UserCheck, UserX, LayoutList } from 'lucide-react';
+import { 
+    Calendar, Play, Search, ChevronLeft, GripVertical, RefreshCw, 
+    Download, Save, AlertCircle, CheckCircle2, HeartPulse, Activity, 
+    Layers, ShieldAlert, UserCog, BarChart3, Info, HandHeart, 
+    ArrowLeftRight, Users, TrendingUp, CalendarDays, GitBranch, 
+    Lightbulb, UserCheck, UserX, LayoutList, 
+    ArrowUpDown, X, Database, AlertTriangle 
+} from 'lucide-react';
 
 const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, StatCard }) => {
     const { fetchAllData, getSundaysInQuarter, getQuarterDateRange } = utils;
