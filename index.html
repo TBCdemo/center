@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>TBC Serve Manager</title>
     
-    <!-- 外部排班引擎 (保留第一支程式的設定) -->
     <script src="scheduler.js"></script>
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -383,14 +382,12 @@
             const loadData = async () => {
                 setIsLoading(true);
                 try {
-                    // 優化：只抓取不重複的 quarter 列表，而不是把全部設定抓回來
                     const { data: allSettingsQs } = await fetchAllData(() => supabase.from('member_quarter_settings').select('quarter'));
                     const [
                         { data: mData }, { data: pData }, { data: mpData }, { data: qsData }, { data: sysSettingsData } 
                     ] = await Promise.all([
                         fetchAllData(() => supabase.from('members').select('*').order('name')),
                         fetchAllData(() => supabase.from('positions').select('*').order('id')),
-                        // 優化：精準過濾，只抓取當前檢視季度的資料
                         fetchAllData(() => supabase.from('member_positions').select('*').eq('quarter', viewQuarter)),
                         fetchAllData(() => supabase.from('member_quarter_settings').select('*').eq('quarter', viewQuarter)),
                         fetchAllData(() => supabase.from('member_quarter_settings').select('*').eq('quarter', 'SYSTEM'))
@@ -532,22 +529,6 @@
                     if (err1) throw err1; if (err2) throw err2;
                     if ((!delSettings || delSettings.length === 0) && (!delPos || delPos.length === 0)) throw new Error("未能刪除資料！請確認權限。");
                     
-                    // 新增：連同排班資料一起刪除
-                    for (const qStr of quartersToDelete) {
-                        const [y, q] = qStr.split('-Q').map(Number);
-                        const startMonth = (q - 1) * 3;
-                        const startDate = new Date(y, startMonth, 1);
-                        const endDate = new Date(y, startMonth + 3, 0);
-                        const format = (d) => {
-                            const yyyy = d.getFullYear();
-                            const mm = String(d.getMonth() + 1).padStart(2, '0');
-                            const dd = String(d.getDate()).padStart(2, '0');
-                            return `${yyyy}-${mm}-${dd}`;
-                        };
-                        const { error: err3 } = await supabase.from('schedules').delete().gte('service_date', format(startDate)).lte('service_date', format(endDate));
-                        if (err3) throw err3;
-                    }
-
                     const deletedNames = quartersToDelete.map(q => q.replace('-', '')).join('、');
                     showMessage('success', `${deletedNames}資料刪除成功`);
                     setIsDeleteQuarterModalOpen(false);
@@ -685,7 +666,7 @@
             };
 
             let displayMembers = members.filter(m => {
-                if (m.name === 'SYSTEM_CUSTOM_HOLIDAYS_DB') return false;
+                if (m.name === 'SYSTEM_CUSTOM_HOLIDAYS_DB' || m.name === 'SYSTEM_SCHEDULE_ARCHIVE') return false;
                 if (!isAdmin && m.email !== currentUserAccount && m.email !== currentUserEmail) return false;
                 const term = searchTerm.toLowerCase();
                 if (m.name.toLowerCase().includes(term)) return true;
@@ -1081,7 +1062,7 @@
             
             const [activeSlot, setActiveSlot] = useState(null); 
             const [searchTerm, setSearchTerm] = useState('');
-            const [analysisSearchTerm, setAnalysisSearchTerm] = useState(''); // 新增：分析表專用搜尋狀態
+            const [analysisSearchTerm, setAnalysisSearchTerm] = useState(''); 
             const [draggedItem, setDraggedItem] = useState(null);
             const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', currentName: '', currentDate: '', currentRole: '', newName: '', newDate: '', newRole: '', type: '', onConfirm: null });
             const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
@@ -1089,50 +1070,29 @@
 
             const [sortConfig, setSortConfig] = useState({ key: 'totalService', direction: 'desc' });
             const [selectedPersonalStats, setSelectedPersonalStats] = useState(null);
-            const [hasQuerySchedule, setHasQuerySchedule] = useState(true); // 新增：用來快速檢查編輯班表是否有資料
-
-            // 輔助函數：計算該季度的起始與結束日期，用於精準抓取 schedules 表
-            const getQuarterDateRange = (y, q) => {
-                const startMonth = (q - 1) * 3;
-                const startDate = new Date(y, startMonth, 1);
-                const endDate = new Date(y, startMonth + 3, 0); // 下個月的第0天等於這個月的最後一天
-                
-                // 格式化為 YYYY-MM-DD
-                const format = (d) => {
-                    const yyyy = d.getFullYear();
-                    const mm = String(d.getMonth() + 1).padStart(2, '0');
-                    const dd = String(d.getDate()).padStart(2, '0');
-                    return `${yyyy}-${mm}-${dd}`;
-                };
-                
-                return { start: format(startDate), end: format(endDate) };
-            };
+            const [hasQuerySchedule, setHasQuerySchedule] = useState(true); 
 
             useEffect(() => { 
                 const fetchInitialData = async () => {
                     setIsLoading(true);
                     try {
                         const currentQuarterStr = `${year}-Q${quarter}`;
-                        const dateRange = getQuarterDateRange(year, quarter);
-
-                        const [{ data: members }, { data: positions }, { data: memberPositions }, { data: schedules }, { data: quarterSettings }] = await Promise.all([
+                        
+                        const [{ data: members }, { data: positions }, { data: memberPositions }, { data: quarterSettings }] = await Promise.all([
                             fetchAllData(() => supabase.from('members').select('*')),
                             fetchAllData(() => supabase.from('positions').select('*')),
-                            // 優化：只抓取當前季度的崗位資格與設定
                             fetchAllData(() => supabase.from('member_positions').select('*').eq('quarter', currentQuarterStr)),
-                            // 優化：只抓取這個季度的排班資料 (透過日期範圍過濾)
-                            fetchAllData(() => supabase.from('schedules').select('*').gte('service_date', dateRange.start).lte('service_date', dateRange.end)),
                             fetchAllData(() => supabase.from('member_quarter_settings').select('*').in('quarter', [currentQuarterStr, 'SYSTEM']))
                         ]);
                         setDbData({ 
                             members: members || [], positions: positions || [], memberPositions: memberPositions || [], 
-                            existingSchedules: schedules || [], memberQuarterSettings: quarterSettings || []
+                            existingSchedules: [], memberQuarterSettings: quarterSettings || []
                         });
                     } catch (err) { setErrorMsg('讀取資料庫失敗。請確保網路連線。'); } 
                     finally { setIsLoading(false); }
                 };
                 fetchInitialData(); 
-            }, [year, quarter]); // 將 year 與 quarter 加入依賴，確保切換年份季度時重新抓取對應資料
+            }, [year, quarter]); 
 
             // 在切換大選單時，重置排班狀態，避免畫面錯亂
             useEffect(() => {
@@ -1146,15 +1106,23 @@
                 }
             }, [viewMode]);
 
-            // 新增：當切換查詢年份/季度時，快速檢查是否已有排班資料
+            // 新增：當切換查詢年份/季度時，快速檢查是否已有排班資料 (尋找虛擬備份帳號)
             useEffect(() => {
                 const checkScheduleExists = async () => {
                     if (appMode !== 'query') return;
-                    const dateRange = getQuarterDateRange(queryYear, queryQuarter);
                     try {
-                        // 利用 .limit(1) 達到極致效能的檢查
-                        const { data } = await supabase.from('schedules').select('id').gte('service_date', dateRange.start).lte('service_date', dateRange.end).limit(1);
-                        setHasQuerySchedule(data && data.length > 0);
+                        const { data: memData } = await supabase.from('members').select('id').eq('name', 'SYSTEM_SCHEDULE_ARCHIVE').limit(1);
+                        if (memData && memData.length > 0) {
+                            const targetQ = `${queryYear}-Q${queryQuarter}`;
+                            const { data } = await supabase.from('member_quarter_settings')
+                                .select('id')
+                                .eq('member_id', memData[0].id)
+                                .eq('quarter', targetQ)
+                                .limit(1);
+                            setHasQuerySchedule(data && data.length > 0);
+                        } else {
+                            setHasQuerySchedule(false);
+                        }
                     } catch (e) {
                         setHasQuerySchedule(true);
                     }
@@ -1166,7 +1134,7 @@
 
             const effectiveMembers = useMemo(() => {
                 return dbData.members
-                    .filter(m => m.name !== 'SYSTEM_CUSTOM_HOLIDAYS_DB')
+                    .filter(m => m.name !== 'SYSTEM_CUSTOM_HOLIDAYS_DB' && m.name !== 'SYSTEM_SCHEDULE_ARCHIVE')
                     .map(m => {
                         const qs = dbData.memberQuarterSettings.find(s => s.member_id === m.id && s.quarter === currentQuarterStr);
                         return {
@@ -1185,7 +1153,6 @@
 
             // --- 核心邏輯 ---
             const runAutoSchedule = () => {
-                // 新增防呆：檢查目標季度是否已經建立同工資料
                 const targetQuarterStr = `${year}-Q${quarter}`;
                 const hasQuarterData = dbData.memberQuarterSettings.some(s => s.quarter === targetQuarterStr);
                 
@@ -1215,36 +1182,40 @@
                 setIsLoading(true);
                 try {
                     const qY = queryYear; const qQ = queryQuarter; setYear(qY); setQuarter(qQ);
-                    const dateRange = getQuarterDateRange(qY, qQ);
+                    const targetQuarter = `${qY}-Q${qQ}`;
                     
-                    // 優化：只抓取目標季度的排班表
-                    const [{ data: latestSchedules }] = await Promise.all([ 
-                        fetchAllData(() => supabase.from('schedules').select('*').gte('service_date', dateRange.start).lte('service_date', dateRange.end)) 
-                    ]);
+                    let activeSchedules = [];
+                    
+                    // 1. 尋找虛擬備份帳號的資料
+                    const { data: archiveMemData } = await supabase.from('members').select('id').eq('name', 'SYSTEM_SCHEDULE_ARCHIVE').limit(1);
+                    
+                    if (archiveMemData && archiveMemData.length > 0) {
+                        const archiveId = archiveMemData[0].id;
+                        const { data: archiveQs } = await supabase.from('member_quarter_settings')
+                            .select('unavailable_dates')
+                            .eq('member_id', archiveId)
+                            .eq('quarter', targetQuarter)
+                            .limit(1);
 
-                    // 新增防呆：檢查是否有資料，若無則攔截進入編輯模式
-                    if (!latestSchedules || latestSchedules.length === 0) {
-                        setErrorMsg(`⚠️ 尚未建立 ${qY}Q${qQ} 排班資料，請至「預排作業」新增。`);
+                        if (archiveQs && archiveQs.length > 0 && archiveQs[0].unavailable_dates) {
+                            // 解壓縮資料 (支援 jsonb 物件或 json 字串)
+                            activeSchedules = typeof archiveQs[0].unavailable_dates === 'string' 
+                                ? JSON.parse(archiveQs[0].unavailable_dates) 
+                                : archiveQs[0].unavailable_dates;
+                        }
+                    }
+
+                    if (!activeSchedules || activeSchedules.length === 0) {
+                        setErrorMsg(`⚠️ 尚未建立 ${targetQuarter} 排班資料，請至「預排作業」新增。`);
                         setIsLoading(false);
                         return;
                     }
 
-                    setDbData(prev => ({ ...prev, existingSchedules: latestSchedules || [] }));
-
                     const reconstructed = [];
                     const sundays = window.ScheduleEngine ? window.ScheduleEngine.getSundaysInQuarter(qY, qQ) : [];
-                    
-                    const dbSchedules = (latestSchedules || []).filter(s => {
-                        if (!s.service_date) return false;
-                        const parts = s.service_date.includes('-') ? s.service_date.split('-') : s.service_date.split('/');
-                        if (parts.length < 2) return false;
-                        const sy = parseInt(parts[0], 10);
-                        const sm = parseInt(parts[1], 10);
-                        return sy === qY && Math.ceil(sm / 3) === qQ;
-                    });
-
                     const roleLimits = { '司會': 1, 'PPT': 1, '主餐': 2, '收奉獻': 2, '接待': 2, '新朋友關懷': 2, '執事輪值': 1 };
 
+                    // 2. 解壓縮並還原畫面的草稿陣列
                     sundays.forEach(sunday => {
                         const dateStr = window.ScheduleEngine ? window.ScheduleEngine.formatDate(sunday) : sunday.toISOString().split('T')[0];
                         sessionsToSchedule.forEach(session => {
@@ -1254,12 +1225,16 @@
                                 if (posName === '主餐' && sunday.getDate() > 7) return; 
 
                                 const maxPeople = pos.max_people || roleLimits[posName] || 1;
-                                const existingForSlot = dbSchedules.filter(s => s.service_date === dateStr && s.session.trim() === session && String(s.position_id) === String(pos.id));
+                                
+                                // 找尋解壓縮陣列中，符合此日期、堂別、崗位的資料
+                                const existingForSlot = activeSchedules.filter(s => 
+                                    s.d === dateStr && s.s === session && s.p === posName
+                                );
 
                                 existingForSlot.forEach(s => {
-                                    const member = effectiveMembers.find(m => String(m.id) === String(s.member_id));
+                                    const member = effectiveMembers.find(m => m.id === s.m);
                                     reconstructed.push({
-                                        temp_id: `DB_${s.id || Math.random()}_${Math.random()}`, service_date: dateStr, session: session, member_id: s.member_id, position_id: s.position_id,
+                                        temp_id: `DB_${s.m}_${Math.random()}`, service_date: dateStr, session: session, member_id: s.m, position_id: pos.id,
                                         _memberName: member ? member.name : '未知同工', _positionName: posName, is_empty: false, is_emergency: 0
                                     });
                                 });
@@ -1279,7 +1254,7 @@
                     setErrorMsg('');
                     if (schedulingPhase === 'setup') setActiveSessionTab('第一堂');
                     setSchedulingPhase('editor');
-                } catch (error) { setErrorMsg('查詢班表失敗，請確認網路連線。'); } finally { setIsLoading(false); }
+                } catch (error) { setErrorMsg('查詢班表失敗：' + error.message); } finally { setIsLoading(false); }
             };
 
             const currentUsageCount = useMemo(() => {
@@ -1579,14 +1554,35 @@
             const executePublish = async () => {
                 setPublishConfirmOpen(false); setIsSaving(true);
                 try {
-                    const sundays = window.ScheduleEngine.getSundaysInQuarter(year, quarter);
-                    const startDate = window.ScheduleEngine.formatDate(sundays[0]);
-                    const endDate = window.ScheduleEngine.formatDate(sundays[sundays.length - 1]);
-                    await supabase.from('schedules').delete().gte('service_date', startDate).lte('service_date', endDate).in('session', sessionsToSchedule); 
-                    const insertPayload = generatedDraft.map(d => ({ service_date: d.service_date, session: d.session, member_id: d.member_id, position_id: d.position_id }));
-                    await supabase.from('schedules').insert(insertPayload);
+                    // 1. 取得或建立虛擬備份帳號
+                    const archiveName = 'SYSTEM_SCHEDULE_ARCHIVE';
+                    let archiveMem = dbData.members.find(m => m.name === archiveName);
+                    if (!archiveMem) {
+                        const { data: newMem, error: insErr } = await supabase.from('members').insert({ name: archiveName }).select();
+                        if (insErr) throw insErr;
+                        archiveMem = newMem[0];
+                    }
+
+                    // 2. 將排班草稿壓縮成輕量化陣列
+                    const scheduleData = generatedDraft.filter(d => !d.is_empty).map(d => ({
+                        d: d.service_date,
+                        s: d.session,
+                        p: d._positionName,
+                        m: d.member_id
+                    }));
+
+                    // 3. 存入 member_quarter_settings 的 unavailable_dates 欄位中 (Jsonb 格式)
+                    const { error: qsErr } = await supabase.from('member_quarter_settings').upsert({
+                        member_id: archiveMem.id,
+                        quarter: `${year}-Q${quarter}`,
+                        unavailable_dates: scheduleData, 
+                        availability_status: '系統備份檔'
+                    }, { onConflict: 'member_id, quarter' });
+
+                    if (qsErr) throw qsErr;
+
                     setShowSuccessToast(true); setTimeout(() => setShowSuccessToast(false), 3000);
-                } catch (err) { setErrorMsg('儲存失敗。請檢查權限或網路連線。'); } 
+                } catch (err) { setErrorMsg('儲存失敗：' + err.message); } 
                 finally { setIsSaving(false); }
             };
 
@@ -1688,7 +1684,7 @@
                     return 0;
                 });
                 return sortableItems;
-            }, [dashboardData, sortConfig, analysisSearchTerm]); // 依賴項加入 analysisSearchTerm
+            }, [dashboardData, sortConfig, analysisSearchTerm]); 
 
             const requestSort = (key) => {
                 let direction = 'desc'; if (sortConfig.key === key && sortConfig.direction === 'desc') direction = 'asc';
