@@ -125,47 +125,74 @@ const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, 
         }, 300);
     };
 
+    // 🌟 全新升級：強制同步抓取，解決無法讀取資料的 Race Condition
     const runQuerySchedule = async () => {
         setIsLoading(true);
         try {
-            const qY = queryYear; const qQ = queryQuarter; setYear(qY); setQuarter(qQ);
+            const qY = queryYear; const qQ = queryQuarter; 
+            setYear(qY); setQuarter(qQ); 
             const targetQuarter = `${qY}-Q${qQ}`;
-            let activeSchedules = [];
-            const { data: archiveMemData } = await supabase.from('members').select('id').eq('name', 'SYSTEM_SCHEDULE_ARCHIVE').limit(1);
             
-            if (archiveMemData && archiveMemData.length > 0) {
-                const archiveId = archiveMemData[0].id;
-                const { data: archiveQs } = await supabase.from('member_quarter_settings').select('unavailable_dates').eq('member_id', archiveId).eq('quarter', targetQuarter).limit(1);
-                if (archiveQs && archiveQs.length > 0 && archiveQs[0].unavailable_dates) {
-                    activeSchedules = typeof archiveQs[0].unavailable_dates === 'string' ? JSON.parse(archiveQs[0].unavailable_dates) : archiveQs[0].unavailable_dates;
+            // 1. 強制同步抓取目標季度的最新資料
+            const [{ data: mData }, { data: pData }, { data: mpData }, { data: qsData }] = await Promise.all([
+                fetchAllData(() => supabase.from('members').select('*')),
+                fetchAllData(() => supabase.from('positions').select('*')),
+                fetchAllData(() => supabase.from('member_positions').select('*').eq('quarter', targetQuarter)),
+                fetchAllData(() => supabase.from('member_quarter_settings').select('*').in('quarter', [targetQuarter, 'SYSTEM']))
+            ]);
+
+            // 更新背景 DB 狀態
+            setDbData({ 
+                members: mData || [], positions: pData || [], memberPositions: mpData || [], 
+                existingSchedules: [], memberQuarterSettings: qsData || []
+            });
+
+            let activeSchedules = [];
+            
+            // 2. 尋找虛擬備份帳號並解壓縮排班資料
+            const archiveMem = (mData || []).find(m => m.name === 'SYSTEM_SCHEDULE_ARCHIVE');
+            if (archiveMem) {
+                const archiveQs = (qsData || []).find(q => q.member_id === archiveMem.id && q.quarter === targetQuarter);
+                if (archiveQs && archiveQs.unavailable_dates) {
+                    activeSchedules = typeof archiveQs.unavailable_dates === 'string' 
+                        ? JSON.parse(archiveQs.unavailable_dates) 
+                        : archiveQs.unavailable_dates;
                 }
             }
 
             if (!activeSchedules || activeSchedules.length === 0) {
-                setErrorMsg(`⚠️ 尚未建立 ${targetQuarter} 排班資料，請至「預排作業」新增。`); setIsLoading(false); return;
+                setErrorMsg(`⚠️ 尚未建立 ${targetQuarter} 排班資料，請至「預排作業」新增並發布。`); 
+                setIsLoading(false); 
+                return;
             }
 
             const reconstructed = [];
             const sundays = window.ScheduleEngine ? window.ScheduleEngine.getSundaysInQuarter(qY, qQ) : [];
             const roleLimits = { '司會': 1, 'PPT': 1, '主餐': 2, '收奉獻': 2, '接待': 2, '新朋友關懷': 2, '執事輪值': 1 };
 
+            // 3. 還原畫面的草稿陣列 (使用剛才同步抓取的最新資料 mData 與 pData)
             sundays.forEach(sunday => {
                 const dateStr = window.ScheduleEngine ? window.ScheduleEngine.formatDate(sunday) : sunday.toISOString().split('T')[0];
                 sessionsToSchedule.forEach(session => {
-                    dbData.positions.forEach(pos => {
+                    (pData || []).forEach(pos => {
                         const posName = pos.name.trim();
                         if (!['司會', 'PPT', '主餐', '收奉獻', '接待', '新朋友關懷', '執事輪值'].includes(posName)) return;
                         if (posName === '主餐' && sunday.getDate() > 7) return; 
+
                         const maxPeople = pos.max_people || roleLimits[posName] || 1;
-                        const existingForSlot = activeSchedules.filter(s => s.d === dateStr && s.s === session && s.p === posName);
+                        
+                        const existingForSlot = activeSchedules.filter(s => 
+                            s.d === dateStr && s.s === session && s.p === posName
+                        );
 
                         existingForSlot.forEach(s => {
-                            const member = effectiveMembers.find(m => m.id === s.m);
+                            const member = (mData || []).find(m => m.id === s.m);
                             reconstructed.push({
                                 temp_id: `DB_${s.m}_${Math.random()}`, service_date: dateStr, session: session, member_id: s.m, position_id: pos.id,
                                 _memberName: member ? member.name : '未知同工', _positionName: posName, is_empty: false, is_emergency: 0
                             });
                         });
+
                         const missingCount = maxPeople - existingForSlot.length;
                         for (let i = 0; i < missingCount; i++) {
                             reconstructed.push({
@@ -177,7 +204,8 @@ const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, 
                 });
             });
 
-            setGeneratedDraft(reconstructed); setErrorMsg('');
+            setGeneratedDraft(reconstructed); 
+            setErrorMsg('');
             if (schedulingPhase === 'setup') setActiveSessionTab('第一堂');
             setSchedulingPhase('editor');
         } catch (error) { setErrorMsg('查詢班表失敗：' + error.message); } finally { setIsLoading(false); }
@@ -702,69 +730,6 @@ const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, 
                                 </div>
                             );
                         })}
-                    </div>
-                </div>
-            </div>
-        );
-    };
-
-    const generatePersonalAdvice = (stats, globalStats) => {
-        const advice = []; const avg = parseFloat(globalStats.avgService);
-        if (stats.healthStatus === 'danger') advice.push({ icon: ShieldAlert, color: 'text-rose-600', bg: 'bg-rose-50', title: '高風險警示', desc: `本季服事高達 ${stats.totalService} 次，顯著高於平均。建議安排安息週。` });
-        else if (stats.healthStatus === 'warning') advice.push({ icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-50', title: '負荷偏高', desc: '服事頻率略高於群體平均，請留意是否需要適度替班輪休。' });
-        else advice.push({ icon: HeartPulse, color: 'text-emerald-600', bg: 'bg-emerald-50', title: '狀態健康', desc: '目前服事負荷在健康範圍內，感謝穩定的配搭。' });
-        if (stats.distinctRolesCount > 2) advice.push({ icon: GitBranch, color: 'text-indigo-600', bg: 'bg-indigo-50', title: '核心多工', desc: '承擔多項不同崗位，留意避免單日切換過多角色。' });
-        else if (stats.distinctRolesCount === 1 && stats.totalService < avg) advice.push({ icon: Lightbulb, color: 'text-sky-600', bg: 'bg-sky-50', title: '成長潛力', desc: '若恩賜相符，可考慮邀請參與第二專長培訓。' });
-        return advice;
-    };
-
-    const renderPersonalStatsPanelFixed = () => {
-        if (!selectedPersonalStats || !dashboardStats) return null;
-        const stats = selectedPersonalStats; const adviceList = generatePersonalAdvice(stats, dashboardStats); const diffFromAvg = (stats.totalService - parseFloat(dashboardStats.avgService)).toFixed(1);
-        return (
-            <div className="h-full flex flex-col bg-white animate-fade-in overflow-hidden">
-                <div className="bg-slate-900 p-6 pb-8 shrink-0">
-                    <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-xl font-black shadow-lg">{stats.name.charAt(0)}</div>
-                        <div className="text-white">
-                            <h2 className="text-xl font-black">{stats.name}</h2>
-                            <p className="text-slate-400 text-xs font-bold flex items-center gap-2 mt-1">{stats.group ? <span className="bg-white/10 px-2 py-0.5 rounded text-[10px]">{stats.group}</span> : '一般同工'}<span>個人關懷儀表板</span></p>
-                        </div>
-                    </div>
-                </div>
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-slate-50 space-y-6 -mt-4 rounded-t-3xl relative z-10 border-t border-slate-200">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center">
-                            <p className="text-[11px] font-bold text-slate-400 mb-1">本季服事</p><p className="text-2xl font-black text-slate-800">{stats.totalService} <span className="text-xs font-bold text-slate-400">次</span></p>
-                            <p className={`text-[10px] font-bold mt-1.5 px-1.5 py-0.5 rounded inline-block ${diffFromAvg > 0 ? 'bg-rose-50 text-rose-600' : (diffFromAvg < 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500')}`}>{diffFromAvg > 0 ? `+${diffFromAvg} 高於平均` : (diffFromAvg < 0 ? `${diffFromAvg} 低於平均` : '與平均持平')}</p>
-                        </div>
-                        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center">
-                            <p className="text-[11px] font-bold text-slate-400 mb-1">出席天數</p><p className="text-2xl font-black text-slate-800">{stats.attendance} <span className="text-xs font-bold text-slate-400">天</span></p>
-                            <p className="text-[10px] font-bold text-slate-400 mt-1.5">單日最高 {(stats.totalService / Math.max(1, stats.attendance)).toFixed(1)} 次</p>
-                        </div>
-                    </div>
-                    <div>
-                        <h3 className="text-xs font-black text-slate-800 mb-3 flex items-center gap-1.5"><Lightbulb size={14} className="text-amber-500"/> AI 關懷建議</h3>
-                        <div className="space-y-2.5">
-                            {adviceList.map((adv, idx) => (
-                                <div key={idx} className={`${adv.bg} border border-white shadow-sm p-3 rounded-xl flex gap-3 items-start`}>
-                                    <adv.icon className={`${adv.color} shrink-0 mt-0.5`} size={16} />
-                                    <div><p className={`text-[13px] font-black ${adv.color} mb-0.5`}>{adv.title}</p><p className="text-[11px] font-bold text-slate-600 leading-relaxed">{adv.desc}</p></div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                    <div>
-                        <h3 className="text-xs font-black text-slate-800 mb-3 flex items-center gap-1.5"><BarChart3 size={14} className="text-indigo-500"/> 崗位參與分佈</h3>
-                        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 space-y-3">
-                            {Object.entries(stats.roles).filter(([_, count]) => count > 0).sort((a,b)=>b[1]-a[1]).map(([role, count]) => (
-                                <div key={role}>
-                                    <div className="flex justify-between text-[11px] font-bold mb-1"><span className="text-slate-600">{role}</span><span className="text-indigo-600">{count} 次 <span className="text-slate-400 font-normal">({Math.round(count/stats.totalService*100)}%)</span></span></div>
-                                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-indigo-400 rounded-full" style={{ width: `${(count/stats.totalService)*100}%` }}></div></div>
-                                </div>
-                            ))}
-                            {stats.distinctRolesCount === 0 && <p className="text-[11px] text-slate-400 text-center py-1">本季尚無安排服事</p>}
-                        </div>
                     </div>
                 </div>
             </div>
