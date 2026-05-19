@@ -105,7 +105,6 @@ const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, 
                     availability_status: qs?.availability_status || m.availability_status || '可排班',
                     preferred_session: qs?.preferred_session || m.preferred_session || '皆可',
                     dual_service_pref: parseInt(qs?.dual_service_pref ?? m.dual_service_pref ?? 0, 10),
-                    // 使用 safeParseJSON 防禦資料庫格式錯誤
                     unavailable_dates: qs?.unavailable_dates ? safeParseJSON(qs.unavailable_dates, []) : (m.unavailable_dates || [])
                 };
             });
@@ -144,7 +143,6 @@ const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, 
             const qY = queryYear; const qQ = queryQuarter; setYear(qY); setQuarter(qQ);
             const targetQuarter = `${qY}-Q${qQ}`;
             
-            // 強制同步抓取目標季度的最新資料，避免畫面因缺件崩潰
             const [{ data: mData }, { data: pData }, { data: mpData }, { data: qsData }] = await Promise.all([
                 fetchAllData(() => supabase.from('members').select('*')),
                 fetchAllData(() => supabase.from('positions').select('*')),
@@ -168,7 +166,7 @@ const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, 
             }
 
             if (!activeSchedules || activeSchedules.length === 0) {
-                setErrorMsg(`⚠️ 尚未建立 ${targetQuarter} 排班資料，請至「預排作業」新增。`); setIsLoading(false); return;
+                setErrorMsg(`⚠️ 尚未建立 ${targetQuarter} 排班資料，請至「預排作業」新增並發布。`); setIsLoading(false); return;
             }
 
             const reconstructed = [];
@@ -179,7 +177,7 @@ const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, 
                 const dateStr = window.ScheduleEngine ? window.ScheduleEngine.formatDate(sunday) : sunday.toISOString().split('T')[0];
                 sessionsToSchedule.forEach(session => {
                     (pData || []).forEach(pos => {
-                        const posName = (pos.name || '').trim(); // 加入空值保護
+                        const posName = (pos.name || '').trim();
                         if (!['司會', 'PPT', '主餐', '收奉獻', '接待', '新朋友關懷', '執事輪值'].includes(posName)) return;
                         if (posName === '主餐' && sunday.getDate() > 7) return; 
 
@@ -210,7 +208,6 @@ const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, 
         } catch (error) { setErrorMsg('查詢班表失敗：' + error.message); } finally { setIsLoading(false); }
     };
 
-    // ----- UI 與推薦邏輯相關 hooks -----
     const currentUsageCount = useMemo(() => {
         const counts = {}; effectiveMembers.forEach(m => counts[m.id] = 0);
         generatedDraft.forEach(d => { if (!d.is_empty && counts[d.member_id] !== undefined) counts[d.member_id]++; });
@@ -248,7 +245,6 @@ const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, 
         return { conflictIds: conflicts, orphanIds: orphans };
     }, [generatedDraft, memberGroups]);
 
-    // 拖曳換班邏輯
     const handleDragStart = useCallback((e, item) => { setDraggedItem(item); e.currentTarget.classList.add('dragging'); }, []);
     const handleDragEnd = useCallback((e) => { e.currentTarget.classList.remove('dragging'); setDraggedItem(null); }, []);
     const handleDrop = useCallback((e, targetDate, targetSession, targetPosName, targetIdx) => {
@@ -266,7 +262,6 @@ const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, 
         });
     }, [draggedItem]);
 
-    // 替換與換班功能
     const handleSubstitute = (newMember) => {
         if (!activeSlot || !newMember) return;
         setGeneratedDraft(prev => prev.map(d => {
@@ -326,7 +321,6 @@ const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, 
         });
     };
 
-    // 智能推薦人選邏輯
     const recommendations = useMemo(() => {
         if (!activeSlot) return [];
         const { service_date, session, position_id, member_id } = activeSlot;
@@ -403,7 +397,6 @@ const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, 
         });
     }, [recommendations, searchTerm]);
 
-    // 匯出與發布功能
     const handlePublishClick = () => {
         const hasEmpty = generatedDraft.some(d => d.is_empty);
         if (hasEmpty) { setErrorMsg('還有「⚠️ 需手動指派」的空缺未填補，請點擊並指派人員後再發布。'); return; }
@@ -425,7 +418,7 @@ const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, 
                 d: d.service_date, s: d.session, p: d._positionName, m: d.member_id
             }));
 
-            const { error: qsErr } = await supabase.from('member_quarter_settings').upsert({
+            const { error: qsErr = null } = await supabase.from('member_quarter_settings').upsert({
                 member_id: archiveMem.id, quarter: `${year}-Q${quarter}`, unavailable_dates: scheduleData, availability_status: '系統備份檔'
             }, { onConflict: 'member_id, quarter' });
 
@@ -462,7 +455,6 @@ const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, 
         document.body.appendChild(link); link.click(); document.body.removeChild(link);
     };
 
-    // ----- 數據計算 hooks -----
     const dashboardData = useMemo(() => {
         const memberStats = {};
         effectiveMembers.forEach(m => {
@@ -537,7 +529,6 @@ const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, 
         setSortConfig({ key, direction });
     };
 
-    // ----- UI 渲染區塊 -----
     const renderOriginalDataAnalysis = () => {
         if (!dashboardStats) return (
             <div className="h-full flex flex-col items-center justify-center p-8 text-slate-400 font-bold bg-slate-50">
@@ -724,7 +715,7 @@ const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, 
         else if (stats.healthStatus === 'warning') adviceList.push({ icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-50', title: '負荷偏高', desc: '服事頻率略高於群體平均，請留意是否需要適度替班輪休。' });
         else adviceList.push({ icon: HeartPulse, color: 'text-emerald-600', bg: 'bg-emerald-50', title: '狀態健康', desc: '目前服事負荷在健康範圍內，感謝穩定的配搭。' });
         if (stats.distinctRolesCount > 2) adviceList.push({ icon: GitBranch, color: 'text-indigo-600', bg: 'bg-indigo-50', title: '核心多工', desc: '承擔多項不同崗位，留意避免單日切換過多角色。' });
-        else if (stats.distinctRolesCount === 1 && stats.totalService < avg) adviceList.push({ icon: Lightbulb, color: 'text-sky-600', bg: 'bg-sky-50', title: '成長潛力', desc: '若恩賜相符，可考慮邀請參與第二專長培訓。' });
+        else if (stats.distinctRolesCount === 1 && stats.totalService < avg) adviceList.push({ icon: Lightbulb, color: 'text-sky-600', bg: 'bg-sky-50', title: '成長潛力', desc: '若恩賜相符，可考慮邀請參與第二專長培術。' });
         
         const diffFromAvg = (stats.totalService - parseFloat(dashboardStats.avgService)).toFixed(1);
 
@@ -923,18 +914,30 @@ const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, 
         <div className="flex-1 flex flex-col overflow-hidden animate-fade-in bg-slate-50 relative">
             {/* Header Area */}
             <div className="p-6 lg:px-8 lg:py-6 bg-white border-b border-slate-200 shrink-0 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 shadow-sm z-10">
-                <div>
-                    <div className="flex items-center gap-3 mb-1">
-                        <button onClick={() => { setSchedulingPhase('setup'); setActiveSlot(null); }} className={`p-2 rounded-xl text-slate-400 transition-colors ${schedulingPhase === 'editor' ? 'bg-slate-100 hover:bg-slate-200 hover:text-indigo-600' : 'opacity-0 cursor-default'}`} disabled={schedulingPhase === 'setup'}><ChevronLeft size={24} /></button>
-                        <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3 tracking-tight">{schedulingPhase === 'setup' ? '排班與數據中心' : `${year}Q${quarter} ${appMode === 'schedule' ? '預排預覽' : '編輯預覽'}`}</h2>
+                <div className="flex flex-col justify-center">
+                    <div className="flex items-center gap-3">
+                        {schedulingPhase === 'setup' ? (
+                            <button onClick={goBack} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors" title="返回首頁"><ChevronLeft size={24} /></button>
+                        ) : (
+                            <button onClick={() => { setSchedulingPhase('setup'); setActiveSlot(null); }} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors" title="返回上一頁"><ChevronLeft size={24} /></button>
+                        )}
+                        <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3 tracking-tight">
+                            {schedulingPhase === 'setup' ? (
+                                <>
+                                    <Calendar className="text-emerald-500" size={28}/> 排班作業中心
+                                </>
+                            ) : (
+                                `${year}Q${quarter} ${appMode === 'schedule' ? '預排預覽' : '編輯預覽'}`
+                            )}
+                        </h2>
                     </div>
                     {schedulingPhase === 'editor' && (
                         <>
-                            <div className="mt-3 flex flex-wrap items-center gap-6 ml-10">
+                            <div className="mt-3 flex flex-wrap items-center gap-6 ml-12">
                                 <p className="text-slate-500 text-xs font-bold flex items-center gap-1.5"><Search size={14} className="text-indigo-500"/> 點擊姓名選擇合適替代人選</p>
                                 <p className="text-slate-500 text-xs font-bold flex items-center gap-1.5"><GripVertical size={14} className="text-indigo-500"/> 拖曳姓名可交換位置</p>
                             </div>
-                            <div className="flex gap-3 mt-2 pt-2 border-t border-slate-100 flex-wrap ml-10">
+                            <div className="flex gap-3 mt-2 pt-2 border-t border-slate-100 flex-wrap ml-12">
                                 <p className="text-rose-600 text-[10px] font-black flex items-center gap-1.5 bg-rose-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-rose-500"></span> 紅色：崗位兼任</p>
                                 <p className="text-sky-600 text-[10px] font-black flex items-center gap-1.5 bg-sky-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-sky-500"></span> 藍色：群組落單</p>
                                 {appMode === 'schedule' && <p className="text-orange-600 text-[10px] font-black flex items-center gap-1.5 bg-orange-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-orange-500"></span> 橘色：落單自動替換</p>}
@@ -962,9 +965,6 @@ const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, 
                             </div>
                         </div>
                     </div>
-                )}
-                {schedulingPhase === 'setup' && (
-                    <button onClick={goBack} className="p-3 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-600 font-black transition-colors flex items-center gap-2" title="返回首頁"><ChevronLeft size={20} /> 返回首頁</button>
                 )}
             </div>
             
