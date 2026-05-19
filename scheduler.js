@@ -2,12 +2,13 @@
  * 教會季排班系統 - 核心引擎 (Scheduler Engine V17)
  * 依據 Logic_Analysis.md 實作：
  * 1. L=2 新朋友禁排邏輯 (每月 8-14 號)
- * 2. 嚴格的分數排序演算法 ([權重分, 歷史次數, 技能數量, 隨機數])
+ * 2. 嚴格的分數排序演算法 ([權重分, 歷史次數, 技能數量, 隨機/索引])
  * 3. 執行流程：執事 -> 跨堂預排 -> 家庭預排 -> 單堂填充 -> 補位 -> 最終 Refill
- * 4. FA 絕對同日同崗位，FB 同堂 (同崗位或異崗位皆可)
+ * 4. FA 絕對同日同崗位，FB 同日即可
  * 5. FA/FB 終極防落單替換機制 (依服事次數踢人)
  * 6. 完美平衡：配對預查機制 (Lookahead)，兼顧配對與次數平均。
- * 7. 【全新大升級】技能稀缺性保護與「弱者錨點」機制，保證多技能的高手優先被分配到高階崗位，不被家庭綁定浪費！
+ * 7. FA/FB 家庭優先進場機制，徹底解決 FB 在第二堂尾聲找不到異崗位而落單的問題。
+ * 8. 【全新修正】動態剔除無效家人：若家人請假或暫停服事，另一人不連坐，可獨立正常排班且不亮落單藍燈！
  */
 
 const sessionsToSchedule = ['第一堂', '第二堂'];
@@ -54,10 +55,9 @@ const ScheduleEngine = {
                 if (qs.newcomer_rule !== undefined && qs.newcomer_rule !== null) m.newcomer_rule = qs.newcomer_rule;
                 if (qs.dual_service_pref !== undefined && qs.dual_service_pref !== null) m.dual_service_pref = qs.dual_service_pref;
                 
-                // 【新增：一季一次防呆】確保狀態同步，並強制解除跨堂偏好
                 if (qs.availability_status) m.availability_status = qs.availability_status;
                 if (m.availability_status === '一季一次') {
-                    m.dual_service_pref = 0; // 強制設為單堂，防止原子綁定給他塞兩堂
+                    m.dual_service_pref = 0; 
                 }
             }
         }
@@ -133,17 +133,24 @@ const ScheduleEngine = {
     return slots;
   },
 
+  /**
+   * 【新增工具函式】判斷某人在指定日期是否「可以排班」(非暫停、非請假)
+   */
+  _isAvailableOnDate(m, dateStr) {
+      if (['暫停服事', '安息季'].includes(m.availability_status)) return false;
+      if (Array.isArray(m.unavailable_dates) && m.unavailable_dates.includes(dateStr)) return false;
+      return true;
+  },
+
   _canAssign(m, slot, state, context, strictLevel = 0, skipFamilyCheck = false) {
     const { roleName, session, posId } = slot;
     
-    if (['暫停服事', '安息季'].includes(m.availability_status)) return false;
+    if (!this._isAvailableOnDate(m, context.dateStr)) return false;
     
-    // 【新增：一季一次硬限制】只要本季總服事次數達到 1 次，就絕對不再排班
     if (m.availability_status === '一季一次' && (state.totalUsage[m.id] || 0) >= 1) {
         return false;
     }
 
-    if (Array.isArray(m.unavailable_dates) && m.unavailable_dates.includes(context.dateStr)) return false;
     if (!state.memberSkills[m.id].has(posId)) return false;
 
     if (roleName === '執事輪值') {
@@ -193,7 +200,6 @@ const ScheduleEngine = {
         }
     }
 
-    // 嚴格 FA/FB 檢查
     if (!skipFamilyCheck) {
         const myGroupId = state.memberGroups[m.id];
         if (myGroupId && (myGroupId.startsWith('FA') || myGroupId.startsWith('FB'))) {
@@ -210,7 +216,6 @@ const ScheduleEngine = {
                 if (myGroupId.startsWith('FA')) {
                     if (!familyRoles.has(roleName)) return false;
                 } 
-                // FB 放寬規則：同崗或異崗皆可，因此移除了原本的阻擋邏輯！
             }
         }
     }
@@ -221,7 +226,6 @@ const ScheduleEngine = {
   _getScore(m, slot, state, context) {
     let weight = 0;
 
-    // 【修復】加回遺失的領袖層優先邏輯
     if (['執事輪值', '司會'].includes(slot.roleName)) {
        const currentUsage = state.roleUsage[m.id]?.[slot.posId] || 0;
        if (currentUsage === 0) weight -= 20000;
@@ -242,7 +246,7 @@ const ScheduleEngine = {
                if (myGroupId.startsWith('FA') && familyRoles.has(slot.roleName)) {
                    weight -= 15000; 
                } else if (myGroupId.startsWith('FB')) {
-                   weight -= 15000; // FB 不限制崗位，只要能跟家人在同一天排班，就給予最高拉攏獎勵！
+                   weight -= 15000; 
                }
            }
        }
@@ -258,9 +262,6 @@ const ScheduleEngine = {
        weight += 1000;
     }
 
-    // 【核心優化】評分陣列加入 state.memberSkills[m.id].size (技能數量)
-    // 排序權重：1. 絕對權重分 -> 2. 本季服事總次數 -> 3. 技能數量 (越少越優先) -> 4. 隨機
-    // 確保只會「接待」的人優先填補通用崗位，把會「司會/PPT」的高手保留給高階崗位！
     return [
         weight, 
         state.totalUsage[m.id] || 0, 
@@ -279,8 +280,9 @@ const ScheduleEngine = {
 
   _runSchedulingPipeline(state, context, members, specialIds) {
     this._assignDeacons(state, context, members, specialIds.deacon);
+    this._assignDualService(state, context, members);
+    this._assignFamilyGroups(state, context, members);
 
-    // 第一階段正常填充：所有人都公平競爭，但在被選中時會觸發原子綁定
     sessionsToSchedule.forEach((sess) => {
       roleOrder.forEach(roleName => {
         const slots = context.availableSlots.filter(s => s.session === sess && s.roleName === roleName && s.needed > 0);
@@ -293,7 +295,6 @@ const ScheduleEngine = {
     this._enforceFO(state, context, members); 
     this._enforceFamily(state, context, members);
 
-    // 第二階段補漏填充
     sessionsToSchedule.forEach((sess) => {
       roleOrder.forEach(roleName => {
         const slots = context.availableSlots.filter(s => s.session === sess && s.roleName === roleName && s.needed > 0);
@@ -306,133 +307,162 @@ const ScheduleEngine = {
     this._fillEmptyWarnings(state, context);
   },
 
+  _assignDualService(state, context, members) {
+      const activeMembers = members.filter(m => !['暫停服事', '安息季'].includes(m.availability_status));
+      const avgUsage = activeMembers.length > 0 
+          ? activeMembers.reduce((sum, m) => sum + (state.totalUsage[m.id] || 0), 0) / activeMembers.length 
+          : 0;
+
+      const dualMembers = members.filter(m => {
+          const p = parseInt(m.dual_service_pref) || 0;
+          if (p !== 1 && p !== 2) return false;
+          if ((context.dailyAssignments[m.id] || []).length > 0) return false;
+
+          if (state.lastServedWeek[m.id] === context.weekIndex - 1) return false;
+          if ((state.totalUsage[m.id] || 0) > avgUsage + 1.5) return false;
+
+          return true;
+      });
+
+      dualMembers.sort((a, b) => (state.totalUsage[a.id] || 0) - (state.totalUsage[b.id] || 0));
+
+      for (let m of dualMembers) {
+          const p = parseInt(m.dual_service_pref);
+          let s1Slots = context.availableSlots.filter(s => s.session === '第一堂' && s.needed > 0);
+          
+          for (let s1 of s1Slots) {
+              if (!this._canAssign(m, s1, state, context, 0)) continue;
+              
+              let s2 = null;
+              const s2Slots = context.availableSlots.filter(s => s.session === '第二堂' && s.needed > 0);
+              
+              if (p === 1) { 
+                  s2 = s2Slots.find(s => s.roleName === s1.roleName && this._canAssign(m, s, state, context, 0));
+              } else if (p === 2) { 
+                  s2 = s2Slots.find(s => s.roleName !== s1.roleName && this._canAssign(m, s, state, context, 0));
+              }
+
+              if (s2) {
+                  this._assign(m, s1, state, context);
+                  this._assign(m, s2, state, context);
+                  this._immediateFamilyFill(m, state, context, members);
+                  break; 
+              }
+          }
+      }
+  },
+
+  _assignFamilyGroups(state, context, members) {
+      const activeMembers = members.filter(m => !['暫停服事', '安息季'].includes(m.availability_status));
+      const avgUsage = activeMembers.length > 0 
+          ? activeMembers.reduce((sum, m) => sum + (state.totalUsage[m.id] || 0), 0) / activeMembers.length 
+          : 0;
+
+      const groups = {};
+      members.forEach(m => {
+          const gid = state.memberGroups[m.id];
+          if (gid && (gid.startsWith('FA') || gid.startsWith('FB'))) {
+              if (state.lastServedWeek[m.id] === context.weekIndex - 1) return;
+              if ((state.totalUsage[m.id] || 0) > avgUsage + 1.5) return;
+              if ((context.dailyAssignments[m.id] || []).length > 0) return;
+
+              // 【核心修正】只收集「今天有空、能排班」的家人
+              if (this._isAvailableOnDate(m, context.dateStr)) {
+                  if (!groups[gid]) groups[gid] = [];
+                  groups[gid].push(m);
+              }
+          }
+      });
+
+      const sortedGroupIds = Object.keys(groups).sort((a, b) => {
+          const avgA = groups[a].reduce((s, m) => s + (state.totalUsage[m.id] || 0), 0) / groups[a].length;
+          const avgB = groups[b].reduce((s, m) => s + (state.totalUsage[m.id] || 0), 0) / groups[b].length;
+          return avgA - avgB;
+      });
+
+      for (let gid of sortedGroupIds) {
+          const gMembers = groups[gid];
+          // 【核心修正】如果今天全家只剩 1 個人有空，就不啟動原子綁定，放生他去一般單堂填充區
+          if (gMembers.length < 2) continue;
+
+          const isFA = gid.startsWith('FA');
+
+          let placed = false;
+          const m0 = gMembers[0];
+          
+          for (let sess of sessionsToSchedule) {
+              for (let role of roleOrder) {
+                  const slot0 = context.availableSlots.find(s => s.session === sess && s.roleName === role && s.needed > 0);
+                  if (!slot0 || !this._canAssign(m0, slot0, state, context, 0, members)) continue;
+
+                  let allCanBePlaced = true;
+                  let plannedSlots = [{ member: m0, slot: slot0 }];
+                  let familyRoles = new Set([role]);
+
+                  for (let i = 1; i < gMembers.length; i++) {
+                      let m = gMembers[i];
+                      let foundSlotForM = false;
+
+                      let targetSessions = [sess, sess === '第一堂' ? '第二堂' : '第一堂'];
+                      for (let tSess of targetSessions) {
+                          for (let tRole of roleOrder) {
+                              if (isFA && !familyRoles.has(tRole)) continue; 
+
+                              const slotN = context.availableSlots.find(s => s.session === tSess && s.roleName === tRole);
+                              if (!slotN) continue;
+                              
+                              const plannedCount = plannedSlots.filter(ps => ps.slot === slotN).length;
+                              if (slotN.needed - plannedCount <= 0) continue;
+
+                              if (this._canAssign(m, slotN, state, context, 0, true)) {
+                                  plannedSlots.push({ member: m, slot: slotN });
+                                  familyRoles.add(tRole);
+                                  foundSlotForM = true;
+                                  break;
+                              }
+                          }
+                          if (foundSlotForM) break;
+                      }
+
+                      if (!foundSlotForM) {
+                          allCanBePlaced = false;
+                          break; 
+                      }
+                  }
+
+                  if (allCanBePlaced) {
+                      for (let plan of plannedSlots) {
+                          this._assign(plan.member, plan.slot, state, context);
+                      }
+                      for (let plan of plannedSlots) {
+                          this._immediateFOFill(plan.member, state, context, members);
+                      }
+                      placed = true;
+                      break; 
+                  }
+              }
+              if (placed) break; 
+          }
+      }
+  },
+
   _fillSlot(slot, members, state, context, strictLevel) {
     let limit = 0;
     while (slot.needed > 0 && limit < 20) {
       const eligible = members.filter((m) => this._canAssign(m, slot, state, context, strictLevel));
       if (eligible.length === 0) break;
 
-      // 進行公平計分排序 (此處的 _compareScore 已涵蓋「技能數量越少越優先」的保護機制)
       const scored = eligible.map(m => ({ m, score: this._getScore(m, slot, state, context) }));
       scored.sort((a, b) => this._compareScore(a.score, b.score));
-
-      let successfullyAssigned = false;
-
-      for (let candidate of scored) {
-          const m = candidate.m;
-          const gid = state.memberGroups[m.id];
-          const dayShifts = state.draft.filter(d => d.service_date === context.dateStr && d.member_id === m.id);
-          const isFirstMove = dayShifts.length === 0;
-
-          const isFamily = gid && (gid.startsWith('FA') || gid.startsWith('FB'));
-          const dualPref = parseInt(m.dual_service_pref) || 0;
-          const isDual = dualPref === 1 || dualPref === 2;
-
-          if (isFamily && isFirstMove) {
-              if (this._tryAtomicFamilyAssign(m, slot, state, context, members, strictLevel)) {
-                  successfullyAssigned = true;
-                  break;
-              }
-          } else if (isDual && isFirstMove) {
-              if (this._tryAtomicDualAssign(m, slot, state, context, strictLevel)) {
-                  successfullyAssigned = true;
-                  break;
-              }
-          } else {
-              this._assign(m, slot, state, context);
-              successfullyAssigned = true;
-              break;
-          }
-      }
-
-      if (!successfullyAssigned) break; 
+      
+      const assignedMember = scored[0].m;
+      this._assign(assignedMember, slot, state, context);
+      
+      this._immediateFOFill(assignedMember, state, context, members);
+      this._immediateFamilyFill(assignedMember, state, context, members);
+      
       limit++;
     }
-  },
-
-  /**
-   * 【原子級家庭綁定 + 弱者錨點機制】
-   */
-  _tryAtomicFamilyAssign(m0, slot0, state, context, members, strictLevel) {
-      const gid = state.memberGroups[m0.id];
-      const isFA = gid.startsWith('FA');
-      const isFB = gid.startsWith('FB');
-
-      // 【核心優化】取得家人並依據「技能數量」由少到多排序
-      // 保證尋找位子時，技能受限的家人先被滿足，讓多技能的高手保留彈性去拿 高階崗位(如司會/PPT)
-      const gMembers = members.filter(m => state.memberGroups[m.id] === gid)
-                              .sort((a, b) => state.memberSkills[a.id].size - state.memberSkills[b.id].size);
-
-      let allCanBePlaced = true;
-      let plannedSlots = [{ member: m0, slot: slot0 }];
-      let familyRoles = new Set([slot0.roleName]);
-
-      for (let i = 0; i < gMembers.length; i++) {
-          let m = gMembers[i];
-          if (m.id === m0.id) continue;
-
-          let foundSlotForM = false;
-          let targetSessions = [slot0.session, slot0.session === '第一堂' ? '第二堂' : '第一堂'];
-
-          for (let tSess of targetSessions) {
-              // 這裡的 roleOrder 是從 司會 -> PPT -> 往下找
-              // 因此多技能高手在這裡會自然被優先塞進高階稀缺崗位
-              for (let tRole of roleOrder) {
-                  if (isFA && !familyRoles.has(tRole)) continue;
-                  // FB 規則放寬：同崗位或異崗位都可以，因此不再 continue 阻擋
-
-                  const slotN = context.availableSlots.find(s => s.session === tSess && s.roleName === tRole);
-                  if (!slotN) continue;
-
-                  const plannedCount = plannedSlots.filter(ps => ps.slot === slotN).length;
-                  if (slotN.needed - plannedCount <= 0) continue;
-
-                  if (this._canAssign(m, slotN, state, context, strictLevel, true)) {
-                      plannedSlots.push({ member: m, slot: slotN });
-                      familyRoles.add(tRole);
-                      foundSlotForM = true;
-                      break;
-                  }
-              }
-              if (foundSlotForM) break;
-          }
-
-          if (!foundSlotForM) {
-              allCanBePlaced = false;
-              break; 
-          }
-      }
-
-      if (allCanBePlaced) {
-          for (let plan of plannedSlots) {
-              this._assign(plan.member, plan.slot, state, context);
-          }
-          for (let plan of plannedSlots) {
-              this._immediateFOFill(plan.member, state, context, members);
-          }
-          return true;
-      }
-
-      return false;
-  },
-
-  _tryAtomicDualAssign(m, slot, state, context, strictLevel) {
-      const dualPref = parseInt(m.dual_service_pref) || 0;
-      const otherSession = slot.session === '第一堂' ? '第二堂' : '第一堂';
-
-      let targetSlot2 = null;
-      if (dualPref === 1) {
-          targetSlot2 = context.availableSlots.find(s => s.session === otherSession && s.roleName === slot.roleName && s.needed > 0 && this._canAssign(m, s, state, context, strictLevel, true));
-      } else if (dualPref === 2) {
-          targetSlot2 = context.availableSlots.find(s => s.session === otherSession && s.roleName !== slot.roleName && s.needed > 0 && this._canAssign(m, s, state, context, strictLevel, true));
-      }
-
-      if (targetSlot2) {
-          this._assign(m, slot, state, context);
-          this._assign(m, targetSlot2, state, context);
-          return true;
-      }
-      return false; 
   },
 
   _immediateFOFill(baseMember, state, context, members) {
@@ -449,12 +479,59 @@ const ScheduleEngine = {
       const targetSlots = context.availableSlots.filter(s => s.session === targetSession && s.needed > 0);
 
       let targetSlot = null;
-      if (pref === 1) targetSlot = targetSlots.find(s => s.roleName === currentShift._positionName && this._canAssign(baseMember, s, state, context, 0, true));
-      else if (pref === 2) targetSlot = targetSlots.find(s => s.roleName !== currentShift._positionName && this._canAssign(baseMember, s, state, context, 0, true));
+      if (pref === 1) { 
+          targetSlot = targetSlots.find(s => s.roleName === currentShift._positionName && this._canAssign(baseMember, s, state, context, 0, true));
+      } else if (pref === 2) { 
+          targetSlot = targetSlots.find(s => s.roleName !== currentShift._positionName && this._canAssign(baseMember, s, state, context, 0, true));
+      }
 
       if (targetSlot) {
           this._assign(baseMember, targetSlot, state, context);
       }
+  },
+
+  _immediateFamilyFill(baseMember, state, context, members) {
+      const groupId = state.memberGroups[baseMember.id];
+      if (!groupId || (!groupId.startsWith('FA') && !groupId.startsWith('FB'))) return;
+
+      // 【核心修正】過濾出今天「有空、且還沒排到班」的家人
+      const unassignedFamily = members.filter(m => 
+          m.id !== baseMember.id && 
+          state.memberGroups[m.id] === groupId && 
+          this._isAvailableOnDate(m, context.dateStr) &&
+          !(context.dailyAssignments[m.id] && context.dailyAssignments[m.id].length > 0)
+      );
+
+      if (unassignedFamily.length === 0) return;
+
+      const baseShift = state.draft.find(d => d.service_date === context.dateStr && d.member_id === baseMember.id);
+      if (!baseShift) return;
+      const targetSession = baseShift.session;
+
+      unassignedFamily.forEach(famMember => {
+          let assigned = false;
+          
+          let availableSlots = context.availableSlots.filter(s => s.session === targetSession && s.needed > 0);
+          for (let slot of availableSlots) {
+              if (this._canAssign(famMember, slot, state, context, 0, true)) {
+                  this._assign(famMember, slot, state, context);
+                  this._immediateFOFill(famMember, state, context, members);
+                  assigned = true;
+                  break;
+              }
+          }
+
+          if (!assigned) {
+              availableSlots = context.availableSlots.filter(s => s.session !== targetSession && s.needed > 0);
+              for (let slot of availableSlots) {
+                  if (this._canAssign(famMember, slot, state, context, 0, true)) {
+                      this._assign(famMember, slot, state, context);
+                      this._immediateFOFill(famMember, state, context, members); 
+                      break;
+                  }
+              }
+          }
+      });
   },
 
   _assignDeacons(state, context, members, deaconId) {
@@ -479,6 +556,7 @@ const ScheduleEngine = {
       const best = scored[0].m;
       
       slots.filter(s => s.needed > 0).forEach(s => this._assign(best, s, state, context));
+      this._immediateFamilyFill(best, state, context, members);
       limit++;
     }
   },
@@ -501,8 +579,11 @@ const ScheduleEngine = {
        const targetSlots = context.availableSlots.filter(s => s.session === targetSession && s.needed > 0);
 
        let targetSlot = null;
-       if (pref === 1) targetSlot = targetSlots.find(s => s.roleName === currentShift._positionName && this._canAssign(m, s, state, context, 0, true));
-       else if (pref === 2) targetSlot = targetSlots.find(s => s.roleName !== currentShift._positionName && this._canAssign(m, s, state, context, 0, true));
+       if (pref === 1) { 
+         targetSlot = targetSlots.find(s => s.roleName === currentShift._positionName && this._canAssign(m, s, state, context, 0, true));
+       } else if (pref === 2) { 
+         targetSlot = targetSlots.find(s => s.roleName !== currentShift._positionName && this._canAssign(m, s, state, context, 0, true));
+       }
 
        if (targetSlot) {
          this._assign(m, targetSlot, state, context);
@@ -514,8 +595,11 @@ const ScheduleEngine = {
     const groups = {};
     members.forEach(m => {
       if (m.group_id && (m.group_id.startsWith('FA') || m.group_id.startsWith('FB'))) {
-        if (!groups[m.group_id]) groups[m.group_id] = [];
-        groups[m.group_id].push(m);
+        // 【核心修正】事後補救時，也只計算「今天有空」的家人
+        if (this._isAvailableOnDate(m, context.dateStr)) {
+            if (!groups[m.group_id]) groups[m.group_id] = [];
+            groups[m.group_id].push(m);
+        }
       }
     });
 
@@ -527,7 +611,7 @@ const ScheduleEngine = {
 
     sortedGroupIds.forEach(gid => {
       const gMembers = groups[gid];
-      if (gMembers.length < 2) return;
+      if (gMembers.length < 2) return; // 全家只剩1人有空，不需要補救
 
       const assignedMembers = gMembers.filter(m => context.dailyAssignments[m.id]);
       const unassignedMembers = gMembers.filter(m => !context.dailyAssignments[m.id]);
@@ -538,13 +622,11 @@ const ScheduleEngine = {
 
          unassignedMembers.sort((a, b) => (state.totalUsage[a.id] || 0) - (state.totalUsage[b.id] || 0));
 
-         // 【新增機制】動態記錄目前已經成功配對上場的家人數量
          let currentAssignedCount = assignedMembers.length;
 
          unassignedMembers.forEach(unM => {
             let assigned = false;
             
-            // 1. 溫和地尋找「同堂」的現成空缺
             const targetSlots = context.availableSlots.filter(s => s.session === targetSession && s.needed > 0);
             for (let s of targetSlots) {
                if (this._canAssign(unM, s, state, context, 0, true)) {
@@ -554,7 +636,6 @@ const ScheduleEngine = {
                }
             }
 
-            // 2. 溫和地尋找「跨堂」的現成空缺
             if (!assigned) {
                 const otherSlots = context.availableSlots.filter(s => s.session !== targetSession && s.needed > 0);
                 for (let s of otherSlots) {
@@ -566,21 +647,16 @@ const ScheduleEngine = {
                 }
             }
 
-            // 若成功補入空缺，將安全計數器 +1
             if (assigned) {
                 currentAssignedCount++;
             }
 
-            // 3. 【全新安全煞車】如果找不到現成空缺了...
             if (!assigned) {
                 if (currentAssignedCount >= 2) {
-                    // 已經有 2 個人(含)以上配對成功(不落單了)
-                    // 不啟動補救踢人機制，直接放棄幫這個剩下的家人搶位子！
                     return; 
                 } else {
-                    // 只有 1 人上場，會落單，才啟動強制踢人
                     this._forceSwapForFamily(unM, assignedMembers[0], state, context, members);
-                    currentAssignedCount++; // 假設踢人成功，人數+1
+                    currentAssignedCount++; 
                 }
             }
          });
@@ -688,6 +764,9 @@ const ScheduleEngine = {
     });
   },
 
+  /**
+   * 【新增修正】解開無效家人的連坐落單藍字
+   */
   _applyVisualFlags(draft, members) {
     const memberGroups = {};
     members.forEach(m => {
@@ -701,9 +780,11 @@ const ScheduleEngine = {
       shiftsByDate[d.service_date].push(d);
     });
 
-    Object.values(shiftsByDate).forEach(dayShifts => {
+    Object.keys(shiftsByDate).forEach(dateStr => {
+      const dayShifts = shiftsByDate[dateStr];
       const freq = {};
       const groupFreq = {};
+      const groupActiveMembersCount = {};
 
       dayShifts.forEach(d => {
         freq[d.member_id] = (freq[d.member_id] || 0) + 1;
@@ -712,6 +793,13 @@ const ScheduleEngine = {
         if (gid && (gid.startsWith('FA') || gid.startsWith('FB'))) {
           if (!groupFreq[gid]) groupFreq[gid] = new Set();
           groupFreq[gid].add(d.member_id);
+          
+          // 計算今天這個群組中「有資格排班」的總人數，以作為判斷是否落單的標準
+          if (!groupActiveMembersCount[gid]) {
+              groupActiveMembersCount[gid] = members.filter(m => 
+                  state.memberGroups[m.id] === gid && this._isAvailableOnDate(m, dateStr)
+              ).length;
+          }
         }
       });
 
@@ -721,8 +809,12 @@ const ScheduleEngine = {
         }
 
         const gid = memberGroups[d.member_id];
-        if (gid && groupFreq[gid] && groupFreq[gid].size < 2) {
-          d.is_lonely_family = true;
+        if (gid && groupFreq[gid]) {
+            // 【核心變更】如果今天全家本來就只有 1 個人有空能排班，他自己上場就不算落單！
+            const activeCount = groupActiveMembersCount[gid] || 0;
+            if (activeCount > 1 && groupFreq[gid].size < 2) {
+                d.is_lonely_family = true;
+            }
         }
       });
     });
