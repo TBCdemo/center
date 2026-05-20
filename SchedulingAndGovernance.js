@@ -5,7 +5,8 @@ import {
     Layers, ShieldAlert, UserCog, BarChart3, Info, HandHeart, 
     ArrowLeftRight, Users, TrendingUp, CalendarDays, GitBranch, 
     Lightbulb, UserCheck, UserX, LayoutList, 
-    ArrowUpDown, X, Database, AlertTriangle 
+    ArrowUpDown, X, Database, AlertTriangle,
+    Home, LogOut // 新增導覽列所需的圖示
 } from 'lucide-react';
 
 // 安全的 JSON 解析函數，防止資料庫格式錯誤導致白畫面
@@ -783,7 +784,7 @@ const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, 
                                 <span>•</span>
                                 <span>{activeSlot._positionName === '執事輪值' ? '第一堂、第二堂' : activeSlot.session}</span>
                                 {!activeSlot.is_empty && (
-                                    <><span>•</span><span>本季服事 {currentUsageCount[activeSlot.member_id] || 0} 次</span></>
+                                    <><span>•</span><span>本季服事 {currentUsageCount[activeSlot.member_id] || 0} 次</span></></>
                                 )}
                             </div>
                         </div>
@@ -906,136 +907,180 @@ const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, 
     };
 
     return (
-        <div className="flex-1 flex flex-col overflow-hidden animate-fade-in bg-slate-50 relative">
-            {/* Header Area */}
-            <div className="p-6 lg:px-8 lg:py-6 bg-white border-b border-slate-200 shrink-0 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 shadow-sm z-10">
-                <div className="flex flex-col justify-center">
-                    <div className="flex items-center gap-3">
-                        {schedulingPhase === 'setup' ? (
-                            <button onClick={goBack} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors" title="返回首頁"><ChevronLeft size={24} /></button>
-                        ) : (
-                            <button onClick={() => { setSchedulingPhase('setup'); setActiveSlot(null); }} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors" title="返回上一頁"><ChevronLeft size={24} /></button>
-                        )}
-                        <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3 tracking-tight">
+        <div className="flex h-screen w-full bg-slate-50 overflow-hidden select-none">
+            {/* 左側整合式現代功能導覽列 */}
+            <div className="w-64 bg-slate-900 flex flex-col justify-between shrink-0 border-r border-slate-800 z-30">
+                <div className="flex flex-col">
+                    {/* 系統識別標誌 */}
+                    <div className="p-6 border-b border-slate-800 flex items-center gap-3">
+                        <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-black text-sm shadow-md shadow-indigo-600/20">T</div>
+                        <span className="text-white font-black text-base tracking-wider">TBC Serve Manager</span>
+                    </div>
+                    
+                    {/* 功能導航項目 */}
+                    <nav className="p-4 space-y-1.5">
+                        <a href="index.html" className="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-bold text-sm transition-all group">
+                            <Home size={18} className="text-slate-400 group-hover:text-indigo-400 transition-colors" />
+                            <span>首頁 (Home)</span>
+                        </a>
+                        <button onClick={() => window.location.href = 'MemberDataCenter.html'} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-bold text-sm transition-all text-left group">
+                            <Users size={18} className="text-slate-400 group-hover:text-indigo-400 transition-colors" />
+                            <span>同工資料中心</span>
+                        </button>
+                        <div className="flex items-center gap-3 px-4 py-3 bg-indigo-600 text-white rounded-xl font-black text-sm shadow-lg shadow-indigo-600/10">
+                            <Calendar size={18} />
+                            <span>排班作業中心</span>
+                        </div>
+                    </nav>
+                </div>
+                
+                {/* 底部安全登出按鈕 */}
+                <div className="p-4 border-t border-slate-800">
+                    <button 
+                        onClick={async () => { 
+                            if (supabase?.auth?.signOut) { await supabase.auth.signOut(); } 
+                            window.location.href = 'index.html'; 
+                        }} 
+                        className="w-full flex items-center gap-3 px-4 py-3 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl font-bold text-sm transition-all text-left group"
+                    >
+                        <LogOut size={18} className="text-rose-400 group-hover:translate-x-0.5 transition-transform" />
+                        <span>登出系統</span>
+                    </button>
+                </div>
+            </div>
+
+            {/* 右側主工作視窗容器 (原先完整的排班作業視窗) */}
+            <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 relative">
+                {/* Header Area */}
+                <div className="p-6 lg:px-8 lg:py-6 bg-white border-b border-slate-200 shrink-0 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 shadow-sm z-10">
+                    <div className="flex flex-col justify-center">
+                        <div className="flex items-center gap-3">
                             {schedulingPhase === 'setup' ? (
-                                <>
-                                    <Calendar className="text-emerald-500" size={28}/> 排班作業中心
-                                </>
+                                <button onClick={goBack} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors" title="返回首頁"><ChevronLeft size={24} /></button>
                             ) : (
-                                `${year}Q${quarter} ${appMode === 'schedule' ? '預排預覽' : '編輯預覽'}`
+                                <button onClick={() => { setSchedulingPhase('setup'); setActiveSlot(null); }} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors" title="返回上一頁"><ChevronLeft size={24} /></button>
                             )}
-                        </h2>
+                            <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3 tracking-tight">
+                                {schedulingPhase === 'setup' ? (
+                                    <>
+                                        <Calendar className="text-emerald-500" size={28}/> 排班作業中心
+                                    </>
+                                ) : (
+                                    `${year}Q${quarter} ${appMode === 'schedule' ? '預排預覽' : '編輯預覽'}`
+                                )}
+                            </h2>
+                        </div>
+                        {schedulingPhase === 'editor' && (
+                            <>
+                                <div className="mt-3 flex flex-wrap items-center gap-6 ml-12">
+                                    <p className="text-slate-500 text-xs font-bold flex items-center gap-1.5"><Search size={14} className="text-indigo-500"/> 點擊姓名選擇合適替代人選</p>
+                                    <p className="text-slate-500 text-xs font-bold flex items-center gap-1.5"><GripVertical size={14} className="text-indigo-500"/> 拖曳姓名可交換位置</p>
+                                </div>
+                                <div className="flex gap-3 mt-2 pt-2 border-t border-slate-100 flex-wrap ml-12">
+                                    <p className="text-rose-600 text-[10px] font-black flex items-center gap-1.5 bg-rose-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-rose-500"></span> 紅色：崗位兼任</p>
+                                    <p className="text-sky-600 text-[10px] font-black flex items-center gap-1.5 bg-sky-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-sky-500"></span> 藍色：群組落單</p>
+                                    {appMode === 'schedule' && <p className="text-orange-600 text-[10px] font-black flex items-center gap-1.5 bg-orange-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-orange-500"></span> 橘色：落單自動替換</p>}
+                                </div>
+                            </>
+                        )}
                     </div>
                     {schedulingPhase === 'editor' && (
-                        <>
-                            <div className="mt-3 flex flex-wrap items-center gap-6 ml-12">
-                                <p className="text-slate-500 text-xs font-bold flex items-center gap-1.5"><Search size={14} className="text-indigo-500"/> 點擊姓名選擇合適替代人選</p>
-                                <p className="text-slate-500 text-xs font-bold flex items-center gap-1.5"><GripVertical size={14} className="text-indigo-500"/> 拖曳姓名可交換位置</p>
+                        <div className="flex flex-col items-end gap-3 mt-4 xl:mt-0 w-full xl:w-auto">
+                            <div className="flex items-center gap-3 flex-wrap justify-end">
+                                <div className="flex bg-slate-100 p-1.5 rounded-2xl w-full md:w-auto overflow-x-auto custom-scrollbar shadow-inner border border-slate-200">
+                                    {['第一堂', '第二堂', '📊 數據分析'].map(tab => (
+                                        <button key={tab} onClick={() => { setActiveSessionTab(tab); if(tab === '📊 數據分析') setActiveSlot(null); }} className={`px-5 py-2 rounded-xl text-sm font-black transition-all whitespace-nowrap ${activeSessionTab === tab ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>{tab}</button>
+                                    ))}
+                                    {appMode === 'schedule' && (
+                                        <>
+                                            <div className="w-px h-6 bg-slate-300 mx-2 self-center"></div>
+                                            <button onClick={runAutoSchedule} disabled={isLoading} className="px-4 py-2 rounded-xl text-sm font-black transition-all whitespace-nowrap text-indigo-600 hover:bg-white hover:shadow-sm flex items-center gap-1.5"><RefreshCw size={16} className={isLoading ? "animate-spin" : ""} /> 重新排班</button>
+                                        </>
+                                    )}
+                                </div>
+                                <div className="flex bg-slate-100 p-1.5 rounded-2xl w-full md:w-auto overflow-x-auto custom-scrollbar shadow-inner border border-slate-200">
+                                    <button onClick={exportToCSV} className="px-4 py-2 rounded-xl text-sm font-black transition-all whitespace-nowrap text-emerald-600 hover:bg-white hover:shadow-sm flex items-center gap-1.5"><Download size={16} /> 匯出 CSV</button>
+                                    <button onClick={handlePublishClick} disabled={isSaving} className="px-4 py-2 rounded-xl text-sm font-black transition-all whitespace-nowrap bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm flex items-center gap-1.5 disabled:bg-indigo-400">{isSaving ? <RefreshCw className="animate-spin" size={16} /> : <><Save size={16}/> 發布班表</>}</button>
+                                </div>
                             </div>
-                            <div className="flex gap-3 mt-2 pt-2 border-t border-slate-100 flex-wrap ml-12">
-                                <p className="text-rose-600 text-[10px] font-black flex items-center gap-1.5 bg-rose-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-rose-500"></span> 紅色：崗位兼任</p>
-                                <p className="text-sky-600 text-[10px] font-black flex items-center gap-1.5 bg-sky-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-sky-500"></span> 藍色：群組落單</p>
-                                {appMode === 'schedule' && <p className="text-orange-600 text-[10px] font-black flex items-center gap-1.5 bg-orange-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-orange-500"></span> 橘色：落單自動替換</p>}
-                            </div>
-                        </>
+                        </div>
                     )}
                 </div>
-                {schedulingPhase === 'editor' && (
-                    <div className="flex flex-col items-end gap-3 mt-4 xl:mt-0 w-full xl:w-auto">
-                        <div className="flex items-center gap-3 flex-wrap justify-end">
-                            <div className="flex bg-slate-100 p-1.5 rounded-2xl w-full md:w-auto overflow-x-auto custom-scrollbar shadow-inner border border-slate-200">
-                                {['第一堂', '第二堂', '📊 數據分析'].map(tab => (
-                                    <button key={tab} onClick={() => { setActiveSessionTab(tab); if(tab === '📊 數據分析') setActiveSlot(null); }} className={`px-5 py-2 rounded-xl text-sm font-black transition-all whitespace-nowrap ${activeSessionTab === tab ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>{tab}</button>
-                                ))}
-                                {appMode === 'schedule' && (
-                                    <>
-                                        <div className="w-px h-6 bg-slate-300 mx-2 self-center"></div>
-                                        <button onClick={runAutoSchedule} disabled={isLoading} className="px-4 py-2 rounded-xl text-sm font-black transition-all whitespace-nowrap text-indigo-600 hover:bg-white hover:shadow-sm flex items-center gap-1.5"><RefreshCw size={16} className={isLoading ? "animate-spin" : ""} /> 重新排班</button>
-                                    </>
-                                )}
+                
+                {/* Main Content Area */}
+                <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+                    <div className="flex-1 flex flex-col h-full relative overflow-hidden">
+                        {schedulingPhase === 'setup' ? renderSchedulingView() : (
+                            activeSessionTab === '📊 數據分析' ? renderOriginalDataAnalysis() : (
+                                <div className="flex flex-col h-full bg-slate-50 relative">
+                                    <div className="overflow-x-auto shadow-inner bg-slate-50/50 custom-scrollbar flex-1 p-6 relative">
+                                        <table className="w-max schedule-table border-collapse min-w-full mx-auto bg-white rounded-2xl overflow-hidden shadow-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th className="sticky left-0 z-20 bg-slate-200/95 backdrop-blur whitespace-nowrap text-center px-4 w-[110px]">日期</th>
+                                                    <th className="whitespace-nowrap">司會</th><th className="whitespace-nowrap">執事</th><th className="whitespace-nowrap">接待</th>
+                                                    <th className="whitespace-nowrap">收奉獻</th><th className="whitespace-nowrap">主餐</th><th className="whitespace-nowrap">PPT</th><th className="whitespace-nowrap">新朋友關懷</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {rowsToDisplay.length > 0 ? (
+                                                    rowsToDisplay.map((row, idx) => {
+                                                        const isEven = idx % 2 === 0; const rowBg = isEven ? 'bg-white' : 'bg-slate-50/50'; const stickyBg = isEven ? 'bg-white/95' : 'bg-slate-50/95';
+                                                        return (
+                                                            <tr key={idx} className={rowBg}>
+                                                                <td className={`sticky left-0 z-10 font-bold text-slate-500 text-center whitespace-nowrap px-4 backdrop-blur-sm border-r border-slate-100 ${stickyBg}`}>{row.date}</td>
+                                                                <ScheduleCell row={row} positionName="司會" /><ScheduleCell row={row} positionName="執事輪值" /><ScheduleCell row={row} positionName="接待" gridCols={2} />
+                                                                <ScheduleCell row={row} positionName="收奉獻" gridCols={2} /><ScheduleCell row={row} positionName="主餐" gridCols={2} /><ScheduleCell row={row} positionName="PPT" /><ScheduleCell row={row} positionName="新朋友關懷" gridCols={2} />
+                                                            </tr>
+                                                        );
+                                                    })
+                                                ) : (<tr><td colSpan="8" className="text-center py-16 text-slate-400 font-bold bg-white">此堂別尚無排班資料</td></tr>)}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )
+                        )}
+                    </div>
+                    {schedulingPhase === 'editor' && activeSessionTab !== '📊 數據分析' && activeSlot && renderRecommendationPanel()}
+                </div>
+
+                {/* Modals & Toasts */}
+                {errorMsg && <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 bg-red-50 text-red-600 px-6 py-3 rounded-2xl flex items-center gap-3 font-bold border border-red-100 shadow-xl animate-bounce"><AlertCircle size={20} /> {errorMsg}</div>}
+                {showSuccessToast && <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[200] bg-emerald-50 text-emerald-600 px-8 py-5 rounded-3xl flex items-center gap-4 font-black text-xl border-2 border-emerald-200 shadow-[0_20px_50px_rgba(0,0,0,0.15)] animate-pop"><CheckCircle2 size={32} className="text-emerald-500" /> 發布成功</div>}
+                
+                {confirmDialog.isOpen && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in">
+                        <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl animate-pop border border-slate-100">
+                            <h3 className="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">{confirmDialog.type === 'swap' ? <RefreshCw className="text-indigo-500" /> : <HandHeart className="text-orange-500" />}{confirmDialog.title}</h3>
+                            <div className="mb-8 p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-2 sm:gap-4 shadow-inner">
+                                <div className="flex-1 text-center break-words"><p className="text-[10px] font-bold text-slate-400 mb-1.5">目前同工</p><p className="text-sm sm:text-base font-black text-slate-700">{confirmDialog.currentName}</p><div className="text-[10px] sm:text-[11px] text-slate-500 mt-1 leading-snug"><p>{confirmDialog.currentDate}</p><p>{confirmDialog.currentRole}</p></div></div>
+                                <div className="shrink-0 text-slate-300 px-1"><ArrowLeftRight size={20} className={`sm:w-6 sm:h-6 ${confirmDialog.type === 'swap' ? 'text-indigo-400' : 'text-orange-400'}`} strokeWidth={2.5} /></div>
+                                <div className="flex-1 text-center break-words"><p className="text-[10px] font-bold text-slate-400 mb-1.5">替換同工</p><p className={`text-sm sm:text-base font-black ${confirmDialog.type === 'swap' ? 'text-indigo-600' : 'text-orange-600'}`}>{confirmDialog.newName}</p><div className="text-[10px] sm:text-[11px] text-slate-500 mt-1 leading-snug"><p>{confirmDialog.newDate}</p><p>{confirmDialog.newRole}</p></div></div>
                             </div>
-                            <div className="flex bg-slate-100 p-1.5 rounded-2xl w-full md:w-auto overflow-x-auto custom-scrollbar shadow-inner border border-slate-200">
-                                <button onClick={exportToCSV} className="px-4 py-2 rounded-xl text-sm font-black transition-all whitespace-nowrap text-emerald-600 hover:bg-white hover:shadow-sm flex items-center gap-1.5"><Download size={16} /> 匯出 CSV</button>
-                                <button onClick={handlePublishClick} disabled={isSaving} className="px-4 py-2 rounded-xl text-sm font-black transition-all whitespace-nowrap bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm flex items-center gap-1.5 disabled:bg-indigo-400">{isSaving ? <RefreshCw className="animate-spin" size={16} /> : <><Save size={16}/> 發布班表</>}</button>
+                            <div className="flex gap-3">
+                                <button onClick={() => setConfirmDialog({ ...confirmDialog, isOpen: false })} className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black rounded-xl transition-all">取消</button>
+                                <button onClick={confirmDialog.onConfirm} className={`flex-1 py-3 px-4 font-black text-white rounded-xl transition-all shadow-lg active:scale-95 ${confirmDialog.type === 'swap' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200' : 'bg-orange-500 hover:bg-orange-600 shadow-orange-200'}`}>確認執行</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                
+                {publishConfirmOpen && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in">
+                        <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl animate-pop border border-slate-100">
+                            <div className="flex items-center gap-3 mb-4 text-indigo-600"><AlertCircle size={28} /><h3 className="text-2xl font-black text-slate-800">準備發布班表</h3></div>
+                            <div className="mb-8 bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                                <p className="text-slate-600 font-bold mb-3">溫馨小提醒</p><p className="text-slate-500 text-sm font-bold flex items-start gap-2"><Info size={16} className="text-emerald-500 shrink-0 mt-0.5" /><span>尚未匯出試算表檔案，請點擊「取消返回」，使用「匯出 CSV」功能，以利後續「服事表排版」。</span></p>
+                            </div>
+                            <div className="flex gap-3">
+                                <button onClick={() => setPublishConfirmOpen(false)} className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black rounded-xl transition-all">取消返回</button>
+                                <button onClick={executePublish} className="flex-1 py-3 px-4 font-black text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all shadow-lg shadow-indigo-200 active:scale-95 flex items-center justify-center gap-2"><Save size={18} /> 確認發布</button>
                             </div>
                         </div>
                     </div>
                 )}
             </div>
-            
-            {/* Main Content Area */}
-            <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
-                <div className="flex-1 flex flex-col h-full relative overflow-hidden">
-                    {schedulingPhase === 'setup' ? renderSchedulingView() : (
-                        activeSessionTab === '📊 數據分析' ? renderOriginalDataAnalysis() : (
-                            <div className="flex flex-col h-full bg-slate-50 relative">
-                                <div className="overflow-x-auto shadow-inner bg-slate-50/50 custom-scrollbar flex-1 p-6 relative">
-                                    <table className="w-max schedule-table border-collapse min-w-full mx-auto bg-white rounded-2xl overflow-hidden shadow-sm">
-                                        <thead>
-                                            <tr>
-                                                <th className="sticky left-0 z-20 bg-slate-200/95 backdrop-blur whitespace-nowrap text-center px-4 w-[110px]">日期</th>
-                                                <th className="whitespace-nowrap">司會</th><th className="whitespace-nowrap">執事</th><th className="whitespace-nowrap">接待</th>
-                                                <th className="whitespace-nowrap">收奉獻</th><th className="whitespace-nowrap">主餐</th><th className="whitespace-nowrap">PPT</th><th className="whitespace-nowrap">新朋友關懷</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {rowsToDisplay.length > 0 ? (
-                                                rowsToDisplay.map((row, idx) => {
-                                                    const isEven = idx % 2 === 0; const rowBg = isEven ? 'bg-white' : 'bg-slate-50/50'; const stickyBg = isEven ? 'bg-white/95' : 'bg-slate-50/95';
-                                                    return (
-                                                        <tr key={idx} className={rowBg}>
-                                                            <td className={`sticky left-0 z-10 font-bold text-slate-500 text-center whitespace-nowrap px-4 backdrop-blur-sm border-r border-slate-100 ${stickyBg}`}>{row.date}</td>
-                                                            <ScheduleCell row={row} positionName="司會" /><ScheduleCell row={row} positionName="執事輪值" /><ScheduleCell row={row} positionName="接待" gridCols={2} />
-                                                            <ScheduleCell row={row} positionName="收奉獻" gridCols={2} /><ScheduleCell row={row} positionName="主餐" gridCols={2} /><ScheduleCell row={row} positionName="PPT" /><ScheduleCell row={row} positionName="新朋友關懷" gridCols={2} />
-                                                        </tr>
-                                                    );
-                                                })
-                                            ) : (<tr><td colSpan="8" className="text-center py-16 text-slate-400 font-bold bg-white">此堂別尚無排班資料</td></tr>)}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        )
-                    )}
-                </div>
-                {schedulingPhase === 'editor' && activeSessionTab !== '📊 數據分析' && activeSlot && renderRecommendationPanel()}
-            </div>
-
-            {/* Modals & Toasts */}
-            {errorMsg && <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 bg-red-50 text-red-600 px-6 py-3 rounded-2xl flex items-center gap-3 font-bold border border-red-100 shadow-xl animate-bounce"><AlertCircle size={20} /> {errorMsg}</div>}
-            {showSuccessToast && <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[200] bg-emerald-50 text-emerald-600 px-8 py-5 rounded-3xl flex items-center gap-4 font-black text-xl border-2 border-emerald-200 shadow-[0_20px_50px_rgba(0,0,0,0.15)] animate-pop"><CheckCircle2 size={32} className="text-emerald-500" /> 發布成功</div>}
-            
-            {confirmDialog.isOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in">
-                    <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl animate-pop border border-slate-100">
-                        <h3 className="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">{confirmDialog.type === 'swap' ? <RefreshCw className="text-indigo-500" /> : <HandHeart className="text-orange-500" />}{confirmDialog.title}</h3>
-                        <div className="mb-8 p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-2 sm:gap-4 shadow-inner">
-                            <div className="flex-1 text-center break-words"><p className="text-[10px] font-bold text-slate-400 mb-1.5">目前同工</p><p className="text-sm sm:text-base font-black text-slate-700">{confirmDialog.currentName}</p><div className="text-[10px] sm:text-[11px] text-slate-500 mt-1 leading-snug"><p>{confirmDialog.currentDate}</p><p>{confirmDialog.currentRole}</p></div></div>
-                            <div className="shrink-0 text-slate-300 px-1"><ArrowLeftRight size={20} className={`sm:w-6 sm:h-6 ${confirmDialog.type === 'swap' ? 'text-indigo-400' : 'text-orange-400'}`} strokeWidth={2.5} /></div>
-                            <div className="flex-1 text-center break-words"><p className="text-[10px] font-bold text-slate-400 mb-1.5">替換同工</p><p className={`text-sm sm:text-base font-black ${confirmDialog.type === 'swap' ? 'text-indigo-600' : 'text-orange-600'}`}>{confirmDialog.newName}</p><div className="text-[10px] sm:text-[11px] text-slate-500 mt-1 leading-snug"><p>{confirmDialog.newDate}</p><p>{confirmDialog.newRole}</p></div></div>
-                        </div>
-                        <div className="flex gap-3">
-                            <button onClick={() => setConfirmDialog({ ...confirmDialog, isOpen: false })} className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black rounded-xl transition-all">取消</button>
-                            <button onClick={confirmDialog.onConfirm} className={`flex-1 py-3 px-4 font-black text-white rounded-xl transition-all shadow-lg active:scale-95 ${confirmDialog.type === 'swap' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200' : 'bg-orange-500 hover:bg-orange-600 shadow-orange-200'}`}>確認執行</button>
-                        </div>
-                    </div>
-                </div>
-            )}
-            
-            {publishConfirmOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in">
-                    <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl animate-pop border border-slate-100">
-                        <div className="flex items-center gap-3 mb-4 text-indigo-600"><AlertCircle size={28} /><h3 className="text-2xl font-black text-slate-800">準備發布班表</h3></div>
-                        <div className="mb-8 bg-slate-50 p-5 rounded-2xl border border-slate-100">
-                            <p className="text-slate-600 font-bold mb-3">溫馨小提醒</p><p className="text-slate-500 text-sm font-bold flex items-start gap-2"><Info size={16} className="text-emerald-500 shrink-0 mt-0.5" /><span>尚未匯出試算表檔案，請點擊「取消返回」，使用「匯出 CSV」功能，以利後續「服事表排版」。</span></p>
-                        </div>
-                        <div className="flex gap-3">
-                            <button onClick={() => setPublishConfirmOpen(false)} className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black rounded-xl transition-all">取消返回</button>
-                            <button onClick={executePublish} className="flex-1 py-3 px-4 font-black text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all shadow-lg shadow-indigo-200 active:scale-95 flex items-center justify-center gap-2"><Save size={18} /> 確認發布</button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };
