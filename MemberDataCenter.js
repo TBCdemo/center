@@ -5,6 +5,9 @@ const MemberDataCenter = ({ session, goBack, supabase, utils, constants }) => {
     const { fetchAllData, extractAccountFromEmail, generateBaseQuarters, getNextQuarter, getCurrentQuarter, getSundaysInQuarter, getHolidayName } = utils;
     const { ADMIN_ACCOUNT, DEFAULT_MEMBER, SESSION_OPTIONS, STATUS_OPTIONS } = constants;
 
+    // 將「一季三次」安全地加入選項陣列中，若未來外部 constants 更新也不會重複
+    const EXTENDED_STATUS_OPTIONS = [...new Set([...STATUS_OPTIONS, '一季三次'])];
+
     const currentUserEmail = session.user.email;
     const currentUserAccount = extractAccountFromEmail(currentUserEmail);
     const isAdmin = currentUserAccount === ADMIN_ACCOUNT || currentUserEmail === ADMIN_ACCOUNT;
@@ -478,7 +481,7 @@ const MemberDataCenter = ({ session, goBack, supabase, utils, constants }) => {
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-bold text-slate-500 uppercase">服事意願</label>
                                     <select value={formData.availability_status} onChange={e => setFormData({...formData, availability_status: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 font-semibold text-slate-700">
-                                        {STATUS_OPTIONS.filter(opt => isAdmin || (opt !== '安息季' && opt !== '一季一次')).map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                        {EXTENDED_STATUS_OPTIONS.filter(opt => isAdmin || (opt !== '安息季' && opt !== '一季一次')).map(opt => <option key={opt} value={opt}>{opt}</option>)}
                                     </select>
                                 </div>
                                 <div className="space-y-1.5">
