@@ -943,7 +943,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                         className="w-full flex items-center gap-3 px-4 py-3 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl font-bold text-sm transition-all text-left group"
                     >
                         <LogOut size={18} className="text-rose-400 group-hover:translate-x-0.5 transition-transform" />
-                        <span>登出系統</span>
+                        <span>Log Out</span>
                     </button>
                 </div>
             </div>
