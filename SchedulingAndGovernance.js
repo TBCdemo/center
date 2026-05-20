@@ -6,7 +6,7 @@ import {
     ArrowLeftRight, Users, TrendingUp, CalendarDays, GitBranch, 
     Lightbulb, UserCheck, UserX, LayoutList, 
     ArrowUpDown, X, Database, AlertTriangle,
-    Home, LogOut // 新增導覽列所需的圖示
+    Home, LogOut
 } from 'lucide-react';
 
 // 安全的 JSON 解析函數，防止資料庫格式錯誤導致白畫面
@@ -913,7 +913,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                 <div className="flex flex-col">
                     {/* 系統識別標誌 */}
                     <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-                        <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-black text-sm shadow-md shadow-indigo-600/20">T</div>
                         <span className="text-white font-black text-base tracking-wider">TBC Serve Manager</span>
                     </div>
                     
@@ -921,7 +920,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                     <nav className="p-4 space-y-1.5">
                         <button onClick={goBack} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-bold text-sm transition-all text-left group">
                             <Home size={18} className="text-slate-400 group-hover:text-indigo-400 transition-colors" />
-                            <span>首頁 (Home)</span>
+                            <span>Home</span>
                         </button>
                         <button onClick={goToMembers} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-bold text-sm transition-all text-left group">
                             <Users size={18} className="text-slate-400 group-hover:text-indigo-400 transition-colors" />
