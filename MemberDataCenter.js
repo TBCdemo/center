@@ -2,14 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { 
     Users, Copy, Trash2, CalendarX, Search, X, Edit2, ShieldCheck, 
     Check, Save, CheckCircle2, AlertCircle, UserPlus, User, ChevronLeft,
-    Home, LogOut, Calendar // 新增導覽列圖示
+    Home, LogOut, Calendar 
 } from 'lucide-react';
 
 const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, constants }) => {
     const { fetchAllData, extractAccountFromEmail, generateBaseQuarters, getNextQuarter, getCurrentQuarter, getSundaysInQuarter, getHolidayName } = utils;
     const { ADMIN_ACCOUNT, DEFAULT_MEMBER, SESSION_OPTIONS, STATUS_OPTIONS } = constants;
 
-    // 確保這五個選項絕對存在，並透過 Set 排除任何重複項
     const FINAL_STATUS_OPTIONS = [...new Set([
         ...(STATUS_OPTIONS || []), 
         '穩定服事', 
@@ -333,7 +332,14 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
         });
         if (hasMatchingPosition) return true;
         const settings = quarterSettings.find(s => s.member_id === m.id);
-        if (settings && settings.preferred_session && settings.preferred_session.includes(term)) return true;
+        if (settings && settings.preferred_session && settings.preferred_session.toLowerCase().includes(term)) return true;
+        if (settings && settings.availability_status && settings.availability_status.toLowerCase().includes(term)) return true;
+        
+        // 增強搜尋：輸入「暫停」時同時過濾出有被設定「暫停」崗位的同工
+        if (term.includes('暫停')) {
+            const hasSuspendedPosition = memberPositions.filter(mp => mp.member_id === m.id).some(mp => mp.is_active === false);
+            if (hasSuspendedPosition) return true;
+        }
         return false;
     });
 
@@ -394,7 +400,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             <div className="flex-1 flex flex-col relative bg-slate-50 overflow-hidden animate-fade-in">
                 <div className="bg-white px-6 py-4 border-b border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0 shadow-sm z-20">
                     <div className="flex items-center gap-3">
-                        <button onClick={goBack} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors" title="返回首頁"><ChevronLeft size={24} /></button>
                         <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3 tracking-tight">
                             <Users className="text-indigo-500" size={28}/> 同工資料中心
                         </h2>
@@ -426,7 +431,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                     <div className="px-6 pt-4 pb-2 bg-slate-50 z-10 shrink-0">
                         <div className="bg-white p-2 rounded-2xl shadow-sm border border-slate-200 flex items-center relative">
                             <Search className="absolute left-4 text-slate-400" size={20} />
-                            <input type="text" placeholder="搜尋姓名、群組、崗位或堂別" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-10 py-2.5 bg-transparent outline-none font-bold text-slate-700 text-sm" />
+                            <input type="text" placeholder="搜尋姓名、群組、崗位、堂別或狀態..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-10 py-2.5 bg-transparent outline-none font-bold text-slate-700 text-sm" />
                             {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-4 text-slate-400 hover:text-slate-600 transition-colors p-1"><X size={18} /></button>}
                         </div>
                     </div>
@@ -714,7 +719,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                             </div>
                             <div className="p-3 bg-slate-50 flex gap-2 border-t border-slate-100">
                                 <button onClick={() => {setConfirmAction(null); setIsDeleteQuarterModalOpen(false);}} className="flex-1 py-3.5 font-black text-slate-600 bg-slate-200 rounded-xl">取消</button>
-                                <button onClick={isDeleteQuarterModalOpen ? executeDeleteQuarter : confirmAction?.onConfirm} disabled={isDeleteQuarterModalOpen && quartersToDelete.length === 0} className={`flex-1 py-3.5 font-black text-white rounded-xl transition-all ${isDeleteQuarterModalOpen || confirmAction?.title === '警告' ? 'bg-red-500 hover:bg-red-600 disabled:bg-red-300' : 'bg-amber-500 hover:bg-amber-600'} disabled:opacity-50 disabled:cursor-not-allowed`}>
+                                <button onClick={executeDeleteQuarter} disabled={isDeleteQuarterModalOpen && quartersToDelete.length === 0} className={`flex-1 py-3.5 font-black text-white rounded-xl transition-all ${isDeleteQuarterModalOpen || confirmAction?.title === '警告' ? 'bg-red-500 hover:bg-red-600 disabled:bg-red-300' : 'bg-amber-500 hover:bg-amber-600'} disabled:opacity-50 disabled:cursor-not-allowed`}>
                                     {isDeleteQuarterModalOpen ? '刪除' : (confirmAction?.confirmText || '確定')}
                                 </button>
                             </div>
