@@ -645,11 +645,6 @@ const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, 
         return (
             <div className="flex-1 flex items-center justify-center bg-slate-100 p-6 animate-fade-in overflow-y-auto">
                 <div className="w-full max-w-xl bg-white p-10 lg:p-12 rounded-[3rem] shadow-sm border border-slate-200 relative">
-                    <button onClick={goBack} className="absolute top-8 left-8 p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors" title="返回首頁"><ChevronLeft size={20} /></button>
-                    <div className="text-center mb-10">
-                        <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4"><Calendar size={32} /></div>
-                        <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-2">排班作業</h2>
-                    </div>
                     <div className="flex bg-slate-100 p-1.5 rounded-2xl mb-8">
                         <button onClick={() => setAppMode('schedule')} className={`flex-1 py-3.5 flex items-center justify-center gap-2 text-sm font-black rounded-xl transition-all ${appMode === 'schedule' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/50'}`}><Play size={18} /> 預排作業</button>
                         <button onClick={() => setAppMode('query')} className={`flex-1 py-3.5 flex items-center justify-center gap-2 text-sm font-black rounded-xl transition-all ${appMode === 'query' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/50'}`}><Search size={18} /> 編輯班表</button>
