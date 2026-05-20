@@ -255,7 +255,7 @@
                         )}
                         {currentApp === 'scheduling' && (
                             SchedulingAndGovernanceComp 
-                                ? <SchedulingAndGovernanceComp session={session} goBack={() => setCurrentApp('home')} supabase={supabase} utils={utils} constants={constants} StatCard={StatCard} />
+                                ? <SchedulingAndGovernanceComp session={session} goBack={() => setCurrentApp('home')} goToMembers={() => setCurrentApp('members')} supabase={supabase} utils={utils} constants={constants} StatCard={StatCard} />
                                 : <div className="flex-1 flex items-center justify-center font-bold text-slate-500 animate-pulse">載入模組中...</div>
                         )}
                     </main>
