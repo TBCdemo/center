@@ -49,9 +49,12 @@ const ScheduleEngine = {
 
     const currentQuarterStr = `${year}-Q${quarter}`;
 
-    // 防禦性修正：確保 newcomer_rule 與 dual_service_pref 都有完美從資料庫帶入
-    effectiveMembers.forEach(m => {
-        if (dbData.memberQuarterSettings) {
+    // 【修復 1：深拷貝陣列】避免直接修改 Vue/React 的響應式物件，引發前端框架重渲染崩潰或唯讀錯誤
+    const workingMembers = JSON.parse(JSON.stringify(effectiveMembers));
+
+    workingMembers.forEach(m => {
+        // 加上 Array.isArray 檢查，防止物件型態無法呼叫 .find() 導致當機
+        if (dbData.memberQuarterSettings && Array.isArray(dbData.memberQuarterSettings)) {
             const qs = dbData.memberQuarterSettings.find(s => s.member_id === m.id && s.quarter === currentQuarterStr);
             if (qs) {
                 if (qs.newcomer_rule !== undefined && qs.newcomer_rule !== null) m.newcomer_rule = qs.newcomer_rule;
@@ -59,7 +62,6 @@ const ScheduleEngine = {
                 
                 if (qs.availability_status) m.availability_status = qs.availability_status;
                 
-                // 處理特殊排班狀態，強制轉為單堂避免過快耗盡額度
                 if (m.availability_status === '一季一次' || m.availability_status === '一季三次') {
                     m.dual_service_pref = 0; 
                 }
@@ -79,13 +81,14 @@ const ScheduleEngine = {
       memberGroups: {}, 
     };
 
-    this._prepareData(state, effectiveMembers, effectiveMemberPositions);
+    // 後續排班全程使用安全隔離的 workingMembers
+    this._prepareData(state, workingMembers, effectiveMemberPositions);
 
     const specialIds = {
-      deacon: positions.find((p) => p?.name?.trim() === '執事輪值')?.id,
-      mc: positions.find((p) => p?.name?.trim() === '司會')?.id,
-      ppt: positions.find((p) => p?.name?.trim() === 'PPT')?.id,
-      newcomer: positions.find((p) => p?.name?.trim() === '新朋友關懷')?.id,
+      deacon: positions.find((p) => String(p?.name || '').trim() === '執事輪值')?.id,
+      mc: positions.find((p) => String(p?.name || '').trim() === '司會')?.id,
+      ppt: positions.find((p) => String(p?.name || '').trim() === 'PPT')?.id,
+      newcomer: positions.find((p) => String(p?.name || '').trim() === '新朋友關懷')?.id,
     };
 
     sundays.forEach((sunday, weekIndex) => {
@@ -97,11 +100,11 @@ const ScheduleEngine = {
         availableSlots: this._createAvailableSlots(sunday, positions, roleSettings),
       };
 
-      this._runSchedulingPipeline(state, context, effectiveMembers, specialIds);
+      this._runSchedulingPipeline(state, context, workingMembers, specialIds);
     });
 
-    this._applyVisualFlags(state.draft, effectiveMembers);
-    this._sortFinalDraft(state.draft, effectiveMembers);
+    this._applyVisualFlags(state.draft, workingMembers);
+    this._sortFinalDraft(state.draft, workingMembers);
 
     return state.draft;
   },
@@ -126,8 +129,8 @@ const ScheduleEngine = {
     
     sessionsToSchedule.forEach((sess) => {
       positions.forEach((p) => {
-        // 安全防護：避免 p.name 是 null 或 undefined 導致 .trim() 崩潰
-        const roleName = (p.name || '').trim();
+        // 【修復 2：防禦轉型】避免資料庫傳入數字型態導致 .trim() 發生 TypeError 崩潰
+        const roleName = String(p.name || '').trim();
         if (!roleName) return;
 
         const needed = roleSettings[roleName] !== undefined ? roleSettings[roleName] : p.max_people || 0;
@@ -222,14 +225,16 @@ const ScheduleEngine = {
 
         if (dayShifts.length === 0) {
             if (dualPref === 0 && m.preferred_session && m.preferred_session !== '皆可') {
-                if (!m.preferred_session.includes(session.replace('堂', ''))) return false;
+                // 【修復 3：型別防護】確保 preferred_session 是字串才能使用 .includes()
+                if (!String(m.preferred_session).includes(session.replace('堂', ''))) return false;
             }
         }
     }
 
     if (!skipFamilyCheck) {
         const myGroupId = state.memberGroups[m.id];
-        if (myGroupId && (myGroupId.startsWith('FA') || myGroupId.startsWith('FB'))) {
+        // 【修復 4：型別防護】確保 groupId 是字串才能使用 .startsWith()，避免數字引發報錯
+        if (myGroupId && (String(myGroupId).startsWith('FA') || String(myGroupId).startsWith('FB'))) {
             const assignedFamilyIds = Object.keys(context.dailyAssignments).filter(
                 id => id !== m.id && state.memberGroups[id] === myGroupId
             );
@@ -240,7 +245,7 @@ const ScheduleEngine = {
                     context.dailyAssignments[fid].forEach(r => familyRoles.add(r));
                 });
                 
-                if (myGroupId.startsWith('FA')) {
+                if (String(myGroupId).startsWith('FA')) {
                     if (!familyRoles.has(roleName)) return false;
                 } 
             }
@@ -259,7 +264,7 @@ const ScheduleEngine = {
     }
 
     const myGroupId = state.memberGroups[m.id];
-    if (myGroupId && (myGroupId.startsWith('FA') || myGroupId.startsWith('FB'))) {
+    if (myGroupId && (String(myGroupId).startsWith('FA') || String(myGroupId).startsWith('FB'))) {
        const myShiftsCount = (context.dailyAssignments[m.id] || []).length;
        if (myShiftsCount === 0) {
            const assignedFamilyIds = Object.keys(context.dailyAssignments).filter(
@@ -270,9 +275,9 @@ const ScheduleEngine = {
                const familyRoles = new Set();
                assignedFamilyIds.forEach(fid => context.dailyAssignments[fid].forEach(r => familyRoles.add(r)));
                
-               if (myGroupId.startsWith('FA') && familyRoles.has(slot.roleName)) {
+               if (String(myGroupId).startsWith('FA') && familyRoles.has(slot.roleName)) {
                    weight -= 15000; 
-               } else if (myGroupId.startsWith('FB')) {
+               } else if (String(myGroupId).startsWith('FB')) {
                    weight -= 15000; 
                }
            }
@@ -391,7 +396,7 @@ const ScheduleEngine = {
       const groups = {};
       members.forEach(m => {
           const gid = state.memberGroups[m.id];
-          if (gid && (gid.startsWith('FA') || gid.startsWith('FB'))) {
+          if (gid && (String(gid).startsWith('FA') || String(gid).startsWith('FB'))) {
               if (state.lastServedWeek[m.id] === context.weekIndex - 1) return;
               if ((state.totalUsage[m.id] || 0) > avgUsage + 1.5) return;
               if ((context.dailyAssignments[m.id] || []).length > 0) return;
@@ -412,10 +417,9 @@ const ScheduleEngine = {
 
       for (let gid of sortedGroupIds) {
           const gMembers = groups[gid];
-          // 如果今天全家只剩 1 個人有空，就不啟動原子綁定，放生他去一般單堂填充區
           if (gMembers.length < 2) continue;
 
-          const isFA = gid.startsWith('FA');
+          const isFA = String(gid).startsWith('FA');
 
           let placed = false;
           const m0 = gMembers[0];
@@ -528,9 +532,8 @@ const ScheduleEngine = {
 
   _immediateFamilyFill(baseMember, state, context, members) {
       const groupId = state.memberGroups[baseMember.id];
-      if (!groupId || (!groupId.startsWith('FA') && !groupId.startsWith('FB'))) return;
+      if (!groupId || (!String(groupId).startsWith('FA') && !String(groupId).startsWith('FB'))) return;
 
-      // 過濾出今天「有空、且還沒排到班」的家人
       const unassignedFamily = members.filter(m => 
           m.id !== baseMember.id && 
           state.memberGroups[m.id] === groupId && 
@@ -630,8 +633,7 @@ const ScheduleEngine = {
   _enforceFamily(state, context, members) {
     const groups = {};
     members.forEach(m => {
-      if (m.group_id && (m.group_id.startsWith('FA') || m.group_id.startsWith('FB'))) {
-        // 事後補救時，也只計算「今天有空」的家人
+      if (m.group_id && (String(m.group_id).startsWith('FA') || String(m.group_id).startsWith('FB'))) {
         if (this._isAvailableOnDate(m, context.dateStr)) {
             if (!groups[m.group_id]) groups[m.group_id] = [];
             groups[m.group_id].push(m);
@@ -712,7 +714,8 @@ const ScheduleEngine = {
       let bestScore = -9999;
 
       for (let shift of todayShifts) {
-          if (shift._positionName === '執解輪值') continue;
+          // 【修復 5：錯字修正】將原本誤植的「執解輪值」改回「執事輪值」
+          if (shift._positionName === '執事輪值') continue;
 
           const mockSlot = { roleName: shift._positionName, session: shift.session, posId: shift.position_id };
           if (!this._canAssign(unM, mockSlot, state, context, 0, true)) continue;
@@ -721,7 +724,7 @@ const ScheduleEngine = {
           if (!victim) continue;
 
           const victimGroupId = state.memberGroups[victim.id];
-          if (victimGroupId && (victimGroupId.startsWith('FA') || victimGroupId.startsWith('FB'))) continue;
+          if (victimGroupId && (String(victimGroupId).startsWith('FA') || String(victimGroupId).startsWith('FB'))) continue;
 
           const victimUsage = state.totalUsage[victim.id] || 0;
           const unMUsage = state.totalUsage[unM.id] || 0;
@@ -823,7 +826,7 @@ const ScheduleEngine = {
         freq[d.member_id] = (freq[d.member_id] || 0) + 1;
         
         const gid = memberGroups[d.member_id];
-        if (gid && (gid.startsWith('FA') || gid.startsWith('FB'))) {
+        if (gid && (String(gid).startsWith('FA') || String(gid).startsWith('FB'))) {
           if (!groupFreq[gid]) groupFreq[gid] = new Set();
           groupFreq[gid].add(d.member_id);
           
