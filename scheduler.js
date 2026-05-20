@@ -145,6 +145,7 @@ const ScheduleEngine = {
   _canAssign(m, slot, state, context, strictLevel = 0, skipFamilyCheck = false) {
     const { roleName, session, posId } = slot;
     
+    // 【修改】統一使用 _isAvailableOnDate 檢查
     if (!this._isAvailableOnDate(m, context.dateStr)) return false;
     
     if (m.availability_status === '一季一次' && (state.totalUsage[m.id] || 0) >= 1) {
