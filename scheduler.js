@@ -122,7 +122,10 @@ const ScheduleEngine = {
     
     sessionsToSchedule.forEach((sess) => {
       positions.forEach((p) => {
-        const roleName = p.name.trim();
+        // 安全防護：避免 p.name 是 null 或 undefined 導致 .trim() 崩潰
+        const roleName = (p.name || '').trim();
+        if (!roleName) return;
+
         const needed = roleSettings[roleName] !== undefined ? roleSettings[roleName] : p.max_people || 0;
         if (needed <= 0) return;
         if (roleName === '主餐' && !isFirstSunday) return;
@@ -149,11 +152,6 @@ const ScheduleEngine = {
     if (!this._isAvailableOnDate(m, context.dateStr)) return false;
     
     if (m.availability_status === '一季一次' && (state.totalUsage[m.id] || 0) >= 1) {
-        return false;
-    }
-
-    // 【新增：一季三次硬限制】只要本季總服事次數達到 3 次，就絕對不再排班
-    if (m.availability_status === '一季三次' && (state.totalUsage[m.id] || 0) >= 3) {
         return false;
     }
 
@@ -803,7 +801,7 @@ const ScheduleEngine = {
           // 計算今天這個群組中「有資格排班」的總人數，以作為判斷是否落單的標準
           if (!groupActiveMembersCount[gid]) {
               groupActiveMembersCount[gid] = members.filter(m => 
-                  state.memberGroups[m.id] === gid && this._isAvailableOnDate(m, dateStr)
+                  memberGroups[m.id] === gid && this._isAvailableOnDate(m, dateStr)
               ).length;
           }
         }
@@ -854,7 +852,7 @@ const ScheduleEngine = {
          if (prioA !== prioB) return prioB - prioA; 
 
          if (a.is_empty !== b.is_empty) return a.is_empty ? 1 : -1;
-         if (!a.is_empty && !b.is_empty) return a._memberName.localeCompare(b._memberName);
+         if (!a.is_empty && !b.is_empty) return (a._memberName || '').localeCompare(b._memberName || '');
       }
 
       if (a.is_empty !== b.is_empty) return a.is_empty ? 1 : -1;
