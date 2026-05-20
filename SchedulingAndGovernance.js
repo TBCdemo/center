@@ -16,7 +16,7 @@ const safeParseJSON = (data, fallback) => {
     try { return JSON.parse(data); } catch (e) { return fallback; }
 };
 
-const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, StatCard }) => {
+const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils, constants, StatCard }) => {
     const { fetchAllData, getSundaysInQuarter, getQuarterDateRange } = utils;
     const { sessionsToSchedule } = constants;
 
@@ -784,7 +784,7 @@ const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, 
                                 <span>•</span>
                                 <span>{activeSlot._positionName === '執事輪值' ? '第一堂、第二堂' : activeSlot.session}</span>
                                 {!activeSlot.is_empty && (
-                                    <><span>•</span><span>本季服事 {currentUsageCount[activeSlot.member_id] || 0} 次</span></></>
+                                    <><span>•</span><span>本季服事 {currentUsageCount[activeSlot.member_id] || 0} 次</span></>
                                 )}
                             </div>
                         </div>
@@ -919,11 +919,11 @@ const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, 
                     
                     {/* 功能導航項目 */}
                     <nav className="p-4 space-y-1.5">
-                        <a href="index.html" className="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-bold text-sm transition-all group">
+                        <button onClick={goBack} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-bold text-sm transition-all text-left group">
                             <Home size={18} className="text-slate-400 group-hover:text-indigo-400 transition-colors" />
                             <span>首頁 (Home)</span>
-                        </a>
-                        <button onClick={() => window.location.href = 'MemberDataCenter.html'} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-bold text-sm transition-all text-left group">
+                        </button>
+                        <button onClick={goToMembers} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-bold text-sm transition-all text-left group">
                             <Users size={18} className="text-slate-400 group-hover:text-indigo-400 transition-colors" />
                             <span>同工資料中心</span>
                         </button>
@@ -939,7 +939,7 @@ const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, 
                     <button 
                         onClick={async () => { 
                             if (supabase?.auth?.signOut) { await supabase.auth.signOut(); } 
-                            window.location.href = 'index.html'; 
+                            window.location.reload(); 
                         }} 
                         className="w-full flex items-center gap-3 px-4 py-3 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl font-bold text-sm transition-all text-left group"
                     >
@@ -955,28 +955,26 @@ const SchedulingAndGovernance = ({ session, goBack, supabase, utils, constants, 
                 <div className="p-6 lg:px-8 lg:py-6 bg-white border-b border-slate-200 shrink-0 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 shadow-sm z-10">
                     <div className="flex flex-col justify-center">
                         <div className="flex items-center gap-3">
-                            {schedulingPhase === 'setup' ? (
-                                <button onClick={goBack} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors" title="返回首頁"><ChevronLeft size={24} /></button>
-                            ) : (
-                                <button onClick={() => { setSchedulingPhase('setup'); setActiveSlot(null); }} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors" title="返回上一頁"><ChevronLeft size={24} /></button>
-                            )}
                             <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3 tracking-tight">
                                 {schedulingPhase === 'setup' ? (
                                     <>
                                         <Calendar className="text-emerald-500" size={28}/> 排班作業中心
                                     </>
                                 ) : (
-                                    `${year}Q${quarter} ${appMode === 'schedule' ? '預排預覽' : '編輯預覽'}`
+                                    <div className="flex items-center gap-2">
+                                        <button onClick={() => { setSchedulingPhase('setup'); setActiveSlot(null); }} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors" title="返回設定"><ChevronLeft size={20} /></button>
+                                        <span>{year}Q{quarter} {appMode === 'schedule' ? '預排預覽' : '編輯預覽'}</span>
+                                    </div>
                                 )}
                             </h2>
                         </div>
                         {schedulingPhase === 'editor' && (
                             <>
-                                <div className="mt-3 flex flex-wrap items-center gap-6 ml-12">
+                                <div className="mt-3 flex flex-wrap items-center gap-6">
                                     <p className="text-slate-500 text-xs font-bold flex items-center gap-1.5"><Search size={14} className="text-indigo-500"/> 點擊姓名選擇合適替代人選</p>
                                     <p className="text-slate-500 text-xs font-bold flex items-center gap-1.5"><GripVertical size={14} className="text-indigo-500"/> 拖曳姓名可交換位置</p>
                                 </div>
-                                <div className="flex gap-3 mt-2 pt-2 border-t border-slate-100 flex-wrap ml-12">
+                                <div className="flex gap-3 mt-2 pt-2 border-t border-slate-100 flex-wrap">
                                     <p className="text-rose-600 text-[10px] font-black flex items-center gap-1.5 bg-rose-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-rose-500"></span> 紅色：崗位兼任</p>
                                     <p className="text-sky-600 text-[10px] font-black flex items-center gap-1.5 bg-sky-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-sky-500"></span> 藍色：群組落單</p>
                                     {appMode === 'schedule' && <p className="text-orange-600 text-[10px] font-black flex items-center gap-1.5 bg-orange-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-orange-500"></span> 橘色：落單自動替換</p>}
