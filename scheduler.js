@@ -1,5 +1,5 @@
 /**
- * 教會季排班系統 - 核心引擎 (Scheduler Engine V18)
+ * 教會季排班系統 - 核心引擎 (Scheduler Engine V17)
  * 依據 Logic_Analysis.md 實作：
  * 1. L=2 新朋友禁排邏輯 (每月 8-14 號)
  * 2. 嚴格的分數排序演算法 ([權重分, 歷史次數, 技能數量, 隨機/索引])
@@ -8,9 +8,9 @@
  * 5. FA/FB 終極防落單替換機制 (依服事次數踢人)
  * 6. 完美平衡：配對預查機制 (Lookahead)，兼顧配對與次數平均。
  * 7. FA/FB 家庭優先進場機制，徹底解決 FB 在第二堂尾聲找不到異崗位而落單的問題。
- * 8. 【全新修正】動態剔除無效家人：若家人請假或暫停服事，另一人不連坐，可獨立正常排班且不亮落單藍燈！
- * 9. 【新增】一季三次排班限制。
- * 10. 【新增】防壟斷機制：依據特定技能的平均服事次數，限制家庭群組與雙堂人員的優先進場，保護單一技能單人的排班權益。
+ * 8. 動態剔除無效家人：若家人請假或暫停服事，另一人不連坐，可獨立正常排班且不亮落單藍燈！
+ * 9. 一季三次排班限制
+ * 10. 終極防壟斷機制：保護單技能一般人，強制家庭達平均次數即刻退讓。
  */
 
 const sessionsToSchedule = ['第一堂', '第二堂'];
@@ -37,6 +37,15 @@ const ScheduleEngine = {
     return sundays;
   },
 
+  // 取得特定職位的所有成員之平均服事次數
+  _getSkillAvgUsage(state, members, posId) {
+    const skilledMembers = members.filter(m => state.memberSkills[m.id]?.has(posId));
+    if (skilledMembers.length === 0) return 0;
+    
+    const sum = skilledMembers.reduce((acc, m) => acc + (state.totalUsage[m.id] || 0), 0);
+    return sum / skilledMembers.length;
+  },
+
   generate(params) {
     const {
       year = new Date().getFullYear(),
@@ -49,11 +58,10 @@ const ScheduleEngine = {
 
     const currentQuarterStr = `${year}-Q${quarter}`;
 
-    // 【修復 1：深拷貝陣列】避免直接修改 Vue/React 的響應式物件，引發前端框架重渲染崩潰或唯讀錯誤
-    const workingMembers = JSON.parse(JSON.stringify(effectiveMembers));
+    // 【修正】深拷貝 members 避免修改原始 Props 導致 Vue/React 狀態崩潰
+    const clonedMembers = JSON.parse(JSON.stringify(effectiveMembers));
 
-    workingMembers.forEach(m => {
-        // 加上 Array.isArray 檢查，防止物件型態無法呼叫 .find() 導致當機
+    clonedMembers.forEach(m => {
         if (dbData.memberQuarterSettings && Array.isArray(dbData.memberQuarterSettings)) {
             const qs = dbData.memberQuarterSettings.find(s => s.member_id === m.id && s.quarter === currentQuarterStr);
             if (qs) {
@@ -61,11 +69,12 @@ const ScheduleEngine = {
                 if (qs.dual_service_pref !== undefined && qs.dual_service_pref !== null) m.dual_service_pref = qs.dual_service_pref;
                 
                 if (qs.availability_status) m.availability_status = qs.availability_status;
-                
-                if (m.availability_status === '一季一次' || m.availability_status === '一季三次') {
-                    m.dual_service_pref = 0; 
-                }
             }
+        }
+        
+        // 將一季三次的人強制轉為單堂，保留配額
+        if (['一季三次', '一季一次'].includes(m.availability_status)) {
+             m.dual_service_pref = 0; 
         }
     });
 
@@ -81,8 +90,7 @@ const ScheduleEngine = {
       memberGroups: {}, 
     };
 
-    // 後續排班全程使用安全隔離的 workingMembers
-    this._prepareData(state, workingMembers, effectiveMemberPositions);
+    this._prepareData(state, clonedMembers, effectiveMemberPositions);
 
     const specialIds = {
       deacon: positions.find((p) => String(p?.name || '').trim() === '執事輪值')?.id,
@@ -100,11 +108,11 @@ const ScheduleEngine = {
         availableSlots: this._createAvailableSlots(sunday, positions, roleSettings),
       };
 
-      this._runSchedulingPipeline(state, context, workingMembers, specialIds);
+      this._runSchedulingPipeline(state, context, clonedMembers, specialIds);
     });
 
-    this._applyVisualFlags(state.draft, workingMembers);
-    this._sortFinalDraft(state.draft, workingMembers);
+    this._applyVisualFlags(state.draft, clonedMembers);
+    this._sortFinalDraft(state.draft, clonedMembers);
 
     return state.draft;
   },
@@ -118,7 +126,7 @@ const ScheduleEngine = {
         memberPositions.filter((mp) => mp.member_id === m.id).map((mp) => mp.position_id)
       );
       if (m.group_id) {
-          state.memberGroups[m.id] = m.group_id;
+          state.memberGroups[m.id] = String(m.group_id);
       }
     });
   },
@@ -129,7 +137,7 @@ const ScheduleEngine = {
     
     sessionsToSchedule.forEach((sess) => {
       positions.forEach((p) => {
-        // 【修復 2：防禦轉型】避免資料庫傳入數字型態導致 .trim() 發生 TypeError 崩潰
+        // 安全防護：轉型為字串
         const roleName = String(p.name || '').trim();
         if (!roleName) return;
 
@@ -143,24 +151,6 @@ const ScheduleEngine = {
     return slots;
   },
 
-  /**
-   * 【新增工具函式】計算擁有特定技能(單一崗位)的人員目前平均服事次數
-   * 用來防止家庭群組或雙堂服事的人「壟斷」該崗位
-   */
-  _getSkillAvgUsage(state, members, posId) {
-      const capable = members.filter(m => 
-          state.memberSkills[m.id] && 
-          state.memberSkills[m.id].has(posId) && 
-          !['暫停服事', '安息季'].includes(m.availability_status)
-      );
-      if (capable.length === 0) return 0;
-      const total = capable.reduce((sum, m) => sum + (state.totalUsage[m.id] || 0), 0);
-      return total / capable.length;
-  },
-
-  /**
-   * 【新增工具函式】判斷某人在指定日期是否「可以排班」(非暫停、非請假)
-   */
   _isAvailableOnDate(m, dateStr) {
       if (['暫停服事', '安息季'].includes(m.availability_status)) return false;
       if (Array.isArray(m.unavailable_dates) && m.unavailable_dates.includes(dateStr)) return false;
@@ -170,22 +160,22 @@ const ScheduleEngine = {
   _canAssign(m, slot, state, context, strictLevel = 0, skipFamilyCheck = false) {
     const { roleName, session, posId } = slot;
     
-    // 統一使用 _isAvailableOnDate 檢查請假與無效狀態
     if (!this._isAvailableOnDate(m, context.dateStr)) return false;
     
-    // 次數限制檢查
-    if (m.availability_status === '一季一次' && (state.totalUsage[m.id] || 0) >= 1) return false;
-    if (m.availability_status === '一季三次' && (state.totalUsage[m.id] || 0) >= 3) return false;
+    if (m.availability_status === '一季一次' && (state.totalUsage[m.id] || 0) >= 1) {
+        return false;
+    }
 
-    // 技能檢查
+    if (m.availability_status === '一季三次' && (state.totalUsage[m.id] || 0) >= 3) {
+        return false;
+    }
+
     if (!state.memberSkills[m.id].has(posId)) return false;
 
-    // 執事次數上限
     if (roleName === '執事輪值') {
       if ((state.roleUsage[m.id][posId] || 0) >= 4) return false;
     }
 
-    // 新朋友關懷 L=2 規則
     if (roleName === '新朋友關懷') {
       const val = m.newcomer_rule;
       const isRule2or3 = (val === 2 || val === '2' || val === 3 || val === '3');
@@ -197,7 +187,6 @@ const ScheduleEngine = {
     const dayShifts = state.draft.filter((d) => d.service_date === context.dateStr && d.member_id === m.id);
     const dayRoles = dayShifts.map(d => d._positionName);
 
-    // 每日上限兩班
     if (dayShifts.length >= 2) return false; 
 
     const dualPref = parseInt(m.dual_service_pref) || 0;
@@ -225,16 +214,15 @@ const ScheduleEngine = {
 
         if (dayShifts.length === 0) {
             if (dualPref === 0 && m.preferred_session && m.preferred_session !== '皆可') {
-                // 【修復 3：型別防護】確保 preferred_session 是字串才能使用 .includes()
-                if (!String(m.preferred_session).includes(session.replace('堂', ''))) return false;
+                const prefStr = String(m.preferred_session);
+                if (!prefStr.includes(session.replace('堂', ''))) return false;
             }
         }
     }
 
     if (!skipFamilyCheck) {
         const myGroupId = state.memberGroups[m.id];
-        // 【修復 4：型別防護】確保 groupId 是字串才能使用 .startsWith()，避免數字引發報錯
-        if (myGroupId && (String(myGroupId).startsWith('FA') || String(myGroupId).startsWith('FB'))) {
+        if (myGroupId && (myGroupId.startsWith('FA') || myGroupId.startsWith('FB'))) {
             const assignedFamilyIds = Object.keys(context.dailyAssignments).filter(
                 id => id !== m.id && state.memberGroups[id] === myGroupId
             );
@@ -245,7 +233,7 @@ const ScheduleEngine = {
                     context.dailyAssignments[fid].forEach(r => familyRoles.add(r));
                 });
                 
-                if (String(myGroupId).startsWith('FA')) {
+                if (myGroupId.startsWith('FA')) {
                     if (!familyRoles.has(roleName)) return false;
                 } 
             }
@@ -255,7 +243,7 @@ const ScheduleEngine = {
     return true;
   },
 
-  _getScore(m, slot, state, context) {
+  _getScore(m, slot, state, context, members) {
     let weight = 0;
 
     if (['執事輪值', '司會'].includes(slot.roleName)) {
@@ -264,7 +252,7 @@ const ScheduleEngine = {
     }
 
     const myGroupId = state.memberGroups[m.id];
-    if (myGroupId && (String(myGroupId).startsWith('FA') || String(myGroupId).startsWith('FB'))) {
+    if (myGroupId && (myGroupId.startsWith('FA') || myGroupId.startsWith('FB'))) {
        const myShiftsCount = (context.dailyAssignments[m.id] || []).length;
        if (myShiftsCount === 0) {
            const assignedFamilyIds = Object.keys(context.dailyAssignments).filter(
@@ -275,9 +263,9 @@ const ScheduleEngine = {
                const familyRoles = new Set();
                assignedFamilyIds.forEach(fid => context.dailyAssignments[fid].forEach(r => familyRoles.add(r)));
                
-               if (String(myGroupId).startsWith('FA') && familyRoles.has(slot.roleName)) {
+               if (myGroupId.startsWith('FA') && familyRoles.has(slot.roleName)) {
                    weight -= 15000; 
-               } else if (String(myGroupId).startsWith('FB')) {
+               } else if (myGroupId.startsWith('FB')) {
                    weight -= 15000; 
                }
            }
@@ -292,6 +280,20 @@ const ScheduleEngine = {
 
     if (state.lastServedWeek[m.id] === context.weekIndex - 1) {
        weight += 1000;
+    }
+
+    // 【終極防壟斷保護】：保護單一技能的一般人
+    const isFamily = myGroupId && (String(myGroupId).startsWith('FA') || String(myGroupId).startsWith('FB'));
+    if (!isFamily && state.memberSkills[m.id].size === 1) {
+        weight -= 800; // 單技能非家庭者，給予強力優先權，保證他們能搶到班
+    }
+
+    // 【終極防壟斷懲罰】：家庭成員若次數已高於該技能平均值，則大幅退讓
+    if (isFamily && members) {
+        const skillAvg = this._getSkillAvgUsage(state, members, slot.posId);
+        if ((state.totalUsage[m.id] || 0) > skillAvg + 0.1) {
+            weight += 2000; 
+        }
     }
 
     return [
@@ -365,16 +367,16 @@ const ScheduleEngine = {
           for (let s1 of s1Slots) {
               if (!this._canAssign(m, s1, state, context, 0)) continue;
               
-              // 【防壟斷修正】確保這項指派不會讓該成員在該崗位的服事次數遠高於同技能平均
-              if ((state.totalUsage[m.id] || 0) > this._getSkillAvgUsage(state, members, s1.posId) + 1) continue;
+              // 【防壟斷修正】嚴格限制 + 0.1
+              if ((state.totalUsage[m.id] || 0) > this._getSkillAvgUsage(state, members, s1.posId) + 0.1) continue;
               
               let s2 = null;
               const s2Slots = context.availableSlots.filter(s => s.session === '第二堂' && s.needed > 0);
               
               if (p === 1) { 
-                  s2 = s2Slots.find(s => s.roleName === s1.roleName && this._canAssign(m, s, state, context, 0) && (state.totalUsage[m.id] || 0) <= this._getSkillAvgUsage(state, members, s.posId) + 1);
+                  s2 = s2Slots.find(s => s.roleName === s1.roleName && this._canAssign(m, s, state, context, 0) && (state.totalUsage[m.id] || 0) <= this._getSkillAvgUsage(state, members, s.posId) + 0.1);
               } else if (p === 2) { 
-                  s2 = s2Slots.find(s => s.roleName !== s1.roleName && this._canAssign(m, s, state, context, 0) && (state.totalUsage[m.id] || 0) <= this._getSkillAvgUsage(state, members, s.posId) + 1);
+                  s2 = s2Slots.find(s => s.roleName !== s1.roleName && this._canAssign(m, s, state, context, 0) && (state.totalUsage[m.id] || 0) <= this._getSkillAvgUsage(state, members, s.posId) + 0.1);
               }
 
               if (s2) {
@@ -396,12 +398,11 @@ const ScheduleEngine = {
       const groups = {};
       members.forEach(m => {
           const gid = state.memberGroups[m.id];
-          if (gid && (String(gid).startsWith('FA') || String(gid).startsWith('FB'))) {
+          if (gid && (gid.startsWith('FA') || gid.startsWith('FB'))) {
               if (state.lastServedWeek[m.id] === context.weekIndex - 1) return;
               if ((state.totalUsage[m.id] || 0) > avgUsage + 1.5) return;
               if ((context.dailyAssignments[m.id] || []).length > 0) return;
 
-              // 只收集「今天有空、能排班」的家人
               if (this._isAvailableOnDate(m, context.dateStr)) {
                   if (!groups[gid]) groups[gid] = [];
                   groups[gid].push(m);
@@ -419,7 +420,7 @@ const ScheduleEngine = {
           const gMembers = groups[gid];
           if (gMembers.length < 2) continue;
 
-          const isFA = String(gid).startsWith('FA');
+          const isFA = gid.startsWith('FA');
 
           let placed = false;
           const m0 = gMembers[0];
@@ -429,8 +430,8 @@ const ScheduleEngine = {
                   const slot0 = context.availableSlots.find(s => s.session === sess && s.roleName === role && s.needed > 0);
                   if (!slot0 || !this._canAssign(m0, slot0, state, context, 0, members)) continue;
 
-                  // 【防壟斷修正】家庭主排：確保家庭不會因為優先進場而壟斷了單一崗位 (讓單一崗位的其他人也有機會)
-                  if ((state.totalUsage[m0.id] || 0) > this._getSkillAvgUsage(state, members, slot0.posId) + 1) continue;
+                  // 【防壟斷修正】確保家庭不會因為優先進場而壟斷了單一崗位 (改為嚴格的 + 0.1)
+                  if ((state.totalUsage[m0.id] || 0) > this._getSkillAvgUsage(state, members, slot0.posId) + 0.1) continue;
 
                   let allCanBePlaced = true;
                   let plannedSlots = [{ member: m0, slot: slot0 }];
@@ -452,8 +453,8 @@ const ScheduleEngine = {
                               if (slotN.needed - plannedCount <= 0) continue;
 
                               if (this._canAssign(m, slotN, state, context, 0, true)) {
-                                  // 【防壟斷修正】其他家庭成員也需做防壟斷檢查
-                                  if ((state.totalUsage[m.id] || 0) > this._getSkillAvgUsage(state, members, slotN.posId) + 1) continue;
+                                  // 【防壟斷修正】其他家庭成員也需做防壟斷檢查 (改為嚴格的 + 0.1)
+                                  if ((state.totalUsage[m.id] || 0) > this._getSkillAvgUsage(state, members, slotN.posId) + 0.1) continue;
 
                                   plannedSlots.push({ member: m, slot: slotN });
                                   familyRoles.add(tRole);
@@ -492,7 +493,8 @@ const ScheduleEngine = {
       const eligible = members.filter((m) => this._canAssign(m, slot, state, context, strictLevel));
       if (eligible.length === 0) break;
 
-      const scored = eligible.map(m => ({ m, score: this._getScore(m, slot, state, context) }));
+      // 傳入 members 供 _getScore 進行防壟斷計算
+      const scored = eligible.map(m => ({ m, score: this._getScore(m, slot, state, context, members) }));
       scored.sort((a, b) => this._compareScore(a.score, b.score));
       
       const assignedMember = scored[0].m;
@@ -532,7 +534,7 @@ const ScheduleEngine = {
 
   _immediateFamilyFill(baseMember, state, context, members) {
       const groupId = state.memberGroups[baseMember.id];
-      if (!groupId || (!String(groupId).startsWith('FA') && !String(groupId).startsWith('FB'))) return;
+      if (!groupId || (!groupId.startsWith('FA') && !groupId.startsWith('FB'))) return;
 
       const unassignedFamily = members.filter(m => 
           m.id !== baseMember.id && 
@@ -590,7 +592,8 @@ const ScheduleEngine = {
       
       if (eligible.length === 0) break;
       
-      const scored = eligible.map(m => ({ m, score: this._getScore(m, slots[0], state, context) }));
+      // 傳入 members 供 _getScore 進行防壟斷計算
+      const scored = eligible.map(m => ({ m, score: this._getScore(m, slots[0], state, context, members) }));
       scored.sort((a, b) => this._compareScore(a.score, b.score));
       const best = scored[0].m;
       
@@ -633,7 +636,7 @@ const ScheduleEngine = {
   _enforceFamily(state, context, members) {
     const groups = {};
     members.forEach(m => {
-      if (m.group_id && (String(m.group_id).startsWith('FA') || String(m.group_id).startsWith('FB'))) {
+      if (m.group_id && (m.group_id.startsWith('FA') || m.group_id.startsWith('FB'))) {
         if (this._isAvailableOnDate(m, context.dateStr)) {
             if (!groups[m.group_id]) groups[m.group_id] = [];
             groups[m.group_id].push(m);
@@ -649,7 +652,7 @@ const ScheduleEngine = {
 
     sortedGroupIds.forEach(gid => {
       const gMembers = groups[gid];
-      if (gMembers.length < 2) return; // 全家只剩1人有空，不需要補救
+      if (gMembers.length < 2) return;
 
       const assignedMembers = gMembers.filter(m => context.dailyAssignments[m.id]);
       const unassignedMembers = gMembers.filter(m => !context.dailyAssignments[m.id]);
@@ -714,7 +717,7 @@ const ScheduleEngine = {
       let bestScore = -9999;
 
       for (let shift of todayShifts) {
-          // 【修復 5：錯字修正】將原本誤植的「執解輪值」改回「執事輪值」
+          // 修復錯字，避免出錯
           if (shift._positionName === '執事輪值') continue;
 
           const mockSlot = { roleName: shift._positionName, session: shift.session, posId: shift.position_id };
@@ -724,7 +727,7 @@ const ScheduleEngine = {
           if (!victim) continue;
 
           const victimGroupId = state.memberGroups[victim.id];
-          if (victimGroupId && (String(victimGroupId).startsWith('FA') || String(victimGroupId).startsWith('FB'))) continue;
+          if (victimGroupId && (victimGroupId.startsWith('FA') || victimGroupId.startsWith('FB'))) continue;
 
           const victimUsage = state.totalUsage[victim.id] || 0;
           const unMUsage = state.totalUsage[unM.id] || 0;
@@ -806,7 +809,7 @@ const ScheduleEngine = {
   _applyVisualFlags(draft, members) {
     const memberGroups = {};
     members.forEach(m => {
-      if (m.group_id) memberGroups[m.id] = m.group_id;
+      if (m.group_id) memberGroups[m.id] = String(m.group_id);
     });
 
     const shiftsByDate = {};
@@ -826,7 +829,7 @@ const ScheduleEngine = {
         freq[d.member_id] = (freq[d.member_id] || 0) + 1;
         
         const gid = memberGroups[d.member_id];
-        if (gid && (String(gid).startsWith('FA') || String(gid).startsWith('FB'))) {
+        if (gid && (gid.startsWith('FA') || gid.startsWith('FB'))) {
           if (!groupFreq[gid]) groupFreq[gid] = new Set();
           groupFreq[gid].add(d.member_id);
           
