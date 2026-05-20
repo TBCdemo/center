@@ -211,7 +211,7 @@
         const MainApp = ({ session }) => {
             const [currentApp, setCurrentApp] = useState('home'); 
 
-            const handleLogout = async () => { await supabase.auth.signOut(); };
+            const handleLogout = async () => { await supabase.auth.signOut(); window.location.reload(); };
 
             if (currentApp === 'home') {
                 return (
@@ -250,7 +250,7 @@
                     <main className="flex-1 flex flex-col h-full overflow-hidden relative z-10">
                         {currentApp === 'members' && (
                             MemberDataCenterComp 
-                                ? <MemberDataCenterComp session={session} goBack={() => setCurrentApp('home')} supabase={supabase} utils={utils} constants={constants} />
+                                ? <MemberDataCenterComp session={session} goBack={() => setCurrentApp('home')} goToSchedule={() => setCurrentApp('scheduling')} supabase={supabase} utils={utils} constants={constants} />
                                 : <div className="flex-1 flex items-center justify-center font-bold text-slate-500 animate-pulse">載入模組中...</div>
                         )}
                         {currentApp === 'scheduling' && (
