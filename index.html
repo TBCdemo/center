@@ -17,9 +17,7 @@
         tailwind.config = {
             theme: {
                 extend: {
-                    fontFamily: {
-                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
-                    },
+                    fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
                     colors: {
                         slate: { 50: '#F8FAFC', 100: '#F1F5F9', 200: '#E2E8F0', 500: '#64748B', 700: '#334155', 900: '#0F172A' },
                         indigo: { 50: '#EEF2FF', 100: '#E0E7FF', 500: '#6366F1', 600: '#4F46E5', 900: '#312E81' },
@@ -52,19 +50,16 @@
     <style type="text/tailwindcss">
         body { background-color: #F8FAFC; font-family: 'Plus Jakarta Sans', sans-serif; overflow: hidden; -webkit-tap-highlight-color: transparent; }
         
-        /* Design System: Corporate Trust Global Classes */
         .corporate-card { @apply bg-white rounded-xl border border-slate-100 transition-all duration-300 ease-out shadow-corporate-base; }
         .corporate-card:hover { @apply -translate-y-1 shadow-corporate-hover; transform-style: preserve-3d; }
         .corporate-btn { @apply bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-lg transition-all duration-200 font-semibold shadow-corporate-btn; }
         .corporate-btn:hover { @apply -translate-y-0.5; box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4); }
         .corporate-input { @apply bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all; }
         
-        /* Design System: Atmospheric Background Blobs */
         .bg-blob { position: fixed; border-radius: 50%; filter: blur(100px); z-index: 0; pointer-events: none; }
         .bg-blob-1 { top: -10%; left: -10%; width: 50vw; height: 50vw; background: linear-gradient(to right, rgba(79,70,229,0.15), rgba(124,58,237,0.1)); }
         .bg-blob-2 { bottom: -10%; right: -10%; width: 40vw; height: 40vw; background: linear-gradient(to right, rgba(124,58,237,0.1), rgba(16,185,129,0.05)); }
 
-        /* Legacy Table Styles */
         .schedule-table th { @apply px-3 py-4 bg-slate-50 text-slate-500 text-xs md:text-sm font-bold uppercase tracking-wider text-center border-b border-slate-200; }
         .schedule-table td { @apply px-3 py-3 text-xs md:text-sm text-slate-700 border-b border-slate-100 vertical-top transition-all duration-300; }
         .name-tag { @apply inline-flex items-center justify-center px-2 py-1 text-[14px] font-medium text-slate-700 cursor-pointer select-none transition-all whitespace-nowrap rounded-lg; }
@@ -74,7 +69,6 @@
         .name-tag.emergency { @apply text-orange-600 bg-orange-50; }
         .name-tag.empty-slot { @apply text-rose-500 font-bold bg-rose-50 animate-pulse border border-rose-200; }
         
-        /* Animations */
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
         .vertical-top { vertical-align: top; }
@@ -97,7 +91,7 @@
         import { createClient } from '@supabase/supabase-js';
 
         // ==========================================
-        // 初始化連線與共用常數 (保留原邏輯)
+        // 初始化連線與共用常數
         // ==========================================
         const SUPABASE_URL = "https://iwmkzsredvbgcqvqlayn.supabase.co";
         const SUPABASE_KEY = "sb_publishable_GwDMLoXcHaTzQDCcQlDuGw_4J9mwiaA"; 
@@ -115,6 +109,9 @@
             STATUS_OPTIONS: ['穩定服事', '暫停服事', '安息季', '一季一次']
         };
 
+        // ==========================================
+        // 完整的 Utility Functions (工具函式)
+        // ==========================================
         const fetchAllData = async (queryFn) => {
             let allData = []; let from = 0; const pageSize = 1000; let hasMore = true;
             try {
@@ -133,9 +130,43 @@
         const formatEmailForAuth = (acc) => { if (!acc) return ''; const trimmed = acc.trim(); return trimmed.includes('@') ? trimmed : `${trimmed}${constants.VIRTUAL_DOMAIN}`; };
         const extractAccountFromEmail = (email) => { if (!email) return ''; return email.endsWith(constants.VIRTUAL_DOMAIN) ? email.replace(constants.VIRTUAL_DOMAIN, '') : email; };
         
-        const utils = { fetchAllData, formatEmailForAuth, extractAccountFromEmail, /* ...省略其餘純邏輯函式以節省空間，請貼回您原本的 utils... */ };
+        const generateBaseQuarters = () => {
+            const year = new Date().getFullYear();
+            return [`${year}-Q1`, `${year}-Q2`, `${year}-Q3`, `${year}-Q4`, `${year+1}-Q1`, `${year+1}-Q2`, `${year+1}-Q3`, `${year+1}-Q4`];
+        };
+        
+        const getCurrentQuarter = () => {
+            const now = new Date();
+            return `${now.getFullYear()}-Q${Math.ceil((now.getMonth() + 1) / 3)}`;
+        };
+        
+        const getNextQuarter = (qStr) => {
+            if (!qStr || qStr === 'BASE') return getCurrentQuarter();
+            const [y, q] = qStr.split('-Q').map(Number);
+            return q === 4 ? `${y + 1}-Q1` : `${y}-Q${q + 1}`;
+        };
+        
+        const getSundaysInQuarter = (qStr) => {
+            if (!qStr || qStr === 'BASE') return [];
+            const [year, q] = qStr.split('-Q').map(Number);
+            const startMonth = (q - 1) * 3;
+            const d = new Date(year, startMonth, 1);
+            const sundays = [];
+            while (d.getMonth() < startMonth + 3 && d.getFullYear() === year) {
+                if (d.getDay() === 0) sundays.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+                d.setDate(d.getDate() + 1);
+            }
+            return sundays;
+        };
+        
+        const getHolidayName = (dateStr, customHolidays = {}) => customHolidays[dateStr] || '';
+        const getQuarterDateRange = () => { return { start: '', end: '' }; }; // 保留相容性
+        
+        const utils = { fetchAllData, formatEmailForAuth, extractAccountFromEmail, generateBaseQuarters, getCurrentQuarter, getNextQuarter, getSundaysInQuarter, getHolidayName, getQuarterDateRange };
 
-        // 重新設計：StatCard (套用 Corporate Trust 懸浮與柔和陰影)
+        // ==========================================
+        // 元件定義
+        // ==========================================
         const StatCard = ({ icon: Icon, title, value, unit, iconBgClass, iconTextClass, trend = null, compact = false }) => (
             <div className={`corporate-card relative overflow-hidden ${compact ? 'p-5' : 'p-6'}`}>
                 <div className={`flex justify-between items-start ${compact ? 'mb-4' : 'mb-5'} relative z-10`}>
@@ -151,16 +182,15 @@
             </div>
         );
 
-        // ==========================================
-        // 登入元件 AuthScreen (套用漸層主按鈕與 3D 景深)
-        // ==========================================
         const AuthScreen = () => {
             const [account, setAccount] = useState(''); const [password, setPassword] = useState('');
             const [loading, setLoading] = useState(false); const [errorMsg, setErrorMsg] = useState('');
 
             const handleAuth = async (e) => {
                 e.preventDefault(); setLoading(true); setErrorMsg('');
-                // ... 驗證邏輯不變 ...
+                const emailToUse = formatEmailForAuth(account);
+                const { error } = await supabase.auth.signInWithPassword({ email: emailToUse, password });
+                if (error) { setErrorMsg('登入失敗，請檢查帳號密碼。'); setLoading(false); }
             };
 
             return (
@@ -197,9 +227,6 @@
             );
         };
 
-        // ==========================================
-        // 主應用框架 (首頁導覽) - 套用企業級留白與卡片效果
-        // ==========================================
         const MainApp = ({ session }) => {
             const [currentApp, setCurrentApp] = useState('home'); 
 
@@ -237,7 +264,6 @@
                 );
             }
 
-            // ... 載入子元件邏輯不變 ...
             const MemberDataCenterComp = window.MemberDataCenter;
             const SchedulingAndGovernanceComp = window.SchedulingAndGovernance;
 
@@ -255,9 +281,36 @@
             );
         }
 
-        // ... App 進入點邏輯不變 ...
-        // function App() { ... }
-        // root.render(<App />);
+        // ==========================================
+        // 系統啟動進入點 (App) - 這個之前被省略掉了！
+        // ==========================================
+        function App() {
+            const [session, setSession] = useState(null);
+            const [isSessionLoaded, setIsSessionLoaded] = useState(false);
+            
+            useEffect(() => {
+                const checkAdmin = async (sess) => {
+                    if (sess) {
+                        const acc = utils.extractAccountFromEmail(sess.user?.email);
+                        if (acc !== constants.ADMIN_ACCOUNT && sess.user?.email !== constants.ADMIN_ACCOUNT) {
+                            await supabase.auth.signOut();
+                            setSession(null); setIsSessionLoaded(true); return;
+                        }
+                    }
+                    setSession(sess); setIsSessionLoaded(true);
+                };
+                supabase.auth.getSession().then(({ data: { session } }) => { checkAdmin(session); });
+                const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => { checkAdmin(session); });
+                return () => subscription.unsubscribe();
+            }, []);
+
+            if (!isSessionLoaded) return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><div className="text-slate-400 font-bold animate-pulse">Loading...</div></div>;
+            if (!session) return <AuthScreen />;
+            return <MainApp session={session} />;
+        }
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
