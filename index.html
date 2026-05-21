@@ -190,7 +190,7 @@
                 e.preventDefault(); setLoading(true); setErrorMsg('');
                 const emailToUse = formatEmailForAuth(account);
                 const { error } = await supabase.auth.signInWithPassword({ email: emailToUse, password });
-                if (error) { setErrorMsg('登入失敗，請檢查帳號密碼。'); setLoading(false); }
+                if (error) { setErrorMsg('登入失敗，請檢查帳號密碼'); setLoading(false); }
             };
 
             return (
@@ -201,7 +201,7 @@
                     <div className="corporate-card max-w-md w-full p-8 sm:p-10 animate-fade-in relative z-10 perspective-[2000px]">
                         <div className="flex flex-col items-center mb-8">
                             <div className="bg-gradient-to-br from-indigo-500 to-violet-600 p-4 rounded-xl text-white shadow-corporate-btn mb-5"><Activity size={32} /></div>
-                            <h1 className="text-3xl font-extrabold text-slate-900 text-center tracking-tight">TBC Serve</h1>
+                            <h1 className="text-3xl font-extrabold text-slate-900 text-center tracking-tight">TBC Serve Manager</h1>
                             <p className="text-slate-500 font-medium mt-2">Manager Portal</p>
                         </div>
                         {errorMsg && <div className="bg-rose-50 text-rose-600 text-sm font-semibold p-4 rounded-lg mb-6 flex items-start gap-2 border border-rose-100"><AlertCircle size={18} className="shrink-0 mt-0.5" /> {errorMsg}</div>}
