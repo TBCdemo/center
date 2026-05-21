@@ -35,7 +35,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
         else if (currentMonth < 12) deadlineMonth = 9;
     }
 
-    const [quarterOptions, setQuarterOptions] = useState(generateBaseQuarters());
+    const [quarterOptions, setQuarterOptions] = useState(['BASE', ...generateBaseQuarters()]);
     const initialQuarter = isAdmin ? getCurrentQuarter() : getNextQuarter(getCurrentQuarter());
     const [viewQuarter, setViewQuarter] = useState(initialQuarter); 
     
@@ -48,6 +48,10 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
     const [searchTerm, setSearchTerm] = useState('');
     const [message, setMessage] = useState({ type: '', text: '' });
     const [confirmAction, setConfirmAction] = useState(null);
+
+    const [isCreateQuarterModalOpen, setIsCreateQuarterModalOpen] = useState(false);
+    const [createSourceQ, setCreateSourceQ] = useState('BASE');
+    const [createTargetQ, setCreateTargetQ] = useState('');
 
     const [isDeleteQuarterModalOpen, setIsDeleteQuarterModalOpen] = useState(false);
     const [detectedQuarters, setDetectedQuarters] = useState([]);
@@ -106,9 +110,10 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             setCustomHolidays(parsedHolidays);
 
             if (allSettingsQs) {
-                const dbQuarters = allSettingsQs.map(d => d.quarter).filter(q => q !== 'SYSTEM');
-                const combinedQs = [...new Set([...generateBaseQuarters(), ...dbQuarters, viewQuarter])].sort();
-                setQuarterOptions(combinedQs);
+                const dbQuarters = allSettingsQs.map(d => d.quarter).filter(q => q !== 'SYSTEM' && q !== 'BASE');
+                const viewQFiltered = viewQuarter === 'BASE' ? [] : [viewQuarter];
+                const combinedQs = [...new Set([...generateBaseQuarters(), ...dbQuarters, ...viewQFiltered])].sort();
+                setQuarterOptions(['BASE', ...combinedQs]);
             }
         } catch (err) { showMessage('error', '載入資料失敗，請確認連線。'); } finally { setIsLoading(false); }
     };
@@ -117,21 +122,21 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
 
     const showMessage = (type, text) => { setMessage({ type, text }); setTimeout(() => setMessage({ type: '', text: '' }), 4000); };
 
-    const triggerCreateNextQuarter = () => {
-        const targetQ = getNextQuarter(viewQuarter);
-        setConfirmAction({
-            title: '建立同工資料', message: `完整複製【${viewQuarter.replace('-', '')}】同工資料至【${targetQ.replace('-', '')}】`, confirmText: '複製',
-            onConfirm: () => executeCreateNextQuarter(viewQuarter, targetQ)
-        });
+    const openCreateQuarterModal = () => {
+        setCreateSourceQ('BASE');
+        setCreateTargetQ(getNextQuarter(viewQuarter === 'BASE' ? getCurrentQuarter() : viewQuarter));
+        setIsCreateQuarterModalOpen(true);
     };
 
-    const executeCreateNextQuarter = async (sourceQ, targetQ) => {
-        setConfirmAction(null); setIsLoading(true);
+    const copyQuarterData = async (sourceQ, targetQ) => {
+        setIsLoading(true);
         try {
             const { data: oldSettings, error: err1 } = await fetchAllData(() => supabase.from('member_quarter_settings').select('*').eq('quarter', sourceQ));
             const { data: oldPos, error: err2 } = await fetchAllData(() => supabase.from('member_positions').select('*').eq('quarter', sourceQ));
             if (err1) throw err1; if (err2) throw err2;
-            if ((!oldSettings || oldSettings.length === 0) && (!oldPos || oldPos.length === 0)) throw new Error(`【${sourceQ}】目前沒有任何資料可供複製！`);
+            
+            const sourceName = sourceQ === 'BASE' ? '基礎版' : sourceQ;
+            if ((!oldSettings || oldSettings.length === 0) && (!oldPos || oldPos.length === 0)) throw new Error(`【${sourceName}】目前沒有任何資料可供複製！`);
 
             const uniqueSettingsMap = new Map();
             if (oldSettings) oldSettings.forEach(s => uniqueSettingsMap.set(s.member_id, s));
@@ -162,9 +167,34 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                 const { error: insErr2 } = await supabase.from('member_positions').upsert(newPos, { onConflict: 'member_id, position_id, quarter' });
                 if (insErr2) throw new Error("寫入資格失敗: " + insErr2.message);
             }
-            showMessage('success', `${targetQ.replace('-', '')}資料建立成功`);
-            setViewQuarter(targetQ);
-        } catch (err) { showMessage('error', '建立失敗: ' + err.message); } finally { setIsLoading(false); }
+            
+            const targetName = targetQ === 'BASE' ? '同工資料（基礎版）' : targetQ.replace('-', '');
+            showMessage('success', `${targetName} 處理成功`);
+            
+            if (targetQ !== 'BASE') {
+                setViewQuarter(targetQ);
+            } else {
+                loadData();
+            }
+        } catch (err) { showMessage('error', '處理失敗: ' + err.message); } finally { setIsLoading(false); }
+    };
+
+    const handleExecuteCreateQuarter = () => {
+        if (!createSourceQ || !createTargetQ) return showMessage('error', '請選擇來源與目標季度');
+        setIsCreateQuarterModalOpen(false);
+        copyQuarterData(createSourceQ, createTargetQ);
+    };
+
+    const triggerSaveToBase = () => {
+        setConfirmAction({
+            title: '存為基礎版',
+            message: `確定要將【${viewQuarter.replace('-', '')}】的資料完整覆寫至「同工資料（基礎版）」？\n(將作為未來新增季度的預設模板)`,
+            confirmText: '儲存',
+            onConfirm: () => {
+                setConfirmAction(null);
+                copyQuarterData(viewQuarter, 'BASE');
+            }
+        });
     };
 
     const openDeleteQuarterModal = async () => {
@@ -173,8 +203,8 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             const { data: allSettingsQs } = await fetchAllData(() => supabase.from('member_quarter_settings').select('quarter'));
             const { data: allPosQs } = await fetchAllData(() => supabase.from('member_positions').select('quarter'));
             const combined = [...(allSettingsQs || []), ...(allPosQs || [])].map(d => d.quarter);
-            const currentQ = getCurrentQuarter(); 
-            const uniqueQs = [...new Set(combined)].filter(q => q !== 'SYSTEM' && q !== currentQ).sort().reverse();
+            // 移除了排除 currentQ 的限制，現在允許刪除當前季度
+            const uniqueQs = [...new Set(combined)].filter(q => q !== 'SYSTEM' && q !== 'BASE').sort().reverse();
             setDetectedQuarters(uniqueQs); setQuartersToDelete([]); setIsDeleteQuarterModalOpen(true);
         } catch (err) { showMessage('error', '無法載入現有季度清單'); } finally { setIsLoading(false); }
     };
@@ -191,7 +221,12 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             const deletedNames = quartersToDelete.map(q => q.replace('-', '')).join('、');
             showMessage('success', `${deletedNames}資料刪除成功`);
             setIsDeleteQuarterModalOpen(false);
-            loadData(); 
+            
+            if (quartersToDelete.includes(viewQuarter)) {
+                setViewQuarter(isAdmin ? getCurrentQuarter() : getNextQuarter(getCurrentQuarter()));
+            } else {
+                loadData(); 
+            }
         } catch (err) { showMessage('error', '刪除失敗: ' + err.message); } finally { setIsLoading(false); }
     };
 
@@ -335,7 +370,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
         if (settings && settings.preferred_session && settings.preferred_session.toLowerCase().includes(term)) return true;
         if (settings && settings.availability_status && settings.availability_status.toLowerCase().includes(term)) return true;
         
-        // 增強搜尋：輸入「暫停」時同時過濾出有被設定「暫停」崗位的同工
         if (term.includes('暫停')) {
             const hasSuspendedPosition = memberPositions.filter(mp => mp.member_id === m.id).some(mp => mp.is_active === false);
             if (hasSuspendedPosition) return true;
@@ -359,12 +393,10 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             {/* 左側整合式現代功能導覽列 */}
             <div className="w-64 bg-slate-900 flex flex-col justify-between shrink-0 border-r border-slate-800 z-30">
                 <div className="flex flex-col">
-                    {/* 系統識別標誌 */}
                     <div className="p-6 border-b border-slate-800 flex items-center gap-3">
                         <span className="text-white font-black text-base tracking-wider">TBC Serve Manager</span>
                     </div>
                     
-                    {/* 功能導航項目 */}
                     <nav className="p-4 space-y-1.5">
                         <button onClick={goBack} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-bold text-sm transition-all text-left group">
                             <Home size={18} className="text-slate-400 group-hover:text-indigo-400 transition-colors" />
@@ -391,7 +423,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                         className="w-full flex items-center gap-3 px-4 py-3 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl font-bold text-sm transition-all text-left group"
                     >
                         <LogOut size={18} className="text-rose-400 group-hover:translate-x-0.5 transition-transform" />
-                        <span>Log Out</span>
+                        <span>Sign Out</span>
                     </button>
                 </div>
             </div>
@@ -408,7 +440,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                         {isAdmin && (
                             <div className="flex items-center bg-slate-50 rounded-lg px-2 py-1.5 border border-slate-200">
                                 <select value={viewQuarter} onChange={(e) => setViewQuarter(e.target.value)} className="bg-transparent border-none font-bold text-indigo-600 text-sm outline-none cursor-pointer">
-                                    {quarterOptions.map(q => <option key={q} value={q}>{q.replace('-', '')}</option>)}
+                                    {quarterOptions.map(q => <option key={q} value={q}>{q === 'BASE' ? '同工資料（基礎版）' : q.replace('-', '')}</option>)}
                                 </select>
                             </div>
                         )}
@@ -419,7 +451,10 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                         )}
                         {isAdmin && (
                             <>
-                                <button onClick={triggerCreateNextQuarter} className="whitespace-nowrap flex items-center gap-1.5 bg-amber-50 text-amber-600 hover:bg-amber-100 text-xs font-bold px-3 py-1.5 rounded-full transition-colors"><Copy size={14} /> 新增季度</button>
+                                {viewQuarter !== 'BASE' && (
+                                    <button onClick={triggerSaveToBase} className="whitespace-nowrap flex items-center gap-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-xs font-bold px-3 py-1.5 rounded-full transition-colors"><Save size={14} /> 存為基礎版</button>
+                                )}
+                                <button onClick={openCreateQuarterModal} className="whitespace-nowrap flex items-center gap-1.5 bg-amber-50 text-amber-600 hover:bg-amber-100 text-xs font-bold px-3 py-1.5 rounded-full transition-colors"><Copy size={14} /> 新增季度</button>
                                 <button onClick={openDeleteQuarterModal} className="whitespace-nowrap flex items-center gap-1.5 bg-red-50 text-red-600 hover:bg-red-100 text-xs font-bold px-3 py-1.5 rounded-full transition-colors"><Trash2 size={14} /> 刪除季度</button>
                                 <button onClick={() => setIsHolidayManagerOpen(true)} className="whitespace-nowrap flex items-center gap-1.5 bg-sky-50 text-sky-600 hover:bg-sky-100 text-xs font-bold px-3 py-1.5 rounded-full transition-colors"><CalendarX size={14} /> 節日提醒</button>
                             </>
@@ -595,30 +630,33 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                         })}
                                     </div>
                                 </div>
-                                <div className="pt-4 border-t border-slate-100">
-                                    <label className="text-sm font-bold text-slate-700 flex items-center gap-1.5 mb-3">
-                                        <CalendarX size={18} className="text-orange-500"/> 不可排班日 <span className="text-xs text-slate-400 font-normal ml-1">(點擊選取)</span>
-                                    </label>
-                                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
-                                        {getSundaysInQuarter(viewQuarter).map(date => {
-                                            const isChecked = Array.isArray(formData.unavailable_dates) && formData.unavailable_dates.includes(date);
-                                            const holidayName = getHolidayName(date, customHolidays);
-                                            const shortDate = date.split('-').slice(1).join('/');
-                                            return (
-                                                <label key={date} className={`relative flex flex-col items-center justify-center p-3 sm:p-2 rounded-2xl border-2 transition-all cursor-pointer select-none active:scale-[0.97] ${isChecked ? 'bg-orange-50 border-orange-500 shadow-md' : 'bg-white border-slate-200 hover:border-orange-200'}`}>
-                                                    <input type="checkbox" className="sr-only" checked={isChecked} onChange={(e) => {
-                                                        let newDates = Array.isArray(formData.unavailable_dates) ? [...formData.unavailable_dates] : [];
-                                                        if (e.target.checked) { if (!newDates.includes(date)) newDates.push(date); } else { newDates = newDates.filter(d => d !== date); }
-                                                        setFormData({ ...formData, unavailable_dates: newDates.sort() });
-                                                    }} />
-                                                    {isChecked && <Check className="absolute top-1 right-1 text-orange-500" size={14} strokeWidth={3} />}
-                                                    <span className={`text-base sm:text-sm font-black ${isChecked ? 'text-orange-600' : 'text-slate-600'}`}>{shortDate}</span>
-                                                    {holidayName && <span className={`text-[10px] font-bold mt-1 text-center leading-tight ${isChecked ? 'text-orange-500' : 'text-slate-400'}`}>{holidayName}</span>}
-                                                </label>
-                                            );
-                                        })}
+                                
+                                {viewQuarter !== 'BASE' && (
+                                    <div className="pt-4 border-t border-slate-100">
+                                        <label className="text-sm font-bold text-slate-700 flex items-center gap-1.5 mb-3">
+                                            <CalendarX size={18} className="text-orange-500"/> 不可排班日 <span className="text-xs text-slate-400 font-normal ml-1">(點擊選取)</span>
+                                        </label>
+                                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+                                            {getSundaysInQuarter(viewQuarter).map(date => {
+                                                const isChecked = Array.isArray(formData.unavailable_dates) && formData.unavailable_dates.includes(date);
+                                                const holidayName = getHolidayName(date, customHolidays);
+                                                const shortDate = date.split('-').slice(1).join('/');
+                                                return (
+                                                    <label key={date} className={`relative flex flex-col items-center justify-center p-3 sm:p-2 rounded-2xl border-2 transition-all cursor-pointer select-none active:scale-[0.97] ${isChecked ? 'bg-orange-50 border-orange-500 shadow-md' : 'bg-white border-slate-200 hover:border-orange-200'}`}>
+                                                        <input type="checkbox" className="sr-only" checked={isChecked} onChange={(e) => {
+                                                            let newDates = Array.isArray(formData.unavailable_dates) ? [...formData.unavailable_dates] : [];
+                                                            if (e.target.checked) { if (!newDates.includes(date)) newDates.push(date); } else { newDates = newDates.filter(d => d !== date); }
+                                                            setFormData({ ...formData, unavailable_dates: newDates.sort() });
+                                                        }} />
+                                                        {isChecked && <Check className="absolute top-1 right-1 text-orange-500" size={14} strokeWidth={3} />}
+                                                        <span className={`text-base sm:text-sm font-black ${isChecked ? 'text-orange-600' : 'text-slate-600'}`}>{shortDate}</span>
+                                                        {holidayName && <span className={`text-[10px] font-bold mt-1 text-center leading-tight ${isChecked ? 'text-orange-500' : 'text-slate-400'}`}>{holidayName}</span>}
+                                                    </label>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
                             <div className="px-5 py-4 border-t border-slate-100 bg-white flex gap-3 shrink-0 pb-8 sm:pb-4 sticky bottom-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
                                 <button onClick={closeModal} className="flex-1 py-3.5 sm:py-2.5 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">取消</button>
@@ -675,6 +713,34 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                     </div>
                 )}
 
+                {isCreateQuarterModalOpen && (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+                        <div className="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl flex flex-col overflow-hidden animate-fade-in">
+                            <div className="p-6">
+                                <h3 className="text-xl font-black text-slate-800 mb-4 flex items-center gap-2"><Copy size={24} className="text-amber-500"/> 新增季度</h3>
+                                <div className="space-y-4">
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-slate-500">選擇資料來源 (拷貝對象)</label>
+                                        <select value={createSourceQ} onChange={e => setCreateSourceQ(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none font-bold text-slate-700">
+                                            {quarterOptions.map(q => <option key={q} value={q}>{q === 'BASE' ? '同工資料（基礎版）' : q.replace('-', '')}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-slate-500">建立目標季度</label>
+                                        <select value={createTargetQ} onChange={e => setCreateTargetQ(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none font-bold text-slate-700">
+                                            {generateBaseQuarters().map(q => <option key={q} value={q}>{q.replace('-', '')}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="p-3 bg-slate-50 flex gap-2 border-t border-slate-100">
+                                <button onClick={() => setIsCreateQuarterModalOpen(false)} className="flex-1 py-3 font-black text-slate-600 bg-slate-200 rounded-xl">取消</button>
+                                <button onClick={handleExecuteCreateQuarter} className="flex-1 py-3 font-black text-white bg-amber-500 hover:bg-amber-600 rounded-xl transition-colors">建立</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {message.text && (
                     <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-[80] px-5 py-3 rounded-2xl font-bold shadow-xl animate-fade-in flex items-start gap-2 max-w-[90vw] w-max ${message.type === 'success' ? 'bg-slate-800 text-emerald-400' : 'bg-red-600 text-white'}`}>
                         <div className="shrink-0 mt-0.5">{message.type === 'success' ? <CheckCircle2 size={18}/> : <AlertCircle size={18}/>}</div>
@@ -686,8 +752,8 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
                         <div className="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl flex flex-col overflow-hidden animate-fade-in">
                             <div className="p-8 text-center">
-                                <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5 ${confirmAction?.title === '警告' || isDeleteQuarterModalOpen ? 'bg-red-100 text-red-500' : 'bg-amber-100 text-amber-500'}`}>
-                                    {isDeleteQuarterModalOpen ? <Trash2 size={32}/> : <AlertCircle size={32}/>}
+                                <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5 ${confirmAction?.title === '警告' || isDeleteQuarterModalOpen ? 'bg-red-100 text-red-500' : 'bg-emerald-100 text-emerald-500'}`}>
+                                    {isDeleteQuarterModalOpen ? <Trash2 size={32}/> : (confirmAction?.title === '警告' ? <AlertCircle size={32}/> : <Save size={32}/>)}
                                 </div>
                                 <h3 className="text-xl font-black text-slate-800 mb-3">{isDeleteQuarterModalOpen ? '刪除同工資料' : confirmAction?.title}</h3>
                                 {isDeleteQuarterModalOpen ? (
@@ -719,7 +785,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                             </div>
                             <div className="p-3 bg-slate-50 flex gap-2 border-t border-slate-100">
                                 <button onClick={() => {setConfirmAction(null); setIsDeleteQuarterModalOpen(false);}} className="flex-1 py-3.5 font-black text-slate-600 bg-slate-200 rounded-xl">取消</button>
-                                <button onClick={executeDeleteQuarter} disabled={isDeleteQuarterModalOpen && quartersToDelete.length === 0} className={`flex-1 py-3.5 font-black text-white rounded-xl transition-all ${isDeleteQuarterModalOpen || confirmAction?.title === '警告' ? 'bg-red-500 hover:bg-red-600 disabled:bg-red-300' : 'bg-amber-500 hover:bg-amber-600'} disabled:opacity-50 disabled:cursor-not-allowed`}>
+                                <button onClick={isDeleteQuarterModalOpen ? executeDeleteQuarter : confirmAction?.onConfirm} disabled={isDeleteQuarterModalOpen && quartersToDelete.length === 0} className={`flex-1 py-3.5 font-black text-white rounded-xl transition-all ${isDeleteQuarterModalOpen || confirmAction?.title === '警告' ? 'bg-red-500 hover:bg-red-600 disabled:bg-red-300' : 'bg-emerald-500 hover:bg-emerald-600'} disabled:opacity-50 disabled:cursor-not-allowed`}>
                                     {isDeleteQuarterModalOpen ? '刪除' : (confirmAction?.confirmText || '確定')}
                                 </button>
                             </div>
