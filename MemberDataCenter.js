@@ -146,6 +146,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             if (oldPos) oldPos.forEach(p => uniquePosMap.set(`${p.member_id}_${p.position_id}`, p));
             const filteredOldPos = Array.from(uniquePosMap.values());
 
+            // 這裡確保了資料庫中只會留下一份最新目標季度（包括 BASE）的資料，舊的會被刪除
             await supabase.from('member_quarter_settings').delete().eq('quarter', targetQ);
             await supabase.from('member_positions').delete().eq('quarter', targetQ);
             
@@ -187,8 +188,8 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
 
     const triggerSaveToBase = () => {
         setConfirmAction({
-            title: '存為同工基礎版',
-            message: `將【${viewQuarter.replace('-', '')}】的資料完整覆寫至「同工資料（基礎版）」？`,
+            title: '儲存同工基礎版',
+            message: `將【${viewQuarter.replace('-', '')}】資料覆寫至「同工資料（基礎版）」？`,
             confirmText: '儲存',
             onConfirm: () => {
                 setConfirmAction(null);
