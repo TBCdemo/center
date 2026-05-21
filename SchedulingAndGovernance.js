@@ -439,7 +439,19 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
             if (!tableData[key].positions[d._positionName]) tableData[key].positions[d._positionName] = [];
             tableData[key].positions[d._positionName].push(d.is_empty ? '⚠️空缺' : (d._memberName || '未知'));
         });
-        const sortedRows = Object.values(tableData).sort((a, b) => a.date !== b.date ? a.date.localeCompare(b.date) : (a.session === '第一堂' ? -1 : 1));
+        
+        // 匯出排序修改為：先依「堂別（第一堂、第二堂）」排序，再依「日期」排序
+        const sortedRows = Object.values(tableData).sort((a, b) => {
+            if (a.session !== b.session) {
+                if (a.session === '第一堂') return -1;
+                if (b.session === '第一堂') return 1;
+                if (a.session === '第二堂') return -1;
+                if (b.session === '第二堂') return 1;
+                return a.session.localeCompare(b.session);
+            }
+            return a.date.localeCompare(b.date);
+        });
+
         let csvContent = '\uFEFF日期,堂別,司會,執事,接待,收奉獻,主餐,PPT,新朋友關懷\n';
         sortedRows.forEach(row => {
             const r = [
