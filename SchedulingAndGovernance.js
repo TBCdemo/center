@@ -880,14 +880,37 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
     const rowsToDisplay = groupedBySession[activeSessionTab] || [];
 
     const getTagClass = (item) => {
-        let cls = `name-tag ${activeSlot?.temp_id === item.temp_id ? 'active' : ''}`;
-        if (item.is_empty) return cls + ' empty-slot';
-        if (item._positionName !== '執事輪值') {
-            if (conflictIds.has(item.temp_id)) return cls + ' conflict';
-            if (orphanIds.has(item.temp_id)) return cls + ' orphan';
+        // 基礎樣式 (已移除 transition-all，改成靜態設定)
+        let baseStyle = "px-2.5 py-1.5 rounded-lg text-[13px] font-black border cursor-pointer text-center flex items-center justify-center min-w-[70px] ";
+        
+        // 點擊選取時的樣式
+        if (activeSlot?.temp_id === item.temp_id) {
+            baseStyle += "ring-2 ring-indigo-500 shadow-md ";
         }
-        if (item.is_emergency) return cls + ' emergency';
-        return cls;
+
+        // ⚠️ 空缺狀態
+        if (item.is_empty) {
+            return baseStyle + "bg-rose-500 border-rose-600 text-white shadow-sm";
+        }
+
+        if (item._positionName !== '執事輪值') {
+            // 紅色：崗位兼任
+            if (conflictIds.has(item.temp_id)) {
+                return baseStyle + "bg-rose-50 border-rose-200 text-rose-600 shadow-sm";
+            }
+            // 藍色：群組落單
+            if (orphanIds.has(item.temp_id)) {
+                return baseStyle + "bg-sky-50 border-sky-200 text-sky-600 shadow-sm";
+            }
+        }
+
+        // 橘色：落單自動替換
+        if (item.is_emergency) {
+            return baseStyle + "bg-orange-50 border-orange-200 text-orange-600 shadow-sm";
+        }
+
+        // 預設正常狀態
+        return baseStyle + "bg-white border-slate-200 text-slate-700";
     };
 
     const ScheduleCell = ({ row, positionName, gridCols = 1 }) => {
@@ -908,7 +931,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
 
     return (
         <div className="flex h-screen w-full bg-slate-50 overflow-hidden select-none">
-            {/* 左側整合式現代功能導覽列 */}
+            {/* 左側整合式現代功能導覽列 (Corporate Trust Style) */}
             <div className="w-64 bg-white flex flex-col justify-between shrink-0 border-r border-slate-200 z-30 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
                 <div className="flex flex-col">
                     {/* 系統識別標誌 */}
@@ -926,8 +949,8 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                             <Users size={18} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
                             <span>同工資料中心</span>
                         </button>
-                        <div className="flex items-center gap-3 px-4 py-3 corporate-btn font-black text-sm">
-                            <Calendar size={18} />
+                        <div className="flex items-center gap-3 px-4 py-3 corporate-btn font-black text-sm bg-indigo-50 text-indigo-700 rounded-xl">
+                            <Calendar size={18} className="text-indigo-600" />
                             <span>排班作業中心</span>
                         </div>
                     </nav>
@@ -948,7 +971,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                 </div>
             </div>
 
-            {/* 右側主工作視窗容器 (原先完整的排班作業視窗) */}
+            {/* 右側主工作視窗容器 */}
             <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 relative">
                 {/* Header Area */}
                 <div className="p-6 lg:px-8 lg:py-6 bg-white border-b border-slate-200 shrink-0 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 shadow-sm z-10">
