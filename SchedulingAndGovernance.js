@@ -9,7 +9,6 @@ import {
     Home, LogOut
 } from 'lucide-react';
 
-// 安全的 JSON 解析函數，防止資料庫格式錯誤導致白畫面
 const safeParseJSON = (data, fallback) => {
     if (!data) return fallback;
     if (typeof data !== 'string') return data;
@@ -53,7 +52,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
     const [selectedPersonalStats, setSelectedPersonalStats] = useState(null);
     const [hasQuerySchedule, setHasQuerySchedule] = useState(true); 
 
-    // 初始化載入
     useEffect(() => { 
         const fetchInitialData = async () => {
             setIsLoading(true);
@@ -75,7 +73,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
         fetchInitialData(); 
     }, [year, quarter]); 
 
-    // 檢查目標季度是否有備份檔
     useEffect(() => {
         const checkScheduleExists = async () => {
             if (appMode !== 'query') return;
@@ -95,7 +92,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
 
     const currentQuarterStr = `${year}-Q${quarter}`;
 
-    // 資料梳理：過濾系統假帳號並整合設定
     const effectiveMembers = useMemo(() => {
         return dbData.members
             .filter(m => m.name !== 'SYSTEM_CUSTOM_HOLIDAYS_DB' && m.name !== 'SYSTEM_SCHEDULE_ARCHIVE')
@@ -115,7 +111,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
         return dbData.memberPositions.filter(mp => (mp.quarter === currentQuarterStr || !mp.quarter) && mp.is_active !== false);
     }, [dbData.memberPositions, currentQuarterStr]);
 
-    // 啟動排班引擎
     const runAutoSchedule = () => {
         const targetQuarterStr = `${year}-Q${quarter}`;
         const hasQuarterData = dbData.memberQuarterSettings.some(s => s.quarter === targetQuarterStr);
@@ -137,7 +132,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
         }, 300);
     };
 
-    // 查詢並解壓縮歷史班表
     const runQuerySchedule = async () => {
         setIsLoading(true);
         try {
@@ -909,38 +903,35 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
     return (
         <div className="flex h-screen w-full bg-slate-50 overflow-hidden select-none">
             {/* 左側整合式現代功能導覽列 */}
-            <div className="w-64 bg-slate-900 flex flex-col justify-between shrink-0 border-r border-slate-800 z-30">
+            <div className="w-64 bg-white flex flex-col justify-between shrink-0 border-r border-slate-200 z-30 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
                 <div className="flex flex-col">
-                    {/* 系統識別標誌 */}
-                    <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-                        <span className="text-white font-black text-base tracking-wider">TBC Serve Manager</span>
+                    <div className="p-6 border-b border-slate-100 flex items-center gap-3">
+                        <span className="text-slate-900 font-black text-base tracking-wider">TBC Serve Manager</span>
                     </div>
                     
-                    {/* 功能導航項目 */}
                     <nav className="p-4 space-y-1.5">
-                        <button onClick={goBack} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-bold text-sm transition-all text-left group">
-                            <Home size={18} className="text-slate-400 group-hover:text-indigo-400 transition-colors" />
+                        <button onClick={goBack} className="w-full flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-xl font-bold text-sm transition-all text-left group">
+                            <Home size={18} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
                             <span>Home</span>
                         </button>
-                        <button onClick={goToMembers} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-bold text-sm transition-all text-left group">
-                            <Users size={18} className="text-slate-400 group-hover:text-indigo-400 transition-colors" />
+                        <button onClick={goToMembers} className="w-full flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-xl font-bold text-sm transition-all text-left group">
+                            <Users size={18} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
                             <span>同工資料中心</span>
                         </button>
-                        <div className="flex items-center gap-3 px-4 py-3 bg-indigo-600 text-white rounded-xl font-black text-sm shadow-lg shadow-indigo-600/10">
+                        <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl font-black text-sm shadow-[0_4px_14px_0_rgba(79,70,229,0.3)]">
                             <Calendar size={18} />
                             <span>排班作業中心</span>
                         </div>
                     </nav>
                 </div>
                 
-                {/* 底部安全登出按鈕 */}
-                <div className="p-4 border-t border-slate-800">
+                <div className="p-4 border-t border-slate-100">
                     <button 
                         onClick={async () => { 
                             if (supabase?.auth?.signOut) { await supabase.auth.signOut(); } 
                             window.location.reload(); 
                         }} 
-                        className="w-full flex items-center gap-3 px-4 py-3 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl font-bold text-sm transition-all text-left group"
+                        className="w-full flex items-center gap-3 px-4 py-3 text-rose-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl font-bold text-sm transition-all text-left group"
                     >
                         <LogOut size={18} className="text-rose-400 group-hover:translate-x-0.5 transition-transform" />
                         <span>Sign Out</span>
