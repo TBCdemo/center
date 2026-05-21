@@ -119,7 +119,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
     const runAutoSchedule = () => {
         const targetQuarterStr = `${year}-Q${quarter}`;
         const hasQuarterData = dbData.memberQuarterSettings.some(s => s.quarter === targetQuarterStr);
-        if (!hasQuarterData) { setErrorMsg(`⚠️ 請先至首頁「同工資料中心」建立【${targetQuarterStr.replace('-','')}】的季度資料，再進行預排！`); return; }
+        if (!hasQuarterData) { setErrorMsg(`⚠️ 「同工資料中心」建立【${targetQuarterStr.replace('-','')}】季度資料，再進行預排！`); return; }
 
         setIsLoading(true);
         setTimeout(() => {
@@ -132,7 +132,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                 setErrorMsg('');
                 if (schedulingPhase === 'setup') setActiveSessionTab('第一堂');
                 setSchedulingPhase('editor');
-            } catch (e) { setErrorMsg('自動排班引擎執行失敗，請確認已載入排班引擎腳本。'); } 
+            } catch (e) { setErrorMsg('自動排班引擎執行失敗，請確認已載入排班引擎。'); } 
             finally { setIsLoading(false); }
         }, 300);
     };
@@ -196,7 +196,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                         for (let i = 0; i < missingCount; i++) {
                             reconstructed.push({
                                 temp_id: `EMPTY_${dateStr}_${session}_${pos.id}_${Math.random()}`, service_date: dateStr, session: session, member_id: 'EMPTY_SLOT', position_id: pos.id,
-                                _memberName: '⚠️ 需手動指派', _positionName: posName, is_empty: true
+                                _memberName: '⚠️ 人工指派', _positionName: posName, is_empty: true
                             });
                         }
                     });
@@ -400,7 +400,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
 
     const handlePublishClick = () => {
         const hasEmpty = generatedDraft.some(d => d.is_empty);
-        if (hasEmpty) { setErrorMsg('還有「⚠️ 需手動指派」的空缺未填補，請點擊並指派人員後再發布。'); return; }
+        if (hasEmpty) { setErrorMsg('還有「⚠️ 人工指派」的空缺未填補，完成後再發布。'); return; }
         setPublishConfirmOpen(true);
     };
 
@@ -669,7 +669,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                             </button>
                             {!dbData.memberQuarterSettings.some(s => s.quarter === `${year}-Q${quarter}`) && !isLoading && (
                                 <p className="text-rose-500 text-[13px] font-bold text-center mt-4 flex items-center justify-center gap-1.5 animate-pulse">
-                                    <AlertCircle size={16} /> 尚未建立 {year}Q{quarter} 同工資料，請先至首頁「同工資料中心」新增。
+                                    <AlertCircle size={16} /> 尚未建立 {year}Q{quarter} 同工資料，請至「同工資料中心」新增。
                                 </p>
                             )}
                         </div>
@@ -943,7 +943,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                         className="w-full flex items-center gap-3 px-4 py-3 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl font-bold text-sm transition-all text-left group"
                     >
                         <LogOut size={18} className="text-rose-400 group-hover:translate-x-0.5 transition-transform" />
-                        <span>Log Out</span>
+                        <span>Sign Out</span>
                     </button>
                 </div>
             </div>
@@ -970,7 +970,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                         {schedulingPhase === 'editor' && (
                             <>
                                 <div className="mt-3 flex flex-wrap items-center gap-6">
-                                    <p className="text-slate-500 text-xs font-bold flex items-center gap-1.5"><Search size={14} className="text-indigo-500"/> 點擊姓名選擇合適替代人選</p>
+                                    <p className="text-slate-500 text-xs font-bold flex items-center gap-1.5"><Search size={14} className="text-indigo-500"/> 點擊姓名選擇替代人選</p>
                                     <p className="text-slate-500 text-xs font-bold flex items-center gap-1.5"><GripVertical size={14} className="text-indigo-500"/> 拖曳姓名可交換位置</p>
                                 </div>
                                 <div className="flex gap-3 mt-2 pt-2 border-t border-slate-100 flex-wrap">
