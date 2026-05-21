@@ -169,7 +169,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             }
             
             const targetName = targetQ === 'BASE' ? '同工資料（基礎版）' : targetQ.replace('-', '');
-            showMessage('success', `${targetName} 處理成功`);
+            showMessage('success', `${targetName} 新增完成`);
             
             if (targetQ !== 'BASE') {
                 setViewQuarter(targetQ);
@@ -187,8 +187,8 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
 
     const triggerSaveToBase = () => {
         setConfirmAction({
-            title: '存為基礎版',
-            message: `確定要將【${viewQuarter.replace('-', '')}】的資料完整覆寫至「同工資料（基礎版）」？\n(將作為未來新增季度的預設模板)`,
+            title: '存為同工基礎版',
+            message: `將【${viewQuarter.replace('-', '')}】的資料完整覆寫至「同工資料（基礎版）」？`,
             confirmText: '儲存',
             onConfirm: () => {
                 setConfirmAction(null);
@@ -203,7 +203,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             const { data: allSettingsQs } = await fetchAllData(() => supabase.from('member_quarter_settings').select('quarter'));
             const { data: allPosQs } = await fetchAllData(() => supabase.from('member_positions').select('quarter'));
             const combined = [...(allSettingsQs || []), ...(allPosQs || [])].map(d => d.quarter);
-            // 移除了排除 currentQ 的限制，現在允許刪除當前季度
             const uniqueQs = [...new Set(combined)].filter(q => q !== 'SYSTEM' && q !== 'BASE').sort().reverse();
             setDetectedQuarters(uniqueQs); setQuartersToDelete([]); setIsDeleteQuarterModalOpen(true);
         } catch (err) { showMessage('error', '無法載入現有季度清單'); } finally { setIsLoading(false); }
@@ -451,11 +450,11 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                         )}
                         {isAdmin && (
                             <>
+                                <button onClick={openCreateQuarterModal} className="whitespace-nowrap flex items-center gap-1.5 bg-amber-50 text-amber-600 hover:bg-amber-100 text-xs font-bold px-3 py-1.5 rounded-full transition-colors"><Copy size={14} /> 新增</button>
+                                <button onClick={openDeleteQuarterModal} className="whitespace-nowrap flex items-center gap-1.5 bg-red-50 text-red-600 hover:bg-red-100 text-xs font-bold px-3 py-1.5 rounded-full transition-colors"><Trash2 size={14} /> 刪除</button>
                                 {viewQuarter !== 'BASE' && (
-                                    <button onClick={triggerSaveToBase} className="whitespace-nowrap flex items-center gap-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-xs font-bold px-3 py-1.5 rounded-full transition-colors"><Save size={14} /> 存為基礎版</button>
+                                    <button onClick={triggerSaveToBase} className="whitespace-nowrap flex items-center gap-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-xs font-bold px-3 py-1.5 rounded-full transition-colors"><Save size={14} /> 儲存</button>
                                 )}
-                                <button onClick={openCreateQuarterModal} className="whitespace-nowrap flex items-center gap-1.5 bg-amber-50 text-amber-600 hover:bg-amber-100 text-xs font-bold px-3 py-1.5 rounded-full transition-colors"><Copy size={14} /> 新增季度</button>
-                                <button onClick={openDeleteQuarterModal} className="whitespace-nowrap flex items-center gap-1.5 bg-red-50 text-red-600 hover:bg-red-100 text-xs font-bold px-3 py-1.5 rounded-full transition-colors"><Trash2 size={14} /> 刪除季度</button>
                                 <button onClick={() => setIsHolidayManagerOpen(true)} className="whitespace-nowrap flex items-center gap-1.5 bg-sky-50 text-sky-600 hover:bg-sky-100 text-xs font-bold px-3 py-1.5 rounded-full transition-colors"><CalendarX size={14} /> 節日提醒</button>
                             </>
                         )}
@@ -720,13 +719,13 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                 <h3 className="text-xl font-black text-slate-800 mb-4 flex items-center gap-2"><Copy size={24} className="text-amber-500"/> 新增季度</h3>
                                 <div className="space-y-4">
                                     <div className="space-y-1.5">
-                                        <label className="text-xs font-bold text-slate-500">選擇資料來源 (拷貝對象)</label>
+                                        <label className="text-xs font-bold text-slate-500">資料來源</label>
                                         <select value={createSourceQ} onChange={e => setCreateSourceQ(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none font-bold text-slate-700">
                                             {quarterOptions.map(q => <option key={q} value={q}>{q === 'BASE' ? '同工資料（基礎版）' : q.replace('-', '')}</option>)}
                                         </select>
                                     </div>
                                     <div className="space-y-1.5">
-                                        <label className="text-xs font-bold text-slate-500">建立目標季度</label>
+                                        <label className="text-xs font-bold text-slate-500">新增季度</label>
                                         <select value={createTargetQ} onChange={e => setCreateTargetQ(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none font-bold text-slate-700">
                                             {generateBaseQuarters().map(q => <option key={q} value={q}>{q.replace('-', '')}</option>)}
                                         </select>
