@@ -393,19 +393,19 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             <div className="w-64 bg-slate-900 flex flex-col justify-between shrink-0 border-r border-slate-800 z-30">
                 <div className="flex flex-col">
                     <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-                        <span className="text-white font-bold text-base tracking-wider">TBC Serve Manager</span>
+                        <span className="text-white font-extrabold text-base tracking-wider">TBC Serve Manager</span>
                     </div>
                     
                     <nav className="p-4 space-y-1.5">
-                        <button onClick={goBack} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
+                        <button onClick={goBack} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-medium text-sm transition-all text-left group">
                             <Home size={18} className="text-slate-400 group-hover:text-indigo-400 transition-colors" />
                             <span>Home</span>
                         </button>
-                        <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 shadow-button text-white rounded-xl font-medium text-sm">
+                        <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 shadow-button text-white rounded-xl font-bold text-sm">
                             <Users size={18} />
                             <span>同工資料中心</span>
                         </div>
-                        <button onClick={goToSchedule} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
+                        <button onClick={goToSchedule} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-medium text-sm transition-all text-left group">
                             <Calendar size={18} className="text-slate-400 group-hover:text-violet-400 transition-colors" />
                             <span>排班作業中心</span>
                         </button>
@@ -419,7 +419,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                             if (supabase?.auth?.signOut) { await supabase.auth.signOut(); } 
                             window.location.reload(); 
                         }} 
-                        className="w-full flex items-center gap-3 px-4 py-3 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl font-normal text-sm transition-all text-left group"
+                        className="w-full flex items-center gap-3 px-4 py-3 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl font-medium text-sm transition-all text-left group"
                     >
                         <LogOut size={18} className="text-rose-400 group-hover:translate-x-0.5 transition-transform" />
                         <span>Sign Out</span>
@@ -438,24 +438,24 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                     <div className="flex items-center gap-3 overflow-x-auto w-full md:w-auto no-scrollbar pb-1 md:pb-0">
                         {isAdmin && (
                             <div className="flex items-center bg-slate-50 rounded-lg px-2 py-1.5 border border-slate-200">
-                                <select value={viewQuarter} onChange={(e) => setViewQuarter(e.target.value)} className="bg-transparent border-none font-medium text-indigo-600 text-sm outline-none cursor-pointer">
+                                <select value={viewQuarter} onChange={(e) => setViewQuarter(e.target.value)} className="bg-transparent border-none font-bold text-indigo-600 text-sm outline-none cursor-pointer">
                                     {quarterOptions.map(q => <option key={q} value={q}>{q === 'BASE' ? '同工資料（基礎版）' : q.replace('-', '')}</option>)}
                                 </select>
                             </div>
                         )}
                         {!isAdmin && (
-                            <div className={`whitespace-nowrap text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5 ${isSubmissionOpen ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                            <div className={`whitespace-nowrap text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 ${isSubmissionOpen ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
                                 {isSubmissionOpen ? `🟢 ${deadlineMonth}/20日截止更新` : `🔴 已截止更新，僅供閱覽`}
                             </div>
                         )}
                         {isAdmin && (
                             <>
-                                <button onClick={openCreateQuarterModal} className="whitespace-nowrap flex items-center gap-1.5 bg-amber-50 text-amber-600 hover:bg-amber-100 text-xs font-medium px-3 py-1.5 rounded-lg transition-all"><Copy size={14} /> 新增</button>
-                                <button onClick={openDeleteQuarterModal} className="whitespace-nowrap flex items-center gap-1.5 bg-red-50 text-red-600 hover:bg-red-100 text-xs font-medium px-3 py-1.5 rounded-lg transition-all"><Trash2 size={14} /> 刪除</button>
+                                <button onClick={openCreateQuarterModal} className="whitespace-nowrap flex items-center gap-1.5 bg-amber-50 text-amber-600 hover:bg-amber-100 text-xs font-bold px-3 py-1.5 rounded-lg transition-all"><Copy size={14} /> 新增</button>
+                                <button onClick={openDeleteQuarterModal} className="whitespace-nowrap flex items-center gap-1.5 bg-red-50 text-red-600 hover:bg-red-100 text-xs font-bold px-3 py-1.5 rounded-lg transition-all"><Trash2 size={14} /> 刪除</button>
                                 {viewQuarter !== 'BASE' && (
-                                    <button onClick={triggerSaveToBase} className="whitespace-nowrap flex items-center gap-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-xs font-medium px-3 py-1.5 rounded-lg transition-all"><Save size={14} /> 儲存</button>
+                                    <button onClick={triggerSaveToBase} className="whitespace-nowrap flex items-center gap-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-xs font-bold px-3 py-1.5 rounded-lg transition-all"><Save size={14} /> 儲存</button>
                                 )}
-                                <button onClick={() => setIsHolidayManagerOpen(true)} className="whitespace-nowrap flex items-center gap-1.5 bg-sky-50 text-sky-600 hover:bg-sky-100 text-xs font-medium px-3 py-1.5 rounded-lg transition-all"><CalendarX size={14} /> 節日提醒</button>
+                                <button onClick={() => setIsHolidayManagerOpen(true)} className="whitespace-nowrap flex items-center gap-1.5 bg-sky-50 text-sky-600 hover:bg-sky-100 text-xs font-bold px-3 py-1.5 rounded-lg transition-all"><CalendarX size={14} /> 節日提醒</button>
                             </>
                         )}
                     </div>
@@ -465,7 +465,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                     <div className="px-6 pt-4 pb-2 bg-slate-50 z-10 shrink-0">
                         <div className="bg-white p-2 rounded-xl shadow-soft border border-slate-100 flex items-center relative transition-all focus-within:ring-2 focus-within:ring-indigo-500/20">
                             <Search className="absolute left-4 text-slate-400" size={20} />
-                            <input type="text" placeholder="搜尋姓名、群組、崗位、堂別或狀態..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-10 py-2.5 bg-transparent outline-none font-normal text-slate-800 text-sm" />
+                            <input type="text" placeholder="搜尋姓名、群組、崗位、堂別或狀態..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-10 py-2.5 bg-transparent outline-none font-medium text-slate-900 text-sm" />
                             {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-4 text-slate-400 hover:text-slate-600 transition-colors p-1"><X size={18} /></button>}
                         </div>
                     </div>
@@ -473,7 +473,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
 
                 <div className="flex-1 overflow-y-auto p-6 pt-2 custom-scrollbar pb-24">
                     {isLoading && members.length === 0 ? (
-                        <div className="text-center py-20 text-slate-400 font-medium animate-pulse">載入資料庫中...</div>
+                        <div className="text-center py-20 text-slate-400 font-semibold animate-pulse">載入資料庫中...</div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                             {displayMembers.map(member => {
@@ -487,13 +487,13 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                     <div key={member.id} className="bg-white rounded-xl p-4 sm:p-6 shadow-soft border border-slate-100 hover:shadow-hover-soft hover:-translate-y-1 transition-all duration-200 relative group">
                                         <div className="flex justify-between items-start mb-3">
                                             <div>
-                                                <h3 className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2 flex-wrap leading-tight">
+                                                <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 flex items-center gap-2 flex-wrap leading-tight">
                                                     {member.name}
-                                                    {isAdmin && settings.dual_service_pref === 1 && <span className="text-[10px] bg-violet-50 text-violet-600 px-2 py-0.5 rounded border border-violet-100 font-normal">二堂同崗</span>}
-                                                    {isAdmin && settings.dual_service_pref === 2 && <span className="text-[10px] bg-violet-50 text-violet-600 px-2 py-0.5 rounded border border-violet-100 font-normal">二堂異崗</span>}
-                                                    {isAdmin && member.group_id && <span className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded border border-indigo-100 font-normal">{member.group_id}</span>}
+                                                    {isAdmin && settings.dual_service_pref === 1 && <span className="text-[10px] bg-violet-50 text-violet-600 px-2 py-0.5 rounded border border-violet-100">二堂同崗</span>}
+                                                    {isAdmin && settings.dual_service_pref === 2 && <span className="text-[10px] bg-violet-50 text-violet-600 px-2 py-0.5 rounded border border-violet-100">二堂異崗</span>}
+                                                    {isAdmin && member.group_id && <span className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded border border-indigo-100">{member.group_id}</span>}
                                                 </h3>
-                                                <div className="flex items-center flex-wrap gap-1.5 text-xs font-normal mt-2">
+                                                <div className="flex items-center flex-wrap gap-1.5 text-xs font-semibold mt-2">
                                                     <span className={`px-2 py-0.5 rounded-full ${settings.availability_status === '穩定服事' ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
                                                         {settings.availability_status}
                                                     </span>
@@ -508,10 +508,10 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                         </div>
                                         <div className="space-y-2.5">
                                             <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                                                <p className="text-[10px] font-medium text-slate-400 mb-1.5 flex items-center gap-1"><ShieldCheck size={12}/> 服事崗位 ({ownedPosList.length})</p>
+                                                <p className="text-[10px] font-bold text-slate-400 mb-1.5 flex items-center gap-1"><ShieldCheck size={12}/> 服事崗位 ({ownedPosList.length})</p>
                                                 <div className="flex flex-wrap gap-1.5">
                                                     {ownedPosList.length > 0 ? ownedPosList.map(p => (
-                                                        <span key={p.name} className={`text-xs font-normal px-2 py-1 rounded-md border flex items-center gap-1 ${p.isActive ? 'bg-white border-slate-200 text-slate-700 shadow-sm' : 'bg-slate-100 border-slate-200 border-dashed text-slate-400'}`}>
+                                                        <span key={p.name} className={`text-xs font-medium px-2 py-1 rounded-md border flex items-center gap-1 ${p.isActive ? 'bg-white border-slate-200 text-slate-700 shadow-sm' : 'bg-slate-100 border-slate-200 border-dashed text-slate-400'}`}>
                                                             {p.name} 
                                                             {isAdmin && !p.isActive && <span className="text-[10px] bg-slate-200 text-slate-500 px-1 rounded">暫停</span>}
                                                             {isAdmin && (p.name.includes('新朋友') && settings.newcomer_rule > 0) && (
@@ -525,10 +525,10 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                             </div>
                                             {(settings.unavailable_dates && settings.unavailable_dates.length > 0) && (
                                                 <div className="bg-orange-50/60 p-3 rounded-lg border border-orange-100">
-                                                    <p className="text-[10px] font-medium text-orange-400 mb-1.5 flex items-center gap-1"><CalendarX size={12}/> 不可排班日 ({settings.unavailable_dates.length})</p>
+                                                    <p className="text-[10px] font-bold text-orange-400 mb-1.5 flex items-center gap-1"><CalendarX size={12}/> 不可排班日 ({settings.unavailable_dates.length})</p>
                                                     <div className="flex flex-wrap gap-1.5">
                                                         {settings.unavailable_dates.map(d => (
-                                                            <span key={d} className="text-[11px] font-normal bg-white text-orange-600 px-2 py-0.5 rounded border border-orange-200 shadow-sm">{d.split('-').slice(1).join('/')}</span>
+                                                            <span key={d} className="text-[11px] font-medium bg-white text-orange-600 px-2 py-0.5 rounded border border-orange-200 shadow-sm">{d.split('-').slice(1).join('/')}</span>
                                                         ))}
                                                     </div>
                                                 </div>
@@ -542,7 +542,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                     {!isLoading && displayMembers.length === 0 && (
                         <div className="text-center py-20 px-4">
                             <div className="bg-slate-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"><Users size={24} className="text-slate-400"/></div>
-                            <p className="text-slate-500 font-normal mb-2">{!isAdmin ? '尚未完成帳號設定，請洽詢行政辦公室' : '找不到符合的同工資料'}</p>
+                            <p className="text-slate-500 font-semibold mb-2">{!isAdmin ? '尚未完成帳號設定，請洽詢行政辦公室' : '找不到符合的同工資料'}</p>
                         </div>
                     )}
                 </div>
@@ -557,7 +557,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                     <div className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm">
                         <div className="bg-white w-full h-[95vh] sm:h-auto sm:max-h-[90vh] sm:max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-hover-soft overflow-hidden flex flex-col animate-slide-up sm:animate-fade-in border border-slate-100">
                             <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0 sticky top-0 z-10">
-                                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                                <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
                                     {editingMember ? <Edit2 size={20} className="text-indigo-600"/> : <UserPlus size={20} className="text-indigo-600"/>}
                                     {editingMember ? '編輯同工資料' : '新增同工'}
                                 </h2>
@@ -567,36 +567,36 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                             <div className="flex-1 overflow-y-auto p-5 space-y-6 pb-8">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-1.5">
-                                        <label className="text-xs font-medium text-slate-500 uppercase">姓名 <span className="text-red-500">*</span></label>
-                                        <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 transition-all" placeholder="請輸入姓名" />
+                                        <label className="text-xs font-semibold text-slate-500 uppercase">姓名 <span className="text-red-500">*</span></label>
+                                        <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-medium text-slate-900 transition-all" placeholder="請輸入姓名" />
                                     </div>
                                     <div className="space-y-1.5">
-                                        <label className="text-xs font-medium text-slate-500 uppercase">服事意願</label>
-                                        <select value={formData.availability_status} onChange={e => setFormData({...formData, availability_status: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 transition-all">
+                                        <label className="text-xs font-semibold text-slate-500 uppercase">服事意願</label>
+                                        <select value={formData.availability_status} onChange={e => setFormData({...formData, availability_status: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-medium text-slate-900 transition-all">
                                             {FINAL_STATUS_OPTIONS.filter(opt => isAdmin || (opt !== '安息季' && opt !== '一季一次' && opt !== '一季三次')).map(opt => <option key={opt} value={opt}>{opt}</option>)}
                                         </select>
                                     </div>
                                     <div className="space-y-1.5">
-                                        <label className="text-xs font-medium text-slate-500 uppercase">堂別</label>
-                                        <select value={formData.preferred_session} onChange={e => setFormData({...formData, preferred_session: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 transition-all">
+                                        <label className="text-xs font-semibold text-slate-500 uppercase">堂別</label>
+                                        <select value={formData.preferred_session} onChange={e => setFormData({...formData, preferred_session: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-medium text-slate-900 transition-all">
                                             {SESSION_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                                         </select>
                                     </div>
                                     {isAdmin && (
                                         <>
                                             <div className="space-y-1.5">
-                                                <label className="text-xs font-medium text-slate-500 uppercase">群組 ID <span className="text-slate-400 font-normal">(選填)</span></label>
-                                                <input type="text" value={formData.group_id} onChange={e => setFormData({...formData, group_id: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 uppercase transition-all" placeholder="例如：FA" />
+                                                <label className="text-xs font-semibold text-slate-500 uppercase">群組 ID <span className="text-slate-400 font-normal">(選填)</span></label>
+                                                <input type="text" value={formData.group_id} onChange={e => setFormData({...formData, group_id: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-medium text-slate-900 uppercase transition-all" placeholder="例如：FA" />
                                             </div>
                                             <div className="space-y-1.5">
-                                                <label className="text-xs font-medium text-slate-500 uppercase">同日二堂服事 <span className="text-slate-400 font-normal">(選填)</span></label>
-                                                <select value={formData.dual_service_pref} onChange={e => setFormData({...formData, dual_service_pref: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 transition-all">
+                                                <label className="text-xs font-semibold text-slate-500 uppercase">同日二堂服事 <span className="text-slate-400 font-normal">(選填)</span></label>
+                                                <select value={formData.dual_service_pref} onChange={e => setFormData({...formData, dual_service_pref: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-medium text-slate-900 transition-all">
                                                     <option value="0">無</option><option value="1">二堂同崗</option><option value="2">二堂異崗</option>
                                                 </select>
                                             </div>
                                             <div className="space-y-1.5">
-                                                <label className="text-xs font-medium text-slate-500 uppercase">新朋友關懷設定 <span className="text-slate-400 font-normal">(選填)</span></label>
-                                                <select value={formData.newcomer_rule === null ? '' : formData.newcomer_rule} onChange={e => setFormData({...formData, newcomer_rule: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 transition-all">
+                                                <label className="text-xs font-semibold text-slate-500 uppercase">新朋友關懷設定 <span className="text-slate-400 font-normal">(選填)</span></label>
+                                                <select value={formData.newcomer_rule === null ? '' : formData.newcomer_rule} onChange={e => setFormData({...formData, newcomer_rule: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-medium text-slate-900 transition-all">
                                                     <option value="">預設(正常排班)</option><option value="1">主責</option><option value="2">禁排第二週</option><option value="3">主責 ＋ 禁排第二週</option>
                                                 </select>
                                             </div>
@@ -605,12 +605,12 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                 </div>
                                 {isAdmin && (
                                     <div className="space-y-2 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
-                                        <label className="text-xs font-medium text-indigo-600 flex items-center gap-1.5 flex-wrap"><User size={14}/> 帳號 <span className="text-[10px] text-indigo-400 font-normal">(忘記密碼需變更帳號，再重新綁定)</span></label>
-                                        <input type="text" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full bg-white border border-indigo-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 transition-all" placeholder="電話號碼或電子郵件" />
+                                        <label className="text-xs font-semibold text-indigo-600 flex items-center gap-1.5 flex-wrap"><User size={14}/> 帳號 <span className="text-[10px] text-indigo-400 font-normal">(忘記密碼需變更帳號，再重新綁定)</span></label>
+                                        <input type="text" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full bg-white border border-indigo-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-medium text-slate-900 transition-all" placeholder="電話號碼或電子郵件" />
                                     </div>
                                 )}
                                 <div className="pt-2 border-t border-slate-100">
-                                    <label className="text-sm font-medium text-slate-700 flex items-center gap-1.5 mb-3">
+                                    <label className="text-sm font-semibold text-slate-700 flex items-center gap-1.5 mb-3">
                                         <ShieldCheck size={18} className="text-indigo-500"/> 服事崗位 {!isAdmin && <span className="text-[10px] text-slate-400 font-normal ml-1">(僅供檢視)</span>}
                                     </label>
                                     <div className="flex flex-wrap gap-2">
@@ -620,7 +620,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                             const isBtnActive = status === 'active';
                                             const isBtnInactive = status === 'inactive';
                                             return (
-                                                <button key={pos.id} type="button" onClick={() => togglePosition(pos.id)} className={`px-4 py-2.5 sm:py-2 rounded-lg text-sm font-medium border-2 transition-all duration-200 flex items-center gap-1.5 ${!isAdmin ? 'cursor-default' : 'hover:-translate-y-0.5 active:scale-95'} ${isBtnActive ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : isBtnInactive ? 'bg-white border-slate-300 text-slate-500 border-dashed' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>
+                                                <button key={pos.id} type="button" onClick={() => togglePosition(pos.id)} className={`px-4 py-2.5 sm:py-2 rounded-lg text-sm font-semibold border-2 transition-all duration-200 flex items-center gap-1.5 ${!isAdmin ? 'cursor-default' : 'hover:-translate-y-0.5 active:scale-95'} ${isBtnActive ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : isBtnInactive ? 'bg-white border-slate-300 text-slate-500 border-dashed' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>
                                                     {pos.name}
                                                     {isAdmin && isBtnActive && <span className="w-2 h-2 rounded-full bg-indigo-500 ml-1"></span>}
                                                     {isAdmin && isBtnInactive && <span className="text-[10px] ml-1 opacity-60">暫停</span>}
@@ -632,7 +632,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                 
                                 {viewQuarter !== 'BASE' && (
                                     <div className="pt-4 border-t border-slate-100">
-                                        <label className="text-sm font-medium text-slate-700 flex items-center gap-1.5 mb-3">
+                                        <label className="text-sm font-semibold text-slate-700 flex items-center gap-1.5 mb-3">
                                             <CalendarX size={18} className="text-orange-500"/> 不可排班日 <span className="text-xs text-slate-400 font-normal ml-1">(點擊選取)</span>
                                         </label>
                                         <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
@@ -648,8 +648,8 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                                             setFormData({ ...formData, unavailable_dates: newDates.sort() });
                                                         }} />
                                                         {isChecked && <Check className="absolute top-1 right-1 text-orange-500" size={14} strokeWidth={3} />}
-                                                        <span className={`text-base sm:text-sm font-medium ${isChecked ? 'text-orange-600' : 'text-slate-600'}`}>{shortDate}</span>
-                                                        {holidayName && <span className={`text-[10px] font-normal mt-1 text-center leading-tight ${isChecked ? 'text-orange-500' : 'text-slate-400'}`}>{holidayName}</span>}
+                                                        <span className={`text-base sm:text-sm font-bold ${isChecked ? 'text-orange-600' : 'text-slate-600'}`}>{shortDate}</span>
+                                                        {holidayName && <span className={`text-[10px] font-medium mt-1 text-center leading-tight ${isChecked ? 'text-orange-500' : 'text-slate-400'}`}>{holidayName}</span>}
                                                     </label>
                                                 );
                                             })}
@@ -658,8 +658,8 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                 )}
                             </div>
                             <div className="px-5 py-4 border-t border-slate-100 bg-white flex gap-3 shrink-0 pb-8 sm:pb-4 sticky bottom-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-                                <button onClick={closeModal} className="flex-1 py-3 sm:py-2.5 rounded-lg font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">取消</button>
-                                <button onClick={handleSave} disabled={isLoading} className="flex-[2] py-3 sm:py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:opacity-95 text-white rounded-lg font-medium flex items-center justify-center gap-2 shadow-button transition-all duration-200 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50">
+                                <button onClick={closeModal} className="flex-1 py-3 sm:py-2.5 rounded-lg font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">取消</button>
+                                <button onClick={handleSave} disabled={isLoading} className="flex-[2] py-3 sm:py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:opacity-95 text-white rounded-lg font-bold flex items-center justify-center gap-2 shadow-button transition-all duration-200 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50">
                                     <Save size={18}/> {isLoading ? '儲存中...' : '儲存設定'}
                                 </button>
                             </div>
@@ -671,35 +671,35 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                     <div className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm">
                         <div className="bg-white w-full h-[90vh] sm:h-auto sm:max-h-[90vh] sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-hover-soft overflow-hidden flex flex-col animate-slide-up sm:animate-fade-in border border-slate-100">
                             <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0 sticky top-0">
-                                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2"><CalendarX className="text-sky-500" size={20} /> 自訂節日提醒</h3>
+                                <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2"><CalendarX className="text-sky-500" size={20} /> 自訂節日提醒</h3>
                                 <button onClick={() => setIsHolidayManagerOpen(false)} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors"><X size={20}/></button>
                             </div>
                             <div className="p-5 overflow-y-auto space-y-6 flex-1">
-                                <div className="bg-sky-50 p-4 rounded-xl border border-sky-100 text-sm font-normal text-sky-700 leading-relaxed">
+                                <div className="bg-sky-50 p-4 rounded-xl border border-sky-100 text-sm font-medium text-sky-700 leading-relaxed">
                                     系統內建至 2030 年的節日。手動新增節日提醒，編輯同工資料時會自動標示！
                                 </div>
                                 <div className="space-y-3">
-                                    <label className="text-xs font-medium text-slate-500 uppercase">新增節日提醒</label>
+                                    <label className="text-xs font-semibold text-slate-500 uppercase">新增節日提醒</label>
                                     <div className="flex flex-col gap-2 sm:flex-row">
                                         <input type="date" value={newHolidayDate} onChange={e => {
                                             const val = e.target.value; if (val && new Date(val).getDay() !== 0) { showMessage('error', '只能選週日'); setNewHolidayDate(''); return; }
                                             setNewHolidayDate(val);
-                                        }} className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 w-full sm:w-auto font-normal text-slate-900 transition-all" />
-                                        <input type="text" placeholder="輸入節日提醒" value={newHolidayName} onChange={e => setNewHolidayName(e.target.value)} className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 font-normal text-slate-900 w-full transition-all" />
-                                        <button onClick={handleAddCustomHoliday} disabled={isLoading} className="bg-gradient-to-r from-sky-500 to-indigo-500 text-white font-medium px-5 py-3 rounded-lg shadow-button hover:-translate-y-0.5 transition-all duration-200 active:scale-95 w-full sm:w-auto">新增</button>
+                                        }} className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 w-full sm:w-auto font-medium text-slate-900 transition-all" />
+                                        <input type="text" placeholder="輸入節日提醒" value={newHolidayName} onChange={e => setNewHolidayName(e.target.value)} className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 font-medium text-slate-900 w-full transition-all" />
+                                        <button onClick={handleAddCustomHoliday} disabled={isLoading} className="bg-gradient-to-r from-sky-500 to-indigo-500 text-white font-bold px-5 py-3 rounded-lg shadow-button hover:-translate-y-0.5 transition-all duration-200 active:scale-95 w-full sm:w-auto">新增</button>
                                     </div>
                                 </div>
                                 <div className="space-y-3 pb-8">
-                                    <label className="text-xs font-medium text-slate-500 uppercase flex items-center gap-2">自訂節日提醒清單 <span className="bg-slate-100 text-slate-500 px-2 rounded-md text-[10px]">{Object.keys(customHolidays).length}</span></label>
+                                    <label className="text-xs font-semibold text-slate-500 uppercase flex items-center gap-2">自訂節日提醒清單 <span className="bg-slate-100 text-slate-500 px-2 rounded-md text-[10px]">{Object.keys(customHolidays).length}</span></label>
                                     {Object.keys(customHolidays).length === 0 ? (
-                                        <div className="text-center py-8 text-slate-400 font-normal bg-slate-50 rounded-xl border border-dashed border-slate-200">尚無自訂提醒</div>
+                                        <div className="text-center py-8 text-slate-400 font-medium bg-slate-50 rounded-xl border border-dashed border-slate-200">尚無自訂提醒</div>
                                     ) : (
                                         <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
                                             {Object.entries(customHolidays).sort(([a], [b]) => a.localeCompare(b)).map(([date, name]) => (
                                                 <div key={date} className="flex justify-between items-center bg-white border border-slate-100 p-3 rounded-lg shadow-sm hover:shadow-soft transition-all">
                                                     <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
-                                                        <span className="text-sky-600 font-medium text-sm">{date}</span>
-                                                        <span className="font-normal text-slate-700 text-sm">{name}</span>
+                                                        <span className="text-sky-600 font-bold text-sm">{date}</span>
+                                                        <span className="font-medium text-slate-700 text-sm">{name}</span>
                                                     </div>
                                                     <button onClick={() => handleDeleteCustomHoliday(date)} className="p-2.5 bg-red-50 text-red-500 hover:bg-red-100 rounded-lg active:scale-95 transition-colors"><Trash2 size={16}/></button>
                                                 </div>
@@ -716,32 +716,32 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
                         <div className="bg-white w-full max-w-sm rounded-2xl shadow-hover-soft flex flex-col overflow-hidden animate-fade-in border border-slate-100">
                             <div className="p-6">
-                                <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2"><Copy size={24} className="text-amber-500"/> 新增季度</h3>
+                                <h3 className="text-xl font-extrabold text-slate-900 mb-4 flex items-center gap-2"><Copy size={24} className="text-amber-500"/> 新增季度</h3>
                                 <div className="space-y-4">
                                     <div className="space-y-1.5">
-                                        <label className="text-xs font-medium text-slate-500">資料來源</label>
-                                        <select value={createSourceQ} onChange={e => setCreateSourceQ(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none font-normal text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all">
+                                        <label className="text-xs font-semibold text-slate-500">資料來源</label>
+                                        <select value={createSourceQ} onChange={e => setCreateSourceQ(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none font-medium text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all">
                                             {quarterOptions.map(q => <option key={q} value={q}>{q === 'BASE' ? '同工資料（基礎版）' : q.replace('-', '')}</option>)}
                                         </select>
                                     </div>
                                     <div className="space-y-1.5">
-                                        <label className="text-xs font-medium text-slate-500">新增季度</label>
-                                        <select value={createTargetQ} onChange={e => setCreateTargetQ(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none font-normal text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all">
+                                        <label className="text-xs font-semibold text-slate-500">新增季度</label>
+                                        <select value={createTargetQ} onChange={e => setCreateTargetQ(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none font-medium text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all">
                                             {generateBaseQuarters().map(q => <option key={q} value={q}>{q.replace('-', '')}</option>)}
                                         </select>
                                     </div>
                                 </div>
                             </div>
                             <div className="p-3 bg-slate-50 flex gap-2 border-t border-slate-100">
-                                <button onClick={() => setIsCreateQuarterModalOpen(false)} className="flex-1 py-3 font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors">取消</button>
-                                <button onClick={handleExecuteCreateQuarter} className="flex-1 py-3 font-medium text-white bg-gradient-to-r from-amber-500 to-orange-500 shadow-button hover:-translate-y-0.5 rounded-lg transition-all duration-200">建立</button>
+                                <button onClick={() => setIsCreateQuarterModalOpen(false)} className="flex-1 py-3 font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors">取消</button>
+                                <button onClick={handleExecuteCreateQuarter} className="flex-1 py-3 font-bold text-white bg-gradient-to-r from-amber-500 to-orange-500 shadow-button hover:-translate-y-0.5 rounded-lg transition-all duration-200">建立</button>
                             </div>
                         </div>
                     </div>
                 )}
 
                 {message.text && (
-                    <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-[80] px-5 py-3 rounded-xl font-medium shadow-soft animate-fade-in flex items-start gap-2 max-w-[90vw] w-max ${message.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`}>
+                    <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-[80] px-5 py-3 rounded-xl font-bold shadow-soft animate-fade-in flex items-start gap-2 max-w-[90vw] w-max ${message.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`}>
                         <div className="shrink-0 mt-0.5">{message.type === 'success' ? <CheckCircle2 size={18}/> : <AlertCircle size={18}/>}</div>
                         <div className="text-sm leading-snug break-words flex-1">{message.text}</div>
                     </div>
@@ -754,12 +754,12 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                 <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5 ${confirmAction?.title === '警告' || isDeleteQuarterModalOpen ? 'bg-red-50 text-red-500' : 'bg-emerald-50 text-emerald-500'}`}>
                                     {isDeleteQuarterModalOpen ? <Trash2 size={32}/> : (confirmAction?.title === '警告' ? <AlertCircle size={32}/> : <Save size={32}/>)}
                                 </div>
-                                <h3 className="text-xl font-bold text-slate-900 mb-3">{isDeleteQuarterModalOpen ? '刪除同工資料' : confirmAction?.title}</h3>
+                                <h3 className="text-xl font-extrabold text-slate-900 mb-3">{isDeleteQuarterModalOpen ? '刪除同工資料' : confirmAction?.title}</h3>
                                 {isDeleteQuarterModalOpen ? (
                                     <>
-                                        <p className="text-sm font-medium text-slate-500 mb-4"><span className="text-red-500">同步刪除同工與排班資料，無法復原！</span></p>
+                                        <p className="text-sm font-semibold text-slate-500 mb-4"><span className="text-red-500">同步刪除同工與排班資料，無法復原！</span></p>
                                         {detectedQuarters.length === 0 ? (
-                                            <div className="py-6 text-slate-400 font-normal bg-slate-50 rounded-lg border border-dashed border-slate-200">尚無可刪除的季度資料</div>
+                                            <div className="py-6 text-slate-400 font-medium bg-slate-50 rounded-lg border border-dashed border-slate-200">尚無可刪除的季度資料</div>
                                         ) : (
                                             <div className="grid grid-cols-2 gap-2.5 max-h-[40vh] overflow-y-auto p-1 custom-scrollbar">
                                                 {detectedQuarters.map(q => {
@@ -771,7 +771,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                                                 else setQuartersToDelete(quartersToDelete.filter(item => item !== q));
                                                             }} />
                                                             {isSelected && <Check className="absolute top-1 right-1 text-red-500" size={14} strokeWidth={3} />}
-                                                            <span className={`text-sm font-medium ${isSelected ? 'text-red-600' : 'text-slate-600'}`}>{q.replace('-', '')}</span>
+                                                            <span className={`text-sm font-bold ${isSelected ? 'text-red-600' : 'text-slate-600'}`}>{q.replace('-', '')}</span>
                                                         </label>
                                                     );
                                                 })}
@@ -779,12 +779,12 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                         )}
                                     </>
                                 ) : (
-                                    <p className="text-sm font-normal text-slate-500 whitespace-pre-line">{confirmAction?.message}</p>
+                                    <p className="text-sm font-medium text-slate-500 whitespace-pre-line">{confirmAction?.message}</p>
                                 )}
                             </div>
                             <div className="p-3 bg-slate-50 flex gap-2 border-t border-slate-100">
-                                <button onClick={() => {setConfirmAction(null); setIsDeleteQuarterModalOpen(false);}} className="flex-1 py-3 font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors">取消</button>
-                                <button onClick={isDeleteQuarterModalOpen ? executeDeleteQuarter : confirmAction?.onConfirm} disabled={isDeleteQuarterModalOpen && quartersToDelete.length === 0} className={`flex-1 py-3 font-medium text-white rounded-lg transition-all duration-200 ${isDeleteQuarterModalOpen || confirmAction?.title === '警告' ? 'bg-gradient-to-r from-red-500 to-rose-600 hover:-translate-y-0.5 shadow-button disabled:opacity-50' : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:-translate-y-0.5 shadow-button'} disabled:cursor-not-allowed`}>
+                                <button onClick={() => {setConfirmAction(null); setIsDeleteQuarterModalOpen(false);}} className="flex-1 py-3 font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors">取消</button>
+                                <button onClick={isDeleteQuarterModalOpen ? executeDeleteQuarter : confirmAction?.onConfirm} disabled={isDeleteQuarterModalOpen && quartersToDelete.length === 0} className={`flex-1 py-3 font-bold text-white rounded-lg transition-all duration-200 ${isDeleteQuarterModalOpen || confirmAction?.title === '警告' ? 'bg-gradient-to-r from-red-500 to-rose-600 hover:-translate-y-0.5 shadow-button disabled:opacity-50' : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:-translate-y-0.5 shadow-button'} disabled:cursor-not-allowed`}>
                                     {isDeleteQuarterModalOpen ? '刪除' : (confirmAction?.confirmText || '確定')}
                                 </button>
                             </div>
