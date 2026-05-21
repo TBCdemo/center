@@ -205,7 +205,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             const combined = [...(allSettingsQs || []), ...(allPosQs || [])].map(d => d.quarter);
             const uniqueQs = [...new Set(combined)].filter(q => q !== 'SYSTEM' && q !== 'BASE').sort().reverse();
             setDetectedQuarters(uniqueQs); setQuartersToDelete([]); setIsDeleteQuarterModalOpen(true);
-        } catch (err) { showMessage('error', '無法載入現有季度清單'); } finally { setIsLoading(false); }
+        } catch (err) { showMessage('error', '無法載入現現季度清單'); } finally { setIsLoading(false); }
     };
 
     const executeDeleteQuarter = async () => {
