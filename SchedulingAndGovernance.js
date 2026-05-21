@@ -532,7 +532,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
 
     const renderOriginalDataAnalysis = () => {
         if (!dashboardStats) return (
-            <div className="h-full flex flex-col items-center justify-center p-8 text-slate-400 font-bold bg-slate-50">
+            <div className="h-full flex flex-col items-center justify-center p-8 text-slate-400 font-medium bg-slate-50">
                 <Database size={48} className="mb-4 opacity-50 text-slate-400" />
                 <p>尚無可分析的排班資料，請先至「排班作業」建立或載入班表。</p>
             </div>
@@ -556,10 +556,10 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                                     const pct = dashboardStats.maxAttCount > 0 ? (count / dashboardStats.maxAttCount) * 100 : 0;
                                     return (
                                         <div key={k} className="flex items-center gap-2">
-                                            <div className="w-10 text-right font-bold text-slate-500 text-[11px] shrink-0">{k} 天</div>
+                                            <div className="w-10 text-right font-medium text-slate-500 text-[11px] shrink-0">{k} 天</div>
                                             <div className="flex-1 flex items-center h-5">
                                                 <div className="h-full bg-sky-400 rounded-r-md transition-all" style={{ width: `${pct}%`, minWidth: count > 0 ? '4px' : '0' }}></div>
-                                                <span className="ml-2 font-black text-slate-600 text-[11px]">{count} 人</span>
+                                                <span className="ml-2 font-medium text-slate-600 text-[11px]">{count} 人</span>
                                             </div>
                                         </div>
                                     )
@@ -574,10 +574,10 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                                     const pct = dashboardStats.maxSrvCount > 0 ? (count / dashboardStats.maxSrvCount) * 100 : 0;
                                     return (
                                         <div key={k} className="flex items-center gap-2">
-                                            <div className="w-10 text-right font-bold text-slate-500 text-[11px] shrink-0">{k} 次</div>
+                                            <div className="w-10 text-right font-medium text-slate-500 text-[11px] shrink-0">{k} 次</div>
                                             <div className="flex-1 flex items-center h-5">
                                                 <div className="h-full bg-emerald-400 rounded-r-md transition-all" style={{ width: `${pct}%`, minWidth: count > 0 ? '4px' : '0' }}></div>
-                                                <span className="ml-2 font-black text-slate-600 text-[11px]">{count} 人</span>
+                                                <span className="ml-2 font-medium text-slate-600 text-[11px]">{count} 人</span>
                                             </div>
                                         </div>
                                     )
@@ -592,7 +592,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                         <h3 className="text-lg font-black text-slate-800 flex items-center gap-2"><LayoutList className="text-indigo-500" size={20} /> 同工排班分析表</h3>
                         <div className="relative w-full sm:w-64">
                             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                            <input type="text" placeholder="搜尋姓名..." value={analysisSearchTerm} onChange={e => setAnalysisSearchTerm(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-8 py-2 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all shadow-sm" />
+                            <input type="text" placeholder="搜尋姓名..." value={analysisSearchTerm} onChange={e => setAnalysisSearchTerm(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-8 py-2 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all shadow-sm" />
                             {analysisSearchTerm && <button onClick={() => setAnalysisSearchTerm('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:bg-slate-200 rounded-full transition-all"><X size={14} /></button>}
                         </div>
                     </div>
@@ -600,22 +600,22 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                         <table className="w-full text-left border-collapse min-w-[800px]">
                             <thead className="sticky top-0 bg-white/95 backdrop-blur shadow-sm z-10">
                                 <tr>
-                                    <th onClick={() => requestSort('name')} className="py-4 px-4 font-black text-slate-500 text-sm whitespace-nowrap pl-8 border-b border-slate-100 cursor-pointer hover:bg-slate-50 select-none">姓名 <ArrowUpDown size={14} className="inline ml-1 opacity-40"/></th>
-                                    <th onClick={() => requestSort('totalService')} className="py-4 px-4 font-black text-slate-500 text-sm whitespace-nowrap border-b border-slate-100 text-center cursor-pointer hover:bg-slate-50">服事次數 <ArrowUpDown size={14} className="inline ml-1 opacity-40"/></th>
-                                    <th onClick={() => requestSort('attendance')} className="py-4 px-4 font-black text-slate-500 text-sm whitespace-nowrap border-b border-slate-100 text-center cursor-pointer hover:bg-slate-50">出席天數 <ArrowUpDown size={14} className="inline ml-1 opacity-40"/></th>
+                                    <th onClick={() => requestSort('name')} className="py-4 px-4 font-semibold text-slate-500 text-sm whitespace-nowrap pl-8 border-b border-slate-100 cursor-pointer hover:bg-slate-50 select-none">姓名 <ArrowUpDown size={14} className="inline ml-1 opacity-40"/></th>
+                                    <th onClick={() => requestSort('totalService')} className="py-4 px-4 font-semibold text-slate-500 text-sm whitespace-nowrap border-b border-slate-100 text-center cursor-pointer hover:bg-slate-50">服事次數 <ArrowUpDown size={14} className="inline ml-1 opacity-40"/></th>
+                                    <th onClick={() => requestSort('attendance')} className="py-4 px-4 font-semibold text-slate-500 text-sm whitespace-nowrap border-b border-slate-100 text-center cursor-pointer hover:bg-slate-50">出席天數 <ArrowUpDown size={14} className="inline ml-1 opacity-40"/></th>
                                     {['司會', '執事輪值', '接待', '收奉獻', '主餐', 'PPT', '新朋友關懷'].map(role => (
-                                        <th key={role} onClick={() => requestSort(role)} className="py-4 px-4 font-black text-slate-500 text-sm whitespace-nowrap border-b border-slate-100 text-center cursor-pointer hover:bg-slate-50">{role} <ArrowUpDown size={14} className="inline ml-1 opacity-40"/></th>
+                                        <th key={role} onClick={() => requestSort(role)} className="py-4 px-4 font-semibold text-slate-500 text-sm whitespace-nowrap border-b border-slate-100 text-center cursor-pointer hover:bg-slate-50">{role} <ArrowUpDown size={14} className="inline ml-1 opacity-40"/></th>
                                     ))}
                                 </tr>
                             </thead>
                             <tbody>
                                 {sortedDashboardData.map((d, i) => (
                                     <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                                        <td className="py-3 px-4 pl-8 whitespace-nowrap"><p className="font-black text-slate-800 text-base">{d.name}</p></td>
-                                        <td className="py-3 px-4 text-center font-black text-slate-600 bg-slate-50/50">{d.totalService}</td>
-                                        <td className="py-3 px-4 text-center font-bold text-slate-600">{d.attendance}</td>
+                                        <td className="py-3 px-4 pl-8 whitespace-nowrap"><p className="font-semibold text-slate-800 text-base">{d.name}</p></td>
+                                        <td className="py-3 px-4 text-center font-semibold text-slate-600 bg-slate-50/50">{d.totalService}</td>
+                                        <td className="py-3 px-4 text-center font-medium text-slate-600">{d.attendance}</td>
                                         {['司會', '執事輪值', '接待', '收奉獻', '主餐', 'PPT', '新朋友關懷'].map(role => (
-                                            <td key={role} className="py-3 px-4 text-center font-bold text-slate-400">{d.roles[role] || '-'}</td>
+                                            <td key={role} className="py-3 px-4 text-center font-medium text-slate-400">{d.roles[role] || '-'}</td>
                                         ))}
                                     </tr>
                                 ))}
@@ -624,15 +624,15 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                     </div>
                 </div>
                 <div className="bg-white p-8 lg:p-10 rounded-[2rem] shadow-sm border border-slate-100">
-                    <h3 className="text-xl font-black text-slate-800 mb-8">🛠️ 本季崗位需求 <span className="text-sm text-slate-500 font-bold ml-2">(合計：{dashboardStats.totalServices} 次)</span></h3>
+                    <h3 className="text-xl font-black text-slate-800 mb-8">🛠️ 本季崗位需求 <span className="text-sm text-slate-500 font-medium ml-2">(合計：{dashboardStats.totalServices} 次)</span></h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
                         {Object.entries(dashboardStats.roleCounts).sort((a,b) => b[1] - a[1]).map(([role, count]) => {
                             const pct = dashboardStats.totalServices ? ((count / dashboardStats.totalServices) * 100).toFixed(1) : 0;
                             return (
                                 <div key={role} className="flex items-center gap-4">
-                                    <div className="w-24 text-right font-black text-slate-600 text-sm">{role}</div>
+                                    <div className="w-24 text-right font-semibold text-slate-600 text-sm">{role}</div>
                                     <div className="flex-1 h-5 bg-slate-100 rounded-full overflow-hidden flex items-center"><div className="h-full bg-indigo-500 rounded-full transition-all duration-1000" style={{ width: `${pct}%` }}></div></div>
-                                    <div className="w-20 text-sm font-bold text-slate-500">{count} 次 <span className="text-[10px] opacity-60">({pct}%)</span></div>
+                                    <div className="w-20 text-sm font-medium text-slate-500">{count} 次 <span className="text-[10px] opacity-60">({pct}%)</span></div>
                                 </div>
                             );
                         })}
@@ -647,28 +647,28 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
             <div className="flex-1 flex items-center justify-center bg-slate-100 p-6 animate-fade-in overflow-y-auto">
                 <div className="w-full max-w-xl bg-white p-10 lg:p-12 rounded-[3rem] shadow-sm border border-slate-200 relative">
                     <div className="flex bg-slate-100 p-1.5 rounded-2xl mb-8">
-                        <button onClick={() => setAppMode('schedule')} className={`flex-1 py-3.5 flex items-center justify-center gap-2 text-sm font-black rounded-xl transition-all ${appMode === 'schedule' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/50'}`}><Play size={18} /> 預排作業</button>
-                        <button onClick={() => setAppMode('query')} className={`flex-1 py-3.5 flex items-center justify-center gap-2 text-sm font-black rounded-xl transition-all ${appMode === 'query' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/50'}`}><Search size={18} /> 編輯班表</button>
+                        <button onClick={() => setAppMode('schedule')} className={`flex-1 py-3.5 flex items-center justify-center gap-2 text-sm font-semibold rounded-xl transition-all ${appMode === 'schedule' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/50'}`}><Play size={18} /> 預排作業</button>
+                        <button onClick={() => setAppMode('query')} className={`flex-1 py-3.5 flex items-center justify-center gap-2 text-sm font-semibold rounded-xl transition-all ${appMode === 'query' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/50'}`}><Search size={18} /> 編輯班表</button>
                     </div>
                     {appMode === 'schedule' ? (
                         <div className="animate-fade-in">
                             <div className="grid grid-cols-2 gap-6 mb-10">
                                 <div className="space-y-2">
-                                    <label className="text-xs font-black text-slate-400 ml-2">年份</label>
-                                    <input type="number" value={year} onChange={e => setYear(parseInt(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-3xl px-6 py-5 font-bold focus:ring-4 focus:ring-indigo-50 focus:bg-white outline-none transition-all" />
+                                    <label className="text-xs font-medium text-slate-400 ml-2">年份</label>
+                                    <input type="number" value={year} onChange={e => setYear(parseInt(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-3xl px-6 py-5 font-medium focus:ring-4 focus:ring-indigo-50 focus:bg-white outline-none transition-all" />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-black text-slate-400 ml-2">季度</label>
-                                    <select value={quarter} onChange={e => setQuarter(parseInt(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-3xl px-6 py-5 font-bold focus:ring-4 focus:ring-indigo-50 focus:bg-white outline-none transition-all">
+                                    <label className="text-xs font-medium text-slate-400 ml-2">季度</label>
+                                    <select value={quarter} onChange={e => setQuarter(parseInt(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-3xl px-6 py-5 font-medium focus:ring-4 focus:ring-indigo-50 focus:bg-white outline-none transition-all">
                                         <option value={1}>Q1 (1-3月)</option><option value={2}>Q2 (4-6月)</option><option value={3}>Q3 (7-9月)</option><option value={4}>Q4 (10-12月)</option>
                                     </select>
                                 </div>
                             </div>
-                            <button onClick={runAutoSchedule} disabled={isLoading} className="w-full bg-slate-900 hover:bg-black disabled:bg-slate-300 text-white font-black py-5 rounded-2xl flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl">
+                            <button onClick={runAutoSchedule} disabled={isLoading} className="w-full bg-slate-900 hover:bg-black disabled:bg-slate-300 text-white font-semibold py-5 rounded-2xl flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl">
                                 {isLoading ? <RefreshCw className="animate-spin" /> : <><Play size={20} fill="currentColor"/> 建立新班表</>}
                             </button>
                             {!dbData.memberQuarterSettings.some(s => s.quarter === `${year}-Q${quarter}`) && !isLoading && (
-                                <p className="text-rose-500 text-[13px] font-bold text-center mt-4 flex items-center justify-center gap-1.5 animate-pulse">
+                                <p className="text-rose-500 text-[13px] font-medium text-center mt-4 flex items-center justify-center gap-1.5 animate-pulse">
                                     <AlertCircle size={16} /> 尚未建立 {year}Q{quarter} 同工資料，請至「同工資料中心」新增。
                                 </p>
                             )}
@@ -677,21 +677,21 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                         <div className="animate-fade-in">
                             <div className="grid grid-cols-2 gap-6 mb-10">
                                 <div className="space-y-2">
-                                    <label className="text-xs font-black text-slate-400 ml-2">年份</label>
-                                    <input type="number" value={queryYear} onChange={e => setQueryYear(parseInt(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-3xl px-6 py-5 font-bold focus:ring-4 focus:ring-indigo-50 focus:bg-white outline-none transition-all" />
+                                    <label className="text-xs font-medium text-slate-400 ml-2">年份</label>
+                                    <input type="number" value={queryYear} onChange={e => setQueryYear(parseInt(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-3xl px-6 py-5 font-medium focus:ring-4 focus:ring-indigo-50 focus:bg-white outline-none transition-all" />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-black text-slate-400 ml-2">季度</label>
-                                    <select value={queryQuarter} onChange={e => setQueryQuarter(parseInt(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-3xl px-6 py-5 font-bold focus:ring-4 focus:ring-indigo-50 focus:bg-white outline-none transition-all">
+                                    <label className="text-xs font-medium text-slate-400 ml-2">季度</label>
+                                    <select value={queryQuarter} onChange={e => setQueryQuarter(parseInt(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-3xl px-6 py-5 font-medium focus:ring-4 focus:ring-indigo-50 focus:bg-white outline-none transition-all">
                                         <option value={1}>Q1 (1-3月)</option><option value={2}>Q2 (4-6月)</option><option value={3}>Q3 (7-9月)</option><option value={4}>Q4 (10-12月)</option>
                                     </select>
                                 </div>
                             </div>
-                            <button onClick={runQuerySchedule} disabled={isLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-black py-5 rounded-2xl flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl shadow-indigo-200">
+                            <button onClick={runQuerySchedule} disabled={isLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-semibold py-5 rounded-2xl flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl shadow-indigo-200">
                                 {isLoading ? <RefreshCw className="animate-spin" /> : <><Search size={20} strokeWidth={3}/> 開始編輯</>}
                             </button>
                             {!hasQuerySchedule && !isLoading && (
-                                <p className="text-rose-500 text-[13px] font-bold text-center mt-4 flex items-center justify-center gap-1.5 animate-pulse">
+                                <p className="text-rose-500 text-[13px] font-medium text-center mt-4 flex items-center justify-center gap-1.5 animate-pulse">
                                     <AlertCircle size={16} /> 尚未建立 {queryYear}Q{queryQuarter} 排班資料，請至「預排作業」新增。
                                 </p>
                             )}
@@ -719,22 +719,22 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
             <div className="h-full flex flex-col bg-white animate-fade-in overflow-hidden">
                 <div className="bg-slate-900 p-6 pb-8 shrink-0">
                     <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-xl font-black shadow-lg">{stats.name.charAt(0)}</div>
+                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-xl font-semibold shadow-lg">{stats.name.charAt(0)}</div>
                         <div className="text-white">
                             <h2 className="text-xl font-black">{stats.name}</h2>
-                            <p className="text-slate-400 text-xs font-bold flex items-center gap-2 mt-1">{stats.group ? <span className="bg-white/10 px-2 py-0.5 rounded text-[10px]">{stats.group}</span> : '一般同工'}<span>個人關懷儀表板</span></p>
+                            <p className="text-slate-400 text-xs font-medium flex items-center gap-2 mt-1">{stats.group ? <span className="bg-white/10 px-2 py-0.5 rounded text-[10px]">{stats.group}</span> : '一般同工'}<span>個人關懷儀表板</span></p>
                         </div>
                     </div>
                 </div>
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-slate-50 space-y-6 -mt-4 rounded-t-3xl relative z-10 border-t border-slate-200">
                     <div className="grid grid-cols-2 gap-4">
                         <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center">
-                            <p className="text-[11px] font-bold text-slate-400 mb-1">本季服事</p><p className="text-2xl font-black text-slate-800">{stats.totalService} <span className="text-xs font-bold text-slate-400">次</span></p>
-                            <p className={`text-[10px] font-bold mt-1.5 px-1.5 py-0.5 rounded inline-block ${diffFromAvg > 0 ? 'bg-rose-50 text-rose-600' : (diffFromAvg < 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500')}`}>{diffFromAvg > 0 ? `+${diffFromAvg} 高於平均` : (diffFromAvg < 0 ? `${diffFromAvg} 低於平均` : '與平均持平')}</p>
+                            <p className="text-[11px] font-medium text-slate-400 mb-1">本季服事</p><p className="text-2xl font-semibold text-slate-800">{stats.totalService} <span className="text-xs font-medium text-slate-400">次</span></p>
+                            <p className={`text-[10px] font-medium mt-1.5 px-1.5 py-0.5 rounded inline-block ${diffFromAvg > 0 ? 'bg-rose-50 text-rose-600' : (diffFromAvg < 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500')}`}>{diffFromAvg > 0 ? `+${diffFromAvg} 高於平均` : (diffFromAvg < 0 ? `${diffFromAvg} 低於平均` : '與平均持平')}</p>
                         </div>
                         <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center">
-                            <p className="text-[11px] font-bold text-slate-400 mb-1">出席天數</p><p className="text-2xl font-black text-slate-800">{stats.attendance} <span className="text-xs font-bold text-slate-400">天</span></p>
-                            <p className="text-[10px] font-bold text-slate-400 mt-1.5">單日最高 {(stats.totalService / Math.max(1, stats.attendance)).toFixed(1)} 次</p>
+                            <p className="text-[11px] font-medium text-slate-400 mb-1">出席天數</p><p className="text-2xl font-semibold text-slate-800">{stats.attendance} <span className="text-xs font-medium text-slate-400">天</span></p>
+                            <p className="text-[10px] font-medium text-slate-400 mt-1.5">單日最高 {(stats.totalService / Math.max(1, stats.attendance)).toFixed(1)} 次</p>
                         </div>
                     </div>
                     <div>
@@ -743,7 +743,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                             {adviceList.map((adv, idx) => (
                                 <div key={idx} className={`${adv.bg} border border-white shadow-sm p-3 rounded-xl flex gap-3 items-start`}>
                                     <adv.icon className={`${adv.color} shrink-0 mt-0.5`} size={16} />
-                                    <div><p className={`text-[13px] font-black ${adv.color} mb-0.5`}>{adv.title}</p><p className="text-[11px] font-bold text-slate-600 leading-relaxed">{adv.desc}</p></div>
+                                    <div><p className={`text-[13px] font-semibold ${adv.color} mb-0.5`}>{adv.title}</p><p className="text-[11px] font-medium text-slate-600 leading-relaxed">{adv.desc}</p></div>
                                 </div>
                             ))}
                         </div>
@@ -753,7 +753,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 space-y-3">
                             {Object.entries(stats.roles).filter(([_, count]) => count > 0).sort((a,b)=>b[1]-a[1]).map(([role, count]) => (
                                 <div key={role}>
-                                    <div className="flex justify-between text-[11px] font-bold mb-1"><span className="text-slate-600">{role}</span><span className="text-indigo-600">{count} 次 <span className="text-slate-400 font-normal">({Math.round(count/stats.totalService*100)}%)</span></span></div>
+                                    <div className="flex justify-between text-[11px] font-medium mb-1"><span className="text-slate-600">{role}</span><span className="text-indigo-600">{count} 次 <span className="text-slate-400 font-normal">({Math.round(count/stats.totalService*100)}%)</span></span></div>
                                     <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-indigo-400 rounded-full" style={{ width: `${(count/stats.totalService)*100}%` }}></div></div>
                                 </div>
                             ))}
@@ -771,15 +771,15 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
             <div className="w-full lg:w-[400px] xl:w-[450px] shrink-0 bg-white border-l border-slate-200 overflow-hidden h-full flex flex-col shadow-[-10px_0_30px_rgba(0,0,0,0.02)] z-20 animate-panel-right relative">
                 <div className="bg-slate-900 p-6 rounded-b-[1.5rem] shadow-sm border-b border-slate-800 relative z-20 shrink-0">
                     <button onClick={() => { setActiveSlot(null); setSearchTerm(''); }} className="absolute right-5 top-5 p-2 hover:bg-white/20 rounded-full transition-all text-slate-300 hover:text-white"><X size={20}/></button>
-                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 mt-1">幫此服事找合適人選：</h3>
+                    <h3 className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-3 mt-1">幫此服事找合適人選：</h3>
                     <div className="flex items-start gap-3">
                         <div className={`p-3 rounded-2xl ${activeSlot.is_empty ? 'bg-rose-500/20 text-rose-300' : 'bg-white/10 text-indigo-300'}`}><Calendar size={24} /></div>
                         <div className="flex flex-col gap-1.5">
                             <p className="text-xl font-black text-white">{activeSlot.service_date}</p>
                             <div className="flex items-center gap-2 flex-wrap">
-                                <span className={`px-2 py-0.5 rounded-md text-sm font-black ${activeSlot.is_empty ? 'bg-rose-500 text-white animate-pulse' : 'bg-indigo-500 text-white'}`}>{activeSlot._memberName}</span>
+                                <span className={`px-2 py-0.5 rounded-md text-sm font-semibold ${activeSlot.is_empty ? 'bg-rose-500 text-white animate-pulse' : 'bg-indigo-500 text-white'}`}>{activeSlot._memberName}</span>
                             </div>
-                            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400 flex-wrap mt-1">
+                            <div className="flex items-center gap-1.5 text-xs font-medium text-slate-400 flex-wrap mt-1">
                                 <span className="bg-white/10 px-1.5 py-0.5 rounded text-slate-300">{activeSlot._positionName}</span>
                                 <span>•</span>
                                 <span>{activeSlot._positionName === '執事輪值' ? '第一堂、第二堂' : activeSlot.session}</span>
@@ -794,24 +794,24 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                 <div className="px-6 pt-5 pb-2 bg-white z-10 sticky top-0 shrink-0">
                     <div className="relative">
                         <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input type="text" placeholder="搜尋姓名或崗位" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-10 py-2.5 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:bg-white transition-all shadow-inner" />
+                        <input type="text" placeholder="搜尋姓名或崗位" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-10 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:bg-white transition-all shadow-inner" />
                         {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:bg-slate-200 rounded-full transition-all"><X size={14} /></button>}
                     </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto custom-scrollbar px-6 pb-6 pt-2 space-y-4">
                     <div className="flex items-center justify-between px-1">
-                        <h3 className="font-black text-slate-700 flex items-center gap-2 text-sm"><UserCheck className="text-emerald-500" size={16}/> 推薦人選 ({finalRecommendations.length})</h3>
-                        <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded font-bold">依本季次數排序</span>
+                        <h3 className="font-bold text-slate-700 flex items-center gap-2 text-sm"><UserCheck className="text-emerald-500" size={16}/> 推薦人選 ({finalRecommendations.length})</h3>
+                        <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded font-medium">依本季次數排序</span>
                     </div>
                     {finalRecommendations.length > 0 ? (
                         finalRecommendations.map((c, idx) => (
                             <div key={c.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm transition-all hover:shadow-md hover:border-indigo-300">
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-white shadow-sm text-xs ${idx < 3 && !searchTerm ? 'bg-emerald-500' : 'bg-slate-300'}`}>{idx + 1}</div>
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-white shadow-sm text-xs ${idx < 3 && !searchTerm ? 'bg-emerald-500' : 'bg-slate-300'}`}>{idx + 1}</div>
                                     <div>
-                                        <div className="flex items-center gap-2"><p className="text-[15px] font-black text-slate-800">{c.name}</p></div>
-                                        <div className="flex items-center gap-1 text-[11px] font-bold text-slate-400 mt-1 flex-wrap">
+                                        <div className="flex items-center gap-2"><p className="text-[15px] font-medium text-slate-800">{c.name}</p></div>
+                                        <div className="flex items-center gap-1 text-[11px] font-medium text-slate-400 mt-1 flex-wrap">
                                             <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">{c.preferred_session || '皆可'}</span><span>•</span><span>本季服事 {c.usage} 次</span>
                                             {c.group_id && c.group_id.startsWith('FA') && <span className="ml-1 px-1.5 py-0.5 rounded-[4px] bg-slate-400 text-white text-[10px]">FA</span>}
                                             {c.group_id && c.group_id.startsWith('FB') && <span className="ml-1 px-1.5 py-0.5 rounded-[4px] bg-slate-400 text-white text-[10px]">FB</span>}
@@ -823,24 +823,24 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                                 <div className="mt-3 pt-3 border-t border-slate-100">
                                     {c.swapOptions && c.swapOptions.length > 0 ? (
                                         <div className="space-y-2.5">
-                                            <p className="text-[10px] font-bold text-slate-400 flex items-center gap-1"><RefreshCw size={10} /> 雙方可以互換的班次：</p>
+                                            <p className="text-[10px] font-medium text-slate-400 flex items-center gap-1"><RefreshCw size={10} /> 雙方可以互換的班次：</p>
                                             <div className="flex flex-col gap-2">
                                                 {c.swapOptions.map((swap, i) => (
                                                     <div key={i} className="flex items-center justify-between bg-indigo-50/50 text-indigo-800 px-2.5 py-1.5 rounded-lg border border-indigo-100">
-                                                        <div className="text-[11px] font-bold text-indigo-900">{swap.service_date}<span className="opacity-70 ml-1">({swap._positionName} • {swap.session})</span></div>
-                                                        <button onClick={() => requestSwap(c, swap)} className="flex items-center gap-1 bg-white text-indigo-600 hover:bg-indigo-600 hover:text-white border border-indigo-200 px-2 py-1 rounded-md text-[10px] font-bold transition-all shadow-sm"><RefreshCw size={10} /> 換班</button>
+                                                        <div className="text-[11px] font-medium text-indigo-900">{swap.service_date}<span className="opacity-70 ml-1">({swap._positionName} • {swap.session})</span></div>
+                                                        <button onClick={() => requestSwap(c, swap)} className="flex items-center gap-1 bg-white text-indigo-600 hover:bg-indigo-600 hover:text-white border border-indigo-200 px-2 py-1 rounded-md text-[10px] font-medium transition-all shadow-sm"><RefreshCw size={10} /> 換班</button>
                                                     </div>
                                                 ))}
                                             </div>
                                             <div className="flex items-center justify-between bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200 mt-1">
-                                                <p className="text-[10px] font-bold text-slate-500 flex items-center gap-1.5"><Info size={10} /> 不換班，請求支援</p>
-                                                <button onClick={() => requestSubstitute(c)} className="flex items-center gap-1 bg-white text-orange-600 hover:bg-orange-500 hover:text-white border border-orange-200 px-2 py-1 rounded-md text-[10px] font-bold transition-all shadow-sm"><HandHeart size={10} /> 替補</button>
+                                                <p className="text-[10px] font-medium text-slate-500 flex items-center gap-1.5"><Info size={10} /> 不換班，請求支援</p>
+                                                <button onClick={() => requestSubstitute(c)} className="flex items-center gap-1 bg-white text-orange-600 hover:bg-orange-500 hover:text-white border border-orange-200 px-2 py-1 rounded-md text-[10px] font-medium transition-all shadow-sm"><HandHeart size={10} /> 替補</button>
                                             </div>
                                         </div>
                                     ) : (
                                         <div className="flex items-center justify-between bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200">
-                                            <p className="text-[10px] font-bold text-slate-500 flex items-center gap-1.5"><Info size={10} /> 無班可換，請求支援</p>
-                                            <button onClick={() => requestSubstitute(c)} className="flex items-center gap-1 bg-white text-orange-600 hover:bg-orange-500 hover:text-white border border-orange-200 px-2 py-1 rounded-md text-[10px] font-bold transition-all shadow-sm"><HandHeart size={10} /> 替補</button>
+                                            <p className="text-[10px] font-medium text-slate-500 flex items-center gap-1.5"><Info size={10} /> 無班可換，請求支援</p>
+                                            <button onClick={() => requestSubstitute(c)} className="flex items-center gap-1 bg-white text-orange-600 hover:bg-orange-500 hover:text-white border border-orange-200 px-2 py-1 rounded-md text-[10px] font-medium transition-all shadow-sm"><HandHeart size={10} /> 替補</button>
                                         </div>
                                     )}
                                 </div>
@@ -849,7 +849,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                     ) : (
                         <div className="p-8 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                             <UserX className="mx-auto mb-3 opacity-30" size={32} />
-                            <p className="font-bold text-sm">{searchTerm ? '找不到符合搜尋條件的人選' : '找不到合適人選'}</p>
+                            <p className="font-medium text-sm">{searchTerm ? '找不到符合搜尋條件的人選' : '找不到合適人選'}</p>
                             <p className="text-[10px] mt-1">同工可能已請假，或不符合兼任條件</p>
                         </div>
                     )}
@@ -918,16 +918,16 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                     
                     {/* 功能導航項目 */}
                     <nav className="p-4 space-y-1.5">
-                        <button onClick={goBack} className="w-full flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-xl font-bold text-sm transition-all text-left group">
+                        <button onClick={goBack} className="w-full flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-xl font-medium text-sm transition-all text-left group">
                             <Home size={18} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
                             <span>Home</span>
                         </button>
-                        <button onClick={goToMembers} className="w-full flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-xl font-bold text-sm transition-all text-left group">
+                        <button onClick={goToMembers} className="w-full flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-xl font-medium text-sm transition-all text-left group">
                             <Users size={18} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
                             <span>同工資料中心</span>
                         </button>
-                        <div className="flex items-center gap-3 px-4 py-3 corporate-btn font-black text-sm">
-                            <Calendar size={18} />
+                        <div className="flex items-center gap-3 px-4 py-3 corporate-btn font-semibold text-sm bg-indigo-50 text-indigo-700 rounded-xl">
+                            <Calendar size={18} className="text-indigo-600" />
                             <span>排班作業中心</span>
                         </div>
                     </nav>
@@ -940,7 +940,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                             if (supabase?.auth?.signOut) { await supabase.auth.signOut(); } 
                             window.location.reload(); 
                         }} 
-                        className="w-full flex items-center gap-3 px-4 py-3 text-rose-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl font-bold text-sm transition-all text-left group"
+                        className="w-full flex items-center gap-3 px-4 py-3 text-rose-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl font-medium text-sm transition-all text-left group"
                     >
                         <LogOut size={18} className="text-rose-400 group-hover:translate-x-0.5 transition-transform" />
                         <span>Sign Out</span>
@@ -970,13 +970,13 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                         {schedulingPhase === 'editor' && (
                             <>
                                 <div className="mt-3 flex flex-wrap items-center gap-6">
-                                    <p className="text-slate-500 text-xs font-bold flex items-center gap-1.5"><Search size={14} className="text-indigo-500"/> 點擊姓名選擇替代人選</p>
-                                    <p className="text-slate-500 text-xs font-bold flex items-center gap-1.5"><GripVertical size={14} className="text-indigo-500"/> 拖曳姓名可交換位置</p>
+                                    <p className="text-slate-500 text-xs font-medium flex items-center gap-1.5"><Search size={14} className="text-indigo-500"/> 點擊姓名選擇替代人選</p>
+                                    <p className="text-slate-500 text-xs font-medium flex items-center gap-1.5"><GripVertical size={14} className="text-indigo-500"/> 拖曳姓名可交換位置</p>
                                 </div>
                                 <div className="flex gap-3 mt-2 pt-2 border-t border-slate-100 flex-wrap">
-                                    <p className="text-rose-600 text-[10px] font-black flex items-center gap-1.5 bg-rose-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-rose-500"></span> 紅色：崗位兼任</p>
-                                    <p className="text-sky-600 text-[10px] font-black flex items-center gap-1.5 bg-sky-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-sky-500"></span> 藍色：群組落單</p>
-                                    {appMode === 'schedule' && <p className="text-orange-600 text-[10px] font-black flex items-center gap-1.5 bg-orange-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-orange-500"></span> 橘色：落單自動替換</p>}
+                                    <p className="text-rose-600 text-[10px] font-medium flex items-center gap-1.5 bg-rose-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-rose-500"></span> 紅色：崗位兼任</p>
+                                    <p className="text-sky-600 text-[10px] font-medium flex items-center gap-1.5 bg-sky-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-sky-500"></span> 藍色：群組落單</p>
+                                    {appMode === 'schedule' && <p className="text-orange-600 text-[10px] font-medium flex items-center gap-1.5 bg-orange-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-orange-500"></span> 橘色：落單自動替換</p>}
                                 </div>
                             </>
                         )}
@@ -986,18 +986,18 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                             <div className="flex items-center gap-3 flex-wrap justify-end">
                                 <div className="flex bg-slate-100 p-1.5 rounded-2xl w-full md:w-auto overflow-x-auto custom-scrollbar shadow-inner border border-slate-200">
                                     {['第一堂', '第二堂', '📊 數據分析'].map(tab => (
-                                        <button key={tab} onClick={() => { setActiveSessionTab(tab); if(tab === '📊 數據分析') setActiveSlot(null); }} className={`px-5 py-2 rounded-xl text-sm font-black transition-all whitespace-nowrap ${activeSessionTab === tab ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>{tab}</button>
+                                        <button key={tab} onClick={() => { setActiveSessionTab(tab); if(tab === '📊 數據分析') setActiveSlot(null); }} className={`px-5 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap ${activeSessionTab === tab ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>{tab}</button>
                                     ))}
                                     {appMode === 'schedule' && (
                                         <>
                                             <div className="w-px h-6 bg-slate-300 mx-2 self-center"></div>
-                                            <button onClick={runAutoSchedule} disabled={isLoading} className="px-4 py-2 rounded-xl text-sm font-black transition-all whitespace-nowrap text-indigo-600 hover:bg-white hover:shadow-sm flex items-center gap-1.5"><RefreshCw size={16} className={isLoading ? "animate-spin" : ""} /> 重新排班</button>
+                                            <button onClick={runAutoSchedule} disabled={isLoading} className="px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap text-indigo-600 hover:bg-white hover:shadow-sm flex items-center gap-1.5"><RefreshCw size={16} className={isLoading ? "animate-spin" : ""} /> 重新排班</button>
                                         </>
                                     )}
                                 </div>
                                 <div className="flex bg-slate-100 p-1.5 rounded-2xl w-full md:w-auto overflow-x-auto custom-scrollbar shadow-inner border border-slate-200">
-                                    <button onClick={exportToCSV} className="px-4 py-2 rounded-xl text-sm font-black transition-all whitespace-nowrap text-emerald-600 hover:bg-white hover:shadow-sm flex items-center gap-1.5"><Download size={16} /> 匯出 CSV</button>
-                                    <button onClick={handlePublishClick} disabled={isSaving} className="px-4 py-2 rounded-xl text-sm font-black transition-all whitespace-nowrap bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm flex items-center gap-1.5 disabled:bg-indigo-400">{isSaving ? <RefreshCw className="animate-spin" size={16} /> : <><Save size={16}/> 發布班表</>}</button>
+                                    <button onClick={exportToCSV} className="px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap text-emerald-600 hover:bg-white hover:shadow-sm flex items-center gap-1.5"><Download size={16} /> 匯出 CSV</button>
+                                    <button onClick={handlePublishClick} disabled={isSaving} className="px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm flex items-center gap-1.5 disabled:bg-indigo-400">{isSaving ? <RefreshCw className="animate-spin" size={16} /> : <><Save size={16}/> 發布班表</>}</button>
                                 </div>
                             </div>
                         </div>
@@ -1025,13 +1025,13 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                                                         const isEven = idx % 2 === 0; const rowBg = isEven ? 'bg-white' : 'bg-slate-50/50'; const stickyBg = isEven ? 'bg-white/95' : 'bg-slate-50/95';
                                                         return (
                                                             <tr key={idx} className={rowBg}>
-                                                                <td className={`sticky left-0 z-10 font-bold text-slate-500 text-center whitespace-nowrap px-4 backdrop-blur-sm border-r border-slate-100 ${stickyBg}`}>{row.date}</td>
+                                                                <td className={`sticky left-0 z-10 font-medium text-slate-500 text-center whitespace-nowrap px-4 backdrop-blur-sm border-r border-slate-100 ${stickyBg}`}>{row.date}</td>
                                                                 <ScheduleCell row={row} positionName="司會" /><ScheduleCell row={row} positionName="執事輪值" /><ScheduleCell row={row} positionName="接待" gridCols={2} />
                                                                 <ScheduleCell row={row} positionName="收奉獻" gridCols={2} /><ScheduleCell row={row} positionName="主餐" gridCols={2} /><ScheduleCell row={row} positionName="PPT" /><ScheduleCell row={row} positionName="新朋友關懷" gridCols={2} />
                                                             </tr>
                                                         );
                                                     })
-                                                ) : (<tr><td colSpan="8" className="text-center py-16 text-slate-400 font-bold bg-white">此堂別尚無排班資料</td></tr>)}
+                                                ) : (<tr><td colSpan="8" className="text-center py-16 text-slate-400 font-medium bg-white">此堂別尚無排班資料</td></tr>)}
                                             </tbody>
                                         </table>
                                     </div>
@@ -1043,21 +1043,21 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                 </div>
 
                 {/* Modals & Toasts */}
-                {errorMsg && <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 bg-red-50 text-red-600 px-6 py-3 rounded-2xl flex items-center gap-3 font-bold border border-red-100 shadow-xl animate-bounce"><AlertCircle size={20} /> {errorMsg}</div>}
-                {showSuccessToast && <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[200] bg-emerald-50 text-emerald-600 px-8 py-5 rounded-3xl flex items-center gap-4 font-black text-xl border-2 border-emerald-200 shadow-[0_20px_50px_rgba(0,0,0,0.15)] animate-pop"><CheckCircle2 size={32} className="text-emerald-500" /> 發布成功</div>}
+                {errorMsg && <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 bg-red-50 text-red-600 px-6 py-3 rounded-2xl flex items-center gap-3 font-medium border border-red-100 shadow-xl animate-bounce"><AlertCircle size={20} /> {errorMsg}</div>}
+                {showSuccessToast && <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[200] bg-emerald-50 text-emerald-600 px-8 py-5 rounded-3xl flex items-center gap-4 font-semibold text-xl border-2 border-emerald-200 shadow-[0_20px_50px_rgba(0,0,0,0.15)] animate-pop"><CheckCircle2 size={32} className="text-emerald-500" /> 發布成功</div>}
                 
                 {confirmDialog.isOpen && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in">
                         <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl animate-pop border border-slate-100">
                             <h3 className="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">{confirmDialog.type === 'swap' ? <RefreshCw className="text-indigo-500" /> : <HandHeart className="text-orange-500" />}{confirmDialog.title}</h3>
                             <div className="mb-8 p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-2 sm:gap-4 shadow-inner">
-                                <div className="flex-1 text-center break-words"><p className="text-[10px] font-bold text-slate-400 mb-1.5">目前同工</p><p className="text-sm sm:text-base font-black text-slate-700">{confirmDialog.currentName}</p><div className="text-[10px] sm:text-[11px] text-slate-500 mt-1 leading-snug"><p>{confirmDialog.currentDate}</p><p>{confirmDialog.currentRole}</p></div></div>
+                                <div className="flex-1 text-center break-words"><p className="text-[10px] font-medium text-slate-400 mb-1.5">目前同工</p><p className="text-sm sm:text-base font-semibold text-slate-700">{confirmDialog.currentName}</p><div className="text-[10px] sm:text-[11px] text-slate-500 mt-1 leading-snug"><p>{confirmDialog.currentDate}</p><p>{confirmDialog.currentRole}</p></div></div>
                                 <div className="shrink-0 text-slate-300 px-1"><ArrowLeftRight size={20} className={`sm:w-6 sm:h-6 ${confirmDialog.type === 'swap' ? 'text-indigo-400' : 'text-orange-400'}`} strokeWidth={2.5} /></div>
-                                <div className="flex-1 text-center break-words"><p className="text-[10px] font-bold text-slate-400 mb-1.5">替換同工</p><p className={`text-sm sm:text-base font-black ${confirmDialog.type === 'swap' ? 'text-indigo-600' : 'text-orange-600'}`}>{confirmDialog.newName}</p><div className="text-[10px] sm:text-[11px] text-slate-500 mt-1 leading-snug"><p>{confirmDialog.newDate}</p><p>{confirmDialog.newRole}</p></div></div>
+                                <div className="flex-1 text-center break-words"><p className="text-[10px] font-medium text-slate-400 mb-1.5">替換同工</p><p className={`text-sm sm:text-base font-semibold ${confirmDialog.type === 'swap' ? 'text-indigo-600' : 'text-orange-600'}`}>{confirmDialog.newName}</p><div className="text-[10px] sm:text-[11px] text-slate-500 mt-1 leading-snug"><p>{confirmDialog.newDate}</p><p>{confirmDialog.newRole}</p></div></div>
                             </div>
                             <div className="flex gap-3">
-                                <button onClick={() => setConfirmDialog({ ...confirmDialog, isOpen: false })} className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black rounded-xl transition-all">取消</button>
-                                <button onClick={confirmDialog.onConfirm} className={`flex-1 py-3 px-4 font-black text-white rounded-xl transition-all shadow-lg active:scale-95 ${confirmDialog.type === 'swap' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200' : 'bg-orange-500 hover:bg-orange-600 shadow-orange-200'}`}>確認執行</button>
+                                <button onClick={() => setConfirmDialog({ ...confirmDialog, isOpen: false })} className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium rounded-xl transition-all">取消</button>
+                                <button onClick={confirmDialog.onConfirm} className={`flex-1 py-3 px-4 font-medium text-white rounded-xl transition-all shadow-lg active:scale-95 ${confirmDialog.type === 'swap' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200' : 'bg-orange-500 hover:bg-orange-600 shadow-orange-200'}`}>確認執行</button>
                             </div>
                         </div>
                     </div>
@@ -1068,11 +1068,11 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                         <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl animate-pop border border-slate-100">
                             <div className="flex items-center gap-3 mb-4 text-indigo-600"><AlertCircle size={28} /><h3 className="text-2xl font-black text-slate-800">準備發布班表</h3></div>
                             <div className="mb-8 bg-slate-50 p-5 rounded-2xl border border-slate-100">
-                                <p className="text-slate-600 font-bold mb-3">溫馨小提醒</p><p className="text-slate-500 text-sm font-bold flex items-start gap-2"><Info size={16} className="text-emerald-500 shrink-0 mt-0.5" /><span>尚未匯出試算表檔案，請點擊「取消返回」，使用「匯出 CSV」功能，以利後續「服事表排版」。</span></p>
+                                <p className="text-slate-600 font-medium mb-3">溫馨小提醒</p><p className="text-slate-500 text-sm font-medium flex items-start gap-2"><Info size={16} className="text-emerald-500 shrink-0 mt-0.5" /><span>尚未匯出試算表檔案，請點擊「取消返回」，使用「匯出 CSV」功能，以利後續「服事表排版」。</span></p>
                             </div>
                             <div className="flex gap-3">
-                                <button onClick={() => setPublishConfirmOpen(false)} className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black rounded-xl transition-all">取消返回</button>
-                                <button onClick={executePublish} className="flex-1 py-3 px-4 font-black text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all shadow-lg shadow-indigo-200 active:scale-95 flex items-center justify-center gap-2"><Save size={18} /> 確認發布</button>
+                                <button onClick={() => setPublishConfirmOpen(false)} className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium rounded-xl transition-all">取消返回</button>
+                                <button onClick={executePublish} className="flex-1 py-3 px-4 font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all shadow-lg shadow-indigo-200 active:scale-95 flex items-center justify-center gap-2"><Save size={18} /> 確認發布</button>
                             </div>
                         </div>
                     </div>
