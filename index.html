@@ -43,19 +43,21 @@
     </script>
     <style type="text/tailwindcss">
         body { background-color: #f8fafc; font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow: hidden; -webkit-tap-highlight-color: transparent; }
+        
         /* 表格標題字體調細為 font-medium */
         .schedule-table th { @apply px-3 py-4 bg-slate-200/80 text-slate-800 text-xs md:text-sm font-medium uppercase tracking-wider text-center border-b-2 border-slate-300; }
         .schedule-table td { @apply px-3 py-2.5 text-xs md:text-sm text-slate-700 border-b border-slate-200 vertical-top transition-all duration-300; }
         
-        /* 嚴格保留原本的排班標籤邏輯，不作任何修改，避免影響 SchedulingAndGovernance.js */
-        .name-tag { @apply inline-flex items-center justify-center px-1.5 py-0.5 text-[15px] font-bold text-slate-700 cursor-pointer select-none transition-all whitespace-nowrap rounded-md; }
+        /* 排班標籤邏輯：字重下調為 font-normal (400) */
+        .name-tag { @apply inline-flex items-center justify-center px-1.5 py-0.5 text-[15px] font-normal text-slate-700 cursor-pointer select-none transition-all whitespace-nowrap rounded-md; }
         .name-tag:hover { @apply text-indigo-600 bg-indigo-50/50; }
         .name-tag.active { @apply text-indigo-700 bg-indigo-100 scale-105 z-10 shadow-sm border border-indigo-200; }
         .name-tag.dragging { @apply opacity-30; }
         .name-tag.emergency { @apply text-orange-600; }
-        .name-tag.empty-slot { @apply text-red-500 font-black animate-pulse; }
-        .name-tag.conflict { @apply text-rose-600 font-black !important; }
-        .name-tag.orphan { @apply text-sky-600 font-black !important; }
+        /* 異常狀態標籤字重稍微調降為 font-bold，避免黑體(font-black)過重 */
+        .name-tag.empty-slot { @apply text-red-500 font-bold animate-pulse; }
+        .name-tag.conflict { @apply text-rose-600 font-bold !important; }
+        .name-tag.orphan { @apply text-sky-600 font-bold !important; }
         
         @keyframes slideInRight { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
         .animate-panel-right { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
