@@ -313,7 +313,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
         } catch (error) { showMessage('error', '刪除失敗: ' + error.message); } finally { setIsLoading(false); }
     };
 
-    // ★ 空值防護確保編輯畫面 100% 能開啟
     const openEditModal = (member) => {
         const settings = quarterSettings.find(s => s.member_id === member.id) || {};
         let safeDates = [];
@@ -522,17 +521,10 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                             </div>
                         )}
 
-                        {/* ★ 管理員專用：手動切換填寫權限按鈕 */}
-                        {isAdmin && (
-                            <button onClick={toggleSubmissionStatus} className={`whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm border ${isSubmissionOpen ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}>
-                                {isSubmissionOpen ? <><Unlock size={14} /> 開放填寫</> : <><Lock size={14} /> 關閉填寫</>}
-                            </button>
-                        )}
-
-                        {/* ★ 一般同工：查看當前狀態 */}
+                        {/* ★ 一般同工：查看當前狀態 (改為簡潔英文) */}
                         {!isAdmin && (
                             <div className={`whitespace-nowrap text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5 border shadow-sm ${isSubmissionOpen ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
-                                {isSubmissionOpen ? `🟢 填寫開放中` : `🔴 未開放或已過期，僅供查看`}
+                                {isSubmissionOpen ? `🟢 Open Now` : `🔴 View Only`}
                             </div>
                         )}
 
@@ -544,6 +536,11 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                     <button onClick={triggerSaveToBase} className="whitespace-nowrap flex items-center gap-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-xs font-medium px-3 py-1.5 rounded-lg transition-all"><Save size={14} /> 儲存</button>
                                 )}
                                 <button onClick={() => setIsHolidayManagerOpen(true)} className="whitespace-nowrap flex items-center gap-1.5 bg-sky-50 text-sky-600 hover:bg-sky-100 text-xs font-medium px-3 py-1.5 rounded-lg transition-all"><CalendarX size={14} /> 節日提醒</button>
+                                
+                                {/* ★ 管理員專用：手動切換填寫權限按鈕 (移至最右側) */}
+                                <button onClick={toggleSubmissionStatus} className={`whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm border ${isSubmissionOpen ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}>
+                                    {isSubmissionOpen ? <><Unlock size={14} /> 開放填寫</> : <><Lock size={14} /> 關閉填寫</>}
+                                </button>
                             </>
                         )}
                     </div>
