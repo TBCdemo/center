@@ -456,8 +456,8 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
     });
 
     return (
-        // ★ 解除最外層的 select-none，避免在手機上干擾整體的滑動事件
-        <div className="flex h-screen w-full bg-slate-50 overflow-hidden relative">
+        // ★ 加入 h-[100dvh] 以完美適應手機動態視窗，移除 select-none 避免干擾滑動
+        <div className="flex h-[100dvh] w-full bg-slate-50 overflow-hidden relative">
             {/* 左側整合式現代功能導覽列：一般同工登入時自動隱藏 */}
             {isAdmin && (
                 <div className="w-64 bg-slate-900 flex flex-col justify-between shrink-0 border-r border-slate-800 z-30">
@@ -523,7 +523,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                             </div>
                         )}
 
-                        {/* ★ 一般同工：查看當前狀態 (改為簡潔英文) */}
                         {!isAdmin && (
                             <div className={`whitespace-nowrap text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5 border shadow-sm ${isSubmissionOpen ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
                                 {isSubmissionOpen ? `🟢 Open Now` : `🔴 View Only`}
@@ -539,7 +538,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                 )}
                                 <button onClick={() => setIsHolidayManagerOpen(true)} className="whitespace-nowrap flex items-center gap-1.5 bg-sky-50 text-sky-600 hover:bg-sky-100 text-xs font-medium px-3 py-1.5 rounded-lg transition-all"><CalendarX size={14} /> 節日提醒</button>
                                 
-                                {/* ★ 管理員專用：手動切換填寫權限按鈕 (移至最右側) */}
                                 <button onClick={toggleSubmissionStatus} className={`whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm border ${isSubmissionOpen ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}>
                                     {isSubmissionOpen ? <><Unlock size={14} /> 開放填寫</> : <><Lock size={14} /> 關閉填寫</>}
                                 </button>
@@ -588,7 +586,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                                     <span className="text-slate-500">{settings.preferred_session}</span>
                                                 </div>
                                             </div>
-                                            {/* ★ 動態 class 控制：若不是管理員，強制顯示按鈕，不再隱藏於 hover */}
                                             <div className={`flex gap-1.5 transition-opacity ${!isAdmin ? 'opacity-100' : 'opacity-100 sm:opacity-0 sm:group-hover:opacity-100'}`}>
                                                 {(isAdmin || isSubmissionOpen) && <button onClick={() => openEditModal(member)} className="p-2.5 bg-slate-50 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"><Edit2 size={16}/></button>}
                                                 {isAdmin && <button onClick={() => handleDelete(member.id, member.name)} className="p-2.5 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-lg transition-colors"><Trash2 size={16}/></button>}
@@ -642,9 +639,9 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                 )}
 
                 {isModalOpen && (
-                    <div className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm">
-                        {/* ★ 釋放高度：移除固定的 h-[95vh]，改用 max-h-[85vh]，讓視窗順應內容大小，並避免被底部網址列遮擋 */}
-                        <div className="bg-white w-full max-h-[85vh] sm:max-h-[90vh] sm:max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-hover-soft overflow-hidden flex flex-col animate-slide-up sm:animate-fade-in border border-slate-100">
+                    /* ★ 改為 p-4 置中浮動設計，視窗四周都會有安全距離，絕對不會被底部導覽列遮住 */
+                    <div className="fixed inset-0 z-[100] flex flex-col justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+                        <div className="bg-white w-full mx-auto max-w-2xl max-h-[85dvh] rounded-2xl shadow-hover-soft overflow-hidden flex flex-col animate-fade-in border border-slate-100">
                             <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0 sticky top-0 z-10">
                                 <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                                     {editingMember ? <Edit2 size={20} className="text-indigo-600"/> : <UserPlus size={20} className="text-indigo-600"/>}
@@ -653,12 +650,12 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                 <button onClick={closeModal} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors"><X size={20}/></button>
                             </div>
                             
-                            {/* ★ 加入 touch-pan-y 與 overscroll-contain，確保在手機上內部能順利滑動 */}
-                            <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-6 pb-8 touch-pan-y overscroll-contain">
+                            {/* ★ 加入 touch-pan-y 與 overscroll-contain 確保滑動順暢 */}
+                            <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-6 touch-pan-y overscroll-contain">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-medium text-slate-500 uppercase">姓名 <span className="text-red-500">*</span></label>
-                                        {/* ★ 移除 disabled，改用 readOnly + pointer-events-none，確保手指觸碰輸入框時也能順利往下捲動畫面 */}
+                                        {/* ★ 移除 disabled 改用 readOnly，讓手指碰到這裡也能往下滑 */}
                                         <input 
                                             type="text" 
                                             value={formData.name ?? ''} 
@@ -755,7 +752,9 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                     </div>
                                 )}
                             </div>
-                            <div className="px-5 py-4 border-t border-slate-100 bg-white flex gap-3 shrink-0 pb-8 sm:pb-4 sticky bottom-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                            
+                            {/* ★ 移除額外的 padding-bottom (pb-8)，因為視窗已經不是貼齊底部了 */}
+                            <div className="px-5 py-4 border-t border-slate-100 bg-white flex gap-3 shrink-0 sticky bottom-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
                                 <button onClick={closeModal} className="flex-1 py-3 sm:py-2.5 rounded-lg font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">取消</button>
                                 <button onClick={handleSave} disabled={isLoading} className="flex-[2] py-3 sm:py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:opacity-95 text-white rounded-lg font-medium flex items-center justify-center gap-2 shadow-button transition-all duration-200 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50">
                                     <Save size={18}/> {isLoading ? '儲存中...' : '儲存設定'}
@@ -766,9 +765,8 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                 )}
 
                 {isHolidayManagerOpen && isAdmin && (
-                    <div className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm">
-                        {/* ★ 釋放高度：移除固定的 h-[90vh]，改為 max-h-[85vh] */}
-                        <div className="bg-white w-full max-h-[85vh] sm:max-h-[90vh] sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-hover-soft overflow-hidden flex flex-col animate-slide-up sm:animate-fade-in border border-slate-100">
+                    <div className="fixed inset-0 z-[100] flex flex-col justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+                        <div className="bg-white w-full mx-auto max-h-[85dvh] max-w-lg rounded-2xl shadow-hover-soft overflow-hidden flex flex-col animate-fade-in border border-slate-100">
                             <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0 sticky top-0">
                                 <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2"><CalendarX className="text-sky-500" size={20} /> 自訂節日提醒</h3>
                                 <button onClick={() => setIsHolidayManagerOpen(false)} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors"><X size={20}/></button>
@@ -812,7 +810,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                 )}
 
                 {isCreateQuarterModalOpen && (
-                    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
                         <div className="bg-white w-full max-w-sm rounded-2xl shadow-hover-soft flex flex-col overflow-hidden animate-fade-in border border-slate-100">
                             <div className="p-6">
                                 <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2"><Copy size={24} className="text-amber-500"/> 新增季度</h3>
@@ -840,14 +838,14 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                 )}
 
                 {message.text && (
-                    <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-[80] px-5 py-3 rounded-xl font-medium shadow-soft animate-fade-in flex items-start gap-2 max-w-[90vw] w-max ${message.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`}>
+                    <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-[110] px-5 py-3 rounded-xl font-medium shadow-soft animate-fade-in flex items-start gap-2 max-w-[90vw] w-max ${message.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`}>
                         <div className="shrink-0 mt-0.5">{message.type === 'success' ? <CheckCircle2 size={18}/> : <AlertCircle size={18}/>}</div>
                         <div className="text-sm leading-snug break-words flex-1">{message.text}</div>
                     </div>
                 )}
                 
                 {(confirmAction || isDeleteQuarterModalOpen) && (
-                    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
                         <div className="bg-white w-full max-w-sm rounded-2xl shadow-hover-soft flex flex-col overflow-hidden animate-fade-in border border-slate-100">
                             <div className="p-8 text-center">
                                 <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5 ${confirmAction?.title === '警告' || isDeleteQuarterModalOpen ? 'bg-red-50 text-red-500' : 'bg-emerald-50 text-emerald-500'}`}>
