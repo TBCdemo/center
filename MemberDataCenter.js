@@ -389,48 +389,57 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
 
     return (
         <div className="flex h-screen w-full bg-slate-50 overflow-hidden select-none relative">
-            {/* 左側整合式現代功能導覽列 */}
-            <div className="w-64 bg-slate-900 flex flex-col justify-between shrink-0 border-r border-slate-800 z-30">
-                <div className="flex flex-col">
-                    <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-                        <span className="text-white font-bold text-base tracking-wider">TBC Serve Manager</span>
+            {/* 左側整合式現代功能導覽列 - 僅管理員可見 */}
+            {isAdmin && (
+                <div className="w-64 bg-slate-900 flex flex-col justify-between shrink-0 border-r border-slate-800 z-30">
+                    <div className="flex flex-col">
+                        <div className="p-6 border-b border-slate-800 flex items-center gap-3">
+                            <span className="text-white font-bold text-base tracking-wider">TBC Serve Manager</span>
+                        </div>
+                        
+                        <nav className="p-4 space-y-1.5">
+                            <button onClick={goBack} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
+                                <Home size={18} className="text-slate-400 group-hover:text-indigo-400 transition-colors" />
+                                <span>Home</span>
+                            </button>
+                            <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 shadow-button text-white rounded-xl font-medium text-sm">
+                                <Users size={18} />
+                                <span>同工資料中心</span>
+                            </div>
+                            <button onClick={goToSchedule} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
+                                <Calendar size={18} className="text-slate-400 group-hover:text-violet-400 transition-colors" />
+                                <span>排班作業中心</span>
+                            </button>
+                        </nav>
                     </div>
                     
-                    <nav className="p-4 space-y-1.5">
-                        <button onClick={goBack} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
-                            <Home size={18} className="text-slate-400 group-hover:text-indigo-400 transition-colors" />
-                            <span>Home</span>
+                    {/* 底部安全登出按鈕 */}
+                    <div className="p-4 border-t border-slate-800">
+                        <button 
+                            onClick={async () => { 
+                                if (supabase?.auth?.signOut) { await supabase.auth.signOut(); } 
+                                window.location.reload(); 
+                            }} 
+                            className="w-full flex items-center gap-3 px-4 py-3 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl font-normal text-sm transition-all text-left group"
+                        >
+                            <LogOut size={18} className="text-rose-400 group-hover:translate-x-0.5 transition-transform" />
+                            <span>Sign Out</span>
                         </button>
-                        <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 shadow-button text-white rounded-xl font-medium text-sm">
-                            <Users size={18} />
-                            <span>同工資料中心</span>
-                        </div>
-                        <button onClick={goToSchedule} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
-                            <Calendar size={18} className="text-slate-400 group-hover:text-violet-400 transition-colors" />
-                            <span>排班作業中心</span>
-                        </button>
-                    </nav>
+                    </div>
                 </div>
-                
-                {/* 底部安全登出按鈕 */}
-                <div className="p-4 border-t border-slate-800">
-                    <button 
-                        onClick={async () => { 
-                            if (supabase?.auth?.signOut) { await supabase.auth.signOut(); } 
-                            window.location.reload(); 
-                        }} 
-                        className="w-full flex items-center gap-3 px-4 py-3 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl font-normal text-sm transition-all text-left group"
-                    >
-                        <LogOut size={18} className="text-rose-400 group-hover:translate-x-0.5 transition-transform" />
-                        <span>Sign Out</span>
-                    </button>
-                </div>
-            </div>
+            )}
 
             {/* 右側主工作視窗容器 */}
             <div className="flex-1 flex flex-col relative bg-slate-50 overflow-hidden animate-fade-in">
                 <div className="bg-white px-6 py-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0 shadow-sm z-20">
                     <div className="flex items-center gap-3">
+                        <button 
+                            onClick={goBack} 
+                            className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors" 
+                            title={isAdmin ? "返回首頁" : "登出系統"}
+                        >
+                            {isAdmin ? <ChevronLeft size={24} /> : <LogOut size={22} className="ml-0.5" />}
+                        </button>
                         <h2 className="text-2xl font-extrabold text-slate-900 flex items-center gap-3 tracking-tight">
                             <Users className="text-indigo-600" size={28}/> 同工資料中心
                         </h2>
