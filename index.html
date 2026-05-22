@@ -305,6 +305,9 @@
                             <button type="button" onClick={() => { setIsSignUp(!isSignUp); setErrorMsg(''); setConfirmPassword(''); setInviteCode(''); }} className="text-sm font-bold text-indigo-500 hover:text-indigo-700 transition-colors py-2">
                                 {isSignUp ? '已經有帳號？立即登入' : '沒有帳號嗎？建立一個吧！'}
                             </button>
+                            <div className="text-xs font-medium text-slate-400 pt-3 border-t border-slate-100/80">
+                                忘記密碼？請聯絡行政辦公室
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -380,7 +383,7 @@
                             MemberDataCenterComp 
                                 ? <MemberDataCenterComp 
                                     session={session} 
-                                    // 關鍵修改：若不是管理員，點擊「返回」實為「登出」
+                                    // 若不是管理員，點擊「返回」實為「登出」
                                     goBack={isAdmin ? () => setCurrentApp('home') : handleLogout} 
                                     goToSchedule={() => setCurrentApp('scheduling')} 
                                     supabase={supabase} 
