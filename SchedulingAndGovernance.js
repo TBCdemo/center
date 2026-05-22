@@ -430,7 +430,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
         finally { setIsSaving(false); }
     };
 
-    // CSV 匯出邏輯：先按堂別排序，再按日期排序
     const exportToCSV = () => {
         const tableData = {};
         generatedDraft.forEach(d => {
@@ -441,14 +440,16 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
             tableData[key].positions[d._positionName].push(d.is_empty ? '⚠️空缺' : (d._memberName || '未知'));
         });
         
-        // 核心修改處：先排 Session (第一堂 -> 第二堂)，再排 Date
+        // 變更排序邏輯：優先以「堂別」排序，其次才是「日期」
         const sortedRows = Object.values(tableData).sort((a, b) => {
             if (a.session !== b.session) {
-                return a.session === '第一堂' ? -1 : 1;
+                if (a.session === '第一堂') return -1;
+                if (b.session === '第一堂') return 1;
+                return a.session.localeCompare(b.session);
             }
             return a.date.localeCompare(b.date);
         });
-        
+
         let csvContent = '\uFEFF日期,堂別,司會,執事,接待,收奉獻,主餐,PPT,新朋友關懷\n';
         sortedRows.forEach(row => {
             const r = [
