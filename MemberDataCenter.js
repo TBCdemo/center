@@ -313,6 +313,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
         } catch (error) { showMessage('error', '刪除失敗: ' + error.message); } finally { setIsLoading(false); }
     };
 
+    // ★ 空值防護確保編輯畫面 100% 能開啟
     const openEditModal = (member) => {
         const settings = quarterSettings.find(s => s.member_id === member.id) || {};
         let safeDates = [];
@@ -586,7 +587,8 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                                     <span className="text-slate-500">{settings.preferred_session}</span>
                                                 </div>
                                             </div>
-                                            <div className="flex gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                            {/* ★ 動態 class 控制：若不是管理員，強制顯示按鈕，不再隱藏於 hover */}
+                                            <div className={`flex gap-1.5 transition-opacity ${!isAdmin ? 'opacity-100' : 'opacity-100 sm:opacity-0 sm:group-hover:opacity-100'}`}>
                                                 {(isAdmin || isSubmissionOpen) && <button onClick={() => openEditModal(member)} className="p-2.5 bg-slate-50 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"><Edit2 size={16}/></button>}
                                                 {isAdmin && <button onClick={() => handleDelete(member.id, member.name)} className="p-2.5 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-lg transition-colors"><Trash2 size={16}/></button>}
                                             </div>
