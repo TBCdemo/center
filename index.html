@@ -187,7 +187,7 @@
         );
 
         // ==========================================
-        // 登入元件 AuthScreen (統一包含註冊與一般登入)
+        // 登入元件 AuthScreen (包含獨立滾動視窗)
         // ==========================================
         const AuthScreen = () => {
             const [account, setAccount] = useState('');
@@ -235,78 +235,88 @@
                 }
             };
 
+            // 採用 fixed inset-0 與 overflow-y-auto 建立獨立的滾動容器
             return (
-                <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden">
-                    <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-indigo-600/10 blur-[120px] pointer-events-none"></div>
-                    <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-violet-600/10 blur-[120px] pointer-events-none"></div>
+                <div className="fixed inset-0 bg-slate-50 overflow-y-auto custom-scrollbar">
+                    <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 py-8 relative">
+                        {/* 背景特效使用 fixed 固定，避免隨著滾動而變形 */}
+                        <div className="fixed top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-indigo-600/10 blur-[120px] pointer-events-none"></div>
+                        <div className="fixed bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-violet-600/10 blur-[120px] pointer-events-none"></div>
 
-                    <div className="bg-white max-w-md w-full rounded-[2rem] shadow-xl p-6 sm:p-8 border border-slate-100 animate-fade-in z-10">
-                        <div className="flex flex-col items-center mb-8">
-                            <div className="bg-gradient-to-br from-indigo-600 to-violet-600 p-4 rounded-xl text-white shadow-button mb-4"><Activity size={32} /></div>
-                            <h1 className="text-2xl font-extrabold text-slate-900 text-center tracking-tight leading-tight">TBC Serve Manager</h1>
-                        </div>
-
-                        {errorMsg && (
-                            <div className="bg-red-50 text-red-600 text-sm font-bold p-3 rounded-xl mb-6 flex items-center gap-2 leading-relaxed">
-                                <AlertCircle size={18} className="shrink-0" /> {errorMsg}
+                        <div className="bg-white max-w-md w-full rounded-[2rem] shadow-xl p-6 sm:p-8 border border-slate-100 animate-fade-in z-10 my-auto relative">
+                            <div className="flex flex-col items-center mb-8">
+                                <div className="bg-gradient-to-br from-indigo-600 to-violet-600 p-4 rounded-xl text-white shadow-button mb-4"><Activity size={32} /></div>
+                                <h1 className="text-2xl font-extrabold text-slate-900 text-center tracking-tight leading-tight">TBC Serve Manager</h1>
                             </div>
-                        )}
 
-                        <form onSubmit={handleAuth} className="space-y-4 sm:space-y-5">
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">帳號</label>
-                                <div className="relative">
-                                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                                    <input type="text" value={account} onChange={(e) => setAccount(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all font-semibold text-slate-700" placeholder="電話號碼或電子郵件" required />
+                            {errorMsg && (
+                                <div className="bg-red-50 text-red-600 text-sm font-bold p-3 rounded-xl mb-6 flex items-center gap-2 leading-relaxed">
+                                    <AlertCircle size={18} className="shrink-0" /> {errorMsg}
                                 </div>
-                            </div>
-                            
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">密碼</label>
-                                <div className="relative">
-                                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                                    <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all font-semibold text-slate-700" placeholder="6位以上英數組合" required />
-                                </div>
-                            </div>
+                            )}
 
-                            {isSignUp && (
-                                <div className="space-y-1.5 animate-fade-in">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">確認密碼 <span className="text-red-500">*</span></label>
+                            <form onSubmit={handleAuth} className="space-y-4 sm:space-y-5">
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">帳號</label>
+                                    <div className="relative">
+                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                        <input type="text" value={account} onChange={(e) => setAccount(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all font-semibold text-slate-700" placeholder="電話號碼或電子郵件" required />
+                                    </div>
+                                </div>
+                                
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">密碼</label>
                                     <div className="relative">
                                         <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                                        <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all font-semibold text-slate-700" placeholder="再次輸入密碼" required={isSignUp} />
+                                        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all font-semibold text-slate-700" placeholder="6位以上英數組合" required />
                                     </div>
                                 </div>
-                            )}
 
-                            {isSignUp && (
-                                <div className="space-y-1.5 animate-fade-in">
-                                    <label className="text-xs font-bold text-indigo-500 uppercase tracking-wider ml-1">邀請碼 <span className="text-red-500">*</span></label>
-                                    <div className="relative">
-                                        <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-400" size={18} />
-                                        <input type="text" value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} className="w-full bg-indigo-50/50 border border-indigo-200 rounded-xl pl-11 pr-4 py-3.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all font-semibold text-slate-700" placeholder="輸入本會提供的邀請碼" required={isSignUp} />
+                                {isSignUp && (
+                                    <div className="space-y-1.5 animate-fade-in">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">確認密碼 <span className="text-red-500">*</span></label>
+                                        <div className="relative">
+                                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                            <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all font-semibold text-slate-700" placeholder="再次輸入密碼" required={isSignUp} />
+                                        </div>
                                     </div>
+                                )}
+
+                                {isSignUp && (
+                                    <div className="space-y-1.5 animate-fade-in">
+                                        <label className="text-xs font-bold text-indigo-500 uppercase tracking-wider ml-1">邀請碼 <span className="text-red-500">*</span></label>
+                                        <div className="relative">
+                                            <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-400" size={18} />
+                                            <input type="text" value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} className="w-full bg-indigo-50/50 border border-indigo-200 rounded-xl pl-11 pr-4 py-3.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all font-semibold text-slate-700" placeholder="輸入本會提供的邀請碼" required={isSignUp} />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {isSignUp && (
+                                    <div className="bg-amber-50 text-amber-700 text-xs font-bold p-3 rounded-xl border border-amber-100 flex items-start gap-2 leading-relaxed mt-2">
+                                        <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                                        請聯絡行政辦公室完成授權並索取邀請碼，再進行帳號綁定。
+                                    </div>
+                                )}
+
+                                <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:opacity-95 disabled:from-indigo-400 disabled:to-violet-400 text-white font-medium py-3.5 rounded-lg shadow-button hover:-translate-y-0.5 transition-all duration-200 mt-4 text-base">
+                                    {loading ? '處理中...' : (isSignUp ? '綁定帳號' : '登入')}
+                                </button>
+                            </form>
+
+                            <div className="mt-6 flex flex-col gap-4 text-center">
+                                {isSignUp ? (
+                                    <div className="text-sm font-medium text-slate-500">
+                                        已經有帳號？ <button type="button" onClick={() => { setIsSignUp(false); setErrorMsg(''); setConfirmPassword(''); setInviteCode(''); }} className="font-bold text-indigo-600 hover:text-indigo-700 transition-colors py-1">登入</button>
+                                    </div>
+                                ) : (
+                                    <div className="text-sm font-medium text-slate-500">
+                                        沒有帳號嗎？ <button type="button" onClick={() => { setIsSignUp(true); setErrorMsg(''); setConfirmPassword(''); setInviteCode(''); }} className="font-bold text-indigo-600 hover:text-indigo-700 transition-colors py-1">建立一個吧！</button>
+                                    </div>
+                                )}
+                                <div className="text-xs font-medium text-slate-400 pt-4 border-t border-slate-100/80">
+                                    忘記密碼？請聯絡行政辦公室
                                 </div>
-                            )}
-
-                            {isSignUp && (
-                                <div className="bg-amber-50 text-amber-700 text-xs font-bold p-3 rounded-xl border border-amber-100 flex items-start gap-2 leading-relaxed mt-2">
-                                    <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                                    請聯絡行政辦公室完成授權並索取邀請碼，再進行帳號綁定。
-                                </div>
-                            )}
-
-                            <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:opacity-95 disabled:from-indigo-400 disabled:to-violet-400 text-white font-medium py-3.5 rounded-lg shadow-button hover:-translate-y-0.5 transition-all duration-200 mt-4 text-base">
-                                {loading ? '處理中...' : (isSignUp ? '綁定帳號' : '登入')}
-                            </button>
-                        </form>
-
-                        <div className="mt-6 flex flex-col gap-3 text-center">
-                            <button type="button" onClick={() => { setIsSignUp(!isSignUp); setErrorMsg(''); setConfirmPassword(''); setInviteCode(''); }} className="text-sm font-bold text-indigo-500 hover:text-indigo-700 transition-colors py-2">
-                                {isSignUp ? '已經有帳號？立即登入' : '沒有帳號嗎？建立一個吧！'}
-                            </button>
-                            <div className="text-xs font-medium text-slate-400 pt-3 border-t border-slate-100/80">
-                                忘記密碼？請聯絡行政辦公室
                             </div>
                         </div>
                     </div>
