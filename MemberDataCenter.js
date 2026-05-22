@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
     Users, Copy, Trash2, CalendarX, Search, X, Edit2, ShieldCheck, 
     Check, Save, CheckCircle2, AlertCircle, UserPlus, User, ChevronLeft,
-    Home, LogOut, Calendar 
+    Home, LogOut, Calendar, Lock, Unlock
 } from 'lucide-react';
 
 const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, constants }) => {
@@ -22,18 +22,8 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
     const currentUserAccount = extractAccountFromEmail(currentUserEmail);
     const isAdmin = currentUserAccount === ADMIN_ACCOUNT || currentUserEmail === ADMIN_ACCOUNT;
 
-    const now = new Date();
-    const currentMonth = now.getMonth() + 1;
-    const currentDate = now.getDate();
-    const isSubmissionOpen = [3, 6, 9, 12].includes(currentMonth) && currentDate >= 1 && currentDate <= 20;
-
-    let deadlineMonth = currentMonth;
-    if (![3, 6, 9, 12].includes(currentMonth)) {
-        if (currentMonth < 3) deadlineMonth = 12;
-        else if (currentMonth < 6) deadlineMonth = 3;
-        else if (currentMonth < 9) deadlineMonth = 6;
-        else if (currentMonth < 12) deadlineMonth = 9;
-    }
+    // 管理員手動控制的填寫權限狀態
+    const [isSubmissionOpen, setIsSubmissionOpen] = useState(false);
 
     const [quarterOptions, setQuarterOptions] = useState(['BASE', ...generateBaseQuarters()]);
     const initialQuarter = isAdmin ? getCurrentQuarter() : getNextQuarter(getCurrentQuarter());
@@ -86,27 +76,37 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             setMemberPositions(mpData || []);
             setQuarterSettings(qsData || []);
 
-            const today = new Date();
-            const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            const todayStr = new Date().toISOString().split('T')[0];
             let parsedHolidays = {};
             let needsUpdate = false;
+            let currentSubmissionStatus = false;
 
-            if (sysSettingsData && sysSettingsData.length > 0) {
-                const datesArr = sysSettingsData[0].unavailable_dates;
-                if (Array.isArray(datesArr)) {
-                    datesArr.forEach(item => {
-                        const [d, n] = item.split('|');
-                        if (d && n) {
-                            if (d >= todayStr) { parsedHolidays[d] = n; } else { needsUpdate = true; }
-                        }
-                    });
-                }
-                if (needsUpdate) {
-                    const sysMemId = sysSettingsData[0].member_id;
-                    const updatedArr = Object.entries(parsedHolidays).map(([d, n]) => `${d}|${n}`);
-                    supabase.from('member_quarter_settings').upsert({ member_id: sysMemId, quarter: 'SYSTEM', unavailable_dates: updatedArr }, { onConflict: 'member_id, quarter' }).then();
+            const sysMem = mData ? mData.find(m => m.name === 'SYSTEM_CUSTOM_HOLIDAYS_DB') : null;
+
+            if (sysSettingsData && sysMem) {
+                const sysSetting = sysSettingsData.find(s => s.member_id === sysMem.id);
+                if (sysSetting) {
+                    if (sysSetting.availability_status === 'OPEN') {
+                        currentSubmissionStatus = true;
+                    }
+                    
+                    const datesArr = sysSetting.unavailable_dates;
+                    if (Array.isArray(datesArr)) {
+                        datesArr.forEach(item => {
+                            const [d, n] = item.split('|');
+                            if (d && n) {
+                                if (d >= todayStr) { parsedHolidays[d] = n; } else { needsUpdate = true; }
+                            }
+                        });
+                    }
+                    if (needsUpdate) {
+                        const updatedArr = Object.entries(parsedHolidays).map(([d, n]) => `${d}|${n}`);
+                        supabase.from('member_quarter_settings').update({ unavailable_dates: updatedArr }).eq('member_id', sysMem.id).eq('quarter', 'SYSTEM').then();
+                    }
                 }
             }
+            
+            setIsSubmissionOpen(currentSubmissionStatus);
             setCustomHolidays(parsedHolidays);
 
             if (allSettingsQs) {
@@ -121,6 +121,43 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
     useEffect(() => { loadData(); }, [viewQuarter]);
 
     const showMessage = (type, text) => { setMessage({ type, text }); setTimeout(() => setMessage({ type: '', text: '' }), 4000); };
+
+    const toggleSubmissionStatus = async () => {
+        if (!isAdmin) return;
+        setIsLoading(true);
+        try {
+            const newStatus = isSubmissionOpen ? 'CLOSED' : 'OPEN';
+            let sysMem = members.find(m => m.name === 'SYSTEM_CUSTOM_HOLIDAYS_DB');
+            if (!sysMem) {
+                const { data, error } = await supabase.from('members').insert({ name: 'SYSTEM_CUSTOM_HOLIDAYS_DB' }).select();
+                if (error) throw error;
+                sysMem = data[0];
+            }
+
+            const { data: sysSettings } = await supabase.from('member_quarter_settings')
+                .select('*').eq('member_id', sysMem.id).eq('quarter', 'SYSTEM');
+                
+            let existingDates = [];
+            if (sysSettings && sysSettings.length > 0 && Array.isArray(sysSettings[0].unavailable_dates)) {
+                existingDates = sysSettings[0].unavailable_dates;
+            }
+
+            const { error } = await supabase.from('member_quarter_settings').upsert({
+                member_id: sysMem.id,
+                quarter: 'SYSTEM',
+                availability_status: newStatus,
+                unavailable_dates: existingDates
+            }, { onConflict: 'member_id, quarter' });
+
+            if (error) throw error;
+            setIsSubmissionOpen(!isSubmissionOpen);
+            showMessage('success', `已${!isSubmissionOpen ? '開放' : '關閉'}同工填寫權限`);
+        } catch (err) {
+            showMessage('error', '權限切換失敗: ' + err.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const openCreateQuarterModal = () => {
         setCreateSourceQ('BASE');
@@ -205,7 +242,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             const combined = [...(allSettingsQs || []), ...(allPosQs || [])].map(d => d.quarter);
             const uniqueQs = [...new Set(combined)].filter(q => q !== 'SYSTEM' && q !== 'BASE').sort().reverse();
             setDetectedQuarters(uniqueQs); setQuartersToDelete([]); setIsDeleteQuarterModalOpen(true);
-        } catch (err) { showMessage('error', '無法載入現現季度清單'); } finally { setIsLoading(false); }
+        } catch (err) { showMessage('error', '無法載入現有季度清單'); } finally { setIsLoading(false); }
     };
 
     const executeDeleteQuarter = async () => {
@@ -241,13 +278,14 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             const updatedHolidays = { ...customHolidays, [newHolidayDate]: newHolidayName.trim() };
             const holidaysArr = Object.entries(updatedHolidays).map(([d, n]) => `${d}|${n}`);
             const sysMem = members.find(m => m.name === 'SYSTEM_CUSTOM_HOLIDAYS_DB');
+            const systemStatus = isSubmissionOpen ? 'OPEN' : 'CLOSED';
             if (sysMem) {
-                const { error } = await supabase.from('member_quarter_settings').upsert({ member_id: sysMem.id, quarter: 'SYSTEM', unavailable_dates: holidaysArr }, { onConflict: 'member_id, quarter' });
+                const { error } = await supabase.from('member_quarter_settings').upsert({ member_id: sysMem.id, quarter: 'SYSTEM', unavailable_dates: holidaysArr, availability_status: systemStatus }, { onConflict: 'member_id, quarter' });
                 if (error) throw error;
             } else {
                 const { data: newMem, error: insErr } = await supabase.from('members').insert({ name: 'SYSTEM_CUSTOM_HOLIDAYS_DB' }).select();
                 if (insErr) throw insErr;
-                await supabase.from('member_quarter_settings').insert({ member_id: newMem[0].id, quarter: 'SYSTEM', unavailable_dates: holidaysArr });
+                await supabase.from('member_quarter_settings').insert({ member_id: newMem[0].id, quarter: 'SYSTEM', unavailable_dates: holidaysArr, availability_status: systemStatus });
             }
             setCustomHolidays(updatedHolidays); setNewHolidayDate(''); setNewHolidayName(''); loadData();
             showMessage('success', '自訂節日新增成功');
@@ -262,7 +300,8 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             const holidaysArr = Object.entries(updatedHolidays).map(([d, n]) => `${d}|${n}`);
             const sysMem = members.find(m => m.name === 'SYSTEM_CUSTOM_HOLIDAYS_DB');
             if (sysMem) {
-                const { error } = await supabase.from('member_quarter_settings').upsert({ member_id: sysMem.id, quarter: 'SYSTEM', unavailable_dates: holidaysArr }, { onConflict: 'member_id, quarter' });
+                const systemStatus = isSubmissionOpen ? 'OPEN' : 'CLOSED';
+                const { error } = await supabase.from('member_quarter_settings').upsert({ member_id: sysMem.id, quarter: 'SYSTEM', unavailable_dates: holidaysArr, availability_status: systemStatus }, { onConflict: 'member_id, quarter' });
                 if (error) throw error;
             }
             setCustomHolidays(updatedHolidays); loadData();
@@ -270,22 +309,32 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
     };
 
     const openEditModal = (member) => {
-        const settings = quarterSettings.find(s => s.member_id === member.id) || DEFAULT_MEMBER;
+        const settings = quarterSettings.find(s => s.member_id === member.id) || {};
         let safeDates = [];
         if (Array.isArray(settings.unavailable_dates)) safeDates = settings.unavailable_dates;
         else if (typeof settings.unavailable_dates === 'string') {
             try { const parsed = JSON.parse(settings.unavailable_dates); safeDates = Array.isArray(parsed) ? parsed : [settings.unavailable_dates]; }
             catch(err) { safeDates = settings.unavailable_dates ? [settings.unavailable_dates] : []; }
         }
+        
         setEditingMember(member);
         setFormData({ 
-            ...member, email: member.email || '', preferred_session: settings.preferred_session,
-            availability_status: settings.availability_status, dual_service_pref: settings.dual_service_pref || 0,
-            unavailable_dates: safeDates, newcomer_rule: settings.newcomer_rule === null ? '' : settings.newcomer_rule
+            ...DEFAULT_MEMBER,
+            ...member,
+            name: member.name ?? '',
+            email: member.email ?? '', 
+            group_id: member.group_id ?? '',
+            preferred_session: settings.preferred_session ?? '第一堂',
+            availability_status: settings.availability_status ?? '穩定服事', 
+            dual_service_pref: settings.dual_service_pref ?? 0,
+            unavailable_dates: safeDates, 
+            newcomer_rule: settings.newcomer_rule ?? ''
         });
+
         const posMap = {};
         memberPositions.filter(mp => mp.member_id === member.id).forEach(mp => { posMap[mp.position_id] = mp.is_active !== false ? 'active' : 'inactive'; });
-        setFormPositions(posMap); setIsModalOpen(true);
+        setFormPositions(posMap); 
+        setIsModalOpen(true);
     };
 
     const closeModal = () => { setIsModalOpen(false); setEditingMember(null); setFormData({ ...DEFAULT_MEMBER }); };
@@ -301,6 +350,9 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
     };
 
     const handleSave = async () => {
+        // 安全防護：非管理員且非開放期間禁止儲存
+        if (!isAdmin && !isSubmissionOpen) return showMessage('error', '非開放填寫期間，僅供閱覽');
+
         if (!formData.name || !formData.name.trim()) return showMessage('error', '姓名不可為空！');
         setIsLoading(true);
         try {
@@ -356,7 +408,15 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
 
     let displayMembers = members.filter(m => {
         if (m.name === 'SYSTEM_CUSTOM_HOLIDAYS_DB' || m.name === 'SYSTEM_SCHEDULE_ARCHIVE') return false;
-        if (!isAdmin && m.email !== currentUserAccount && m.email !== currentUserEmail) return false;
+        
+        // 個人帳號登入時的專屬過濾機制：只顯示跟自己綁定的帳號資料
+        if (!isAdmin) {
+            const memberEmail = m.email ? m.email.trim() : '';
+            if (memberEmail !== currentUserAccount && memberEmail !== currentUserEmail) {
+                return false;
+            }
+        }
+
         const term = searchTerm.toLowerCase();
         if (m.name.toLowerCase().includes(term)) return true;
         if (m.group_id && m.group_id.toLowerCase().includes(term)) return true;
@@ -389,48 +449,58 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
 
     return (
         <div className="flex h-screen w-full bg-slate-50 overflow-hidden select-none relative">
-            {/* 左側整合式現代功能導覽列 */}
-            <div className="w-64 bg-slate-900 flex flex-col justify-between shrink-0 border-r border-slate-800 z-30">
-                <div className="flex flex-col">
-                    <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-                        <span className="text-white font-bold text-base tracking-wider">TBC Serve Manager</span>
+            {/* 左側整合式現代功能導覽列 (僅管理員可見) */}
+            {isAdmin && (
+                <div className="w-64 bg-slate-900 flex-col justify-between shrink-0 border-r border-slate-800 z-30 mobile-hide-sidebar md:flex">
+                    <div className="flex flex-col">
+                        <div className="p-6 border-b border-slate-800 flex items-center gap-3">
+                            <span className="text-white font-bold text-base tracking-wider">TBC Serve Manager</span>
+                        </div>
+                        
+                        <nav className="p-4 space-y-1.5">
+                            <button onClick={goBack} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
+                                <Home size={18} className="text-slate-400 group-hover:text-indigo-400 transition-colors" />
+                                <span>Home</span>
+                            </button>
+                            <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 shadow-button text-white rounded-xl font-medium text-sm">
+                                <Users size={18} />
+                                <span>同工資料中心</span>
+                            </div>
+                            <button onClick={goToSchedule} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
+                                <Calendar size={18} className="text-slate-400 group-hover:text-violet-400 transition-colors" />
+                                <span>排班作業中心</span>
+                            </button>
+                        </nav>
                     </div>
                     
-                    <nav className="p-4 space-y-1.5">
-                        <button onClick={goBack} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
-                            <Home size={18} className="text-slate-400 group-hover:text-indigo-400 transition-colors" />
-                            <span>Home</span>
+                    <div className="p-4 border-t border-slate-800">
+                        <button 
+                            onClick={async () => { 
+                                if (supabase?.auth?.signOut) { await supabase.auth.signOut(); } 
+                                window.location.reload(); 
+                            }} 
+                            className="w-full flex items-center gap-3 px-4 py-3 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl font-normal text-sm transition-all text-left group"
+                        >
+                            <LogOut size={18} className="text-rose-400 group-hover:translate-x-0.5 transition-transform" />
+                            <span>Sign Out</span>
                         </button>
-                        <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 shadow-button text-white rounded-xl font-medium text-sm">
-                            <Users size={18} />
-                            <span>同工資料中心</span>
-                        </div>
-                        <button onClick={goToSchedule} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
-                            <Calendar size={18} className="text-slate-400 group-hover:text-violet-400 transition-colors" />
-                            <span>排班作業中心</span>
-                        </button>
-                    </nav>
+                    </div>
                 </div>
-                
-                {/* 底部安全登出按鈕 */}
-                <div className="p-4 border-t border-slate-800">
-                    <button 
-                        onClick={async () => { 
-                            if (supabase?.auth?.signOut) { await supabase.auth.signOut(); } 
-                            window.location.reload(); 
-                        }} 
-                        className="w-full flex items-center gap-3 px-4 py-3 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl font-normal text-sm transition-all text-left group"
-                    >
-                        <LogOut size={18} className="text-rose-400 group-hover:translate-x-0.5 transition-transform" />
-                        <span>Sign Out</span>
-                    </button>
-                </div>
-            </div>
+            )}
 
             {/* 右側主工作視窗容器 */}
             <div className="flex-1 flex flex-col relative bg-slate-50 overflow-hidden animate-fade-in">
                 <div className="bg-white px-6 py-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0 shadow-sm z-20">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 w-full md:w-auto">
+                        {/* 手機版返回 (管理員) 或 登出按鈕 (一般同工) */}
+                        {isAdmin ? (
+                            <button onClick={goBack} className="md:hidden p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors" title="返回首頁"><ChevronLeft size={24} /></button>
+                        ) : (
+                            <button onClick={async () => { 
+                                if (supabase?.auth?.signOut) { await supabase.auth.signOut(); } 
+                                window.location.reload(); 
+                            }} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors" title="登出系統"><LogOut size={20} /></button>
+                        )}
                         <h2 className="text-2xl font-extrabold text-slate-900 flex items-center gap-3 tracking-tight">
                             <Users className="text-indigo-600" size={28}/> 同工資料中心
                         </h2>
@@ -443,11 +513,21 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                 </select>
                             </div>
                         )}
+                        
+                        {/* 管理員權限控制按鈕 */}
+                        {isAdmin && (
+                            <button onClick={toggleSubmissionStatus} className={`whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm border ${isSubmissionOpen ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}>
+                                {isSubmissionOpen ? <><Unlock size={14} /> 開放填寫</> : <><Lock size={14} /> 關閉填寫</>}
+                            </button>
+                        )}
+
+                        {/* 一般同工狀態顯示 */}
                         {!isAdmin && (
-                            <div className={`whitespace-nowrap text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5 ${isSubmissionOpen ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
-                                {isSubmissionOpen ? `🟢 ${deadlineMonth}/20日截止更新` : `🔴 已截止更新，僅供閱覽`}
+                            <div className={`whitespace-nowrap text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm border ${isSubmissionOpen ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
+                                {isSubmissionOpen ? `🟢 填寫開放中` : `🔴 未開放或已過期，僅供查看`}
                             </div>
                         )}
+                        
                         {isAdmin && (
                             <>
                                 <button onClick={openCreateQuarterModal} className="whitespace-nowrap flex items-center gap-1.5 bg-amber-50 text-amber-600 hover:bg-amber-100 text-xs font-medium px-3 py-1.5 rounded-lg transition-all"><Copy size={14} /> 新增</button>
@@ -501,7 +581,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                                     <span className="text-slate-500">{settings.preferred_session}</span>
                                                 </div>
                                             </div>
-                                            <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="flex gap-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                                                 {(isAdmin || isSubmissionOpen) && <button onClick={() => openEditModal(member)} className="p-2.5 bg-slate-50 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"><Edit2 size={16}/></button>}
                                                 {isAdmin && <button onClick={() => handleDelete(member.id, member.name)} className="p-2.5 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-lg transition-colors"><Trash2 size={16}/></button>}
                                             </div>
@@ -542,7 +622,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                     {!isLoading && displayMembers.length === 0 && (
                         <div className="text-center py-20 px-4">
                             <div className="bg-slate-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"><Users size={24} className="text-slate-400"/></div>
-                            <p className="text-slate-500 font-normal mb-2">{!isAdmin ? '尚未完成帳號設定，請洽詢行政辦公室' : '找不到符合的同工資料'}</p>
+                            <p className="text-slate-500 font-normal mb-2">{!isAdmin ? '您尚未完成系統綁定，或找不到您的資料' : '找不到符合的同工資料'}</p>
                         </div>
                     )}
                 </div>
@@ -568,17 +648,17 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-medium text-slate-500 uppercase">姓名 <span className="text-red-500">*</span></label>
-                                        <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 transition-all" placeholder="請輸入姓名" />
+                                        <input type="text" value={formData.name ?? ''} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 transition-all" placeholder="請輸入姓名" disabled={!isAdmin && !!editingMember} />
                                     </div>
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-medium text-slate-500 uppercase">服事意願</label>
-                                        <select value={formData.availability_status} onChange={e => setFormData({...formData, availability_status: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 transition-all">
+                                        <select value={formData.availability_status ?? '穩定服事'} onChange={e => setFormData({...formData, availability_status: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 transition-all">
                                             {FINAL_STATUS_OPTIONS.filter(opt => isAdmin || (opt !== '安息季' && opt !== '一季一次' && opt !== '一季三次')).map(opt => <option key={opt} value={opt}>{opt}</option>)}
                                         </select>
                                     </div>
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-medium text-slate-500 uppercase">堂別</label>
-                                        <select value={formData.preferred_session} onChange={e => setFormData({...formData, preferred_session: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 transition-all">
+                                        <select value={formData.preferred_session ?? '第一堂'} onChange={e => setFormData({...formData, preferred_session: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 transition-all">
                                             {SESSION_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                                         </select>
                                     </div>
@@ -586,17 +666,17 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                         <>
                                             <div className="space-y-1.5">
                                                 <label className="text-xs font-medium text-slate-500 uppercase">群組 ID <span className="text-slate-400 font-normal">(選填)</span></label>
-                                                <input type="text" value={formData.group_id} onChange={e => setFormData({...formData, group_id: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 uppercase transition-all" placeholder="例如：FA" />
+                                                <input type="text" value={formData.group_id ?? ''} onChange={e => setFormData({...formData, group_id: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 uppercase transition-all" placeholder="例如：FA" />
                                             </div>
                                             <div className="space-y-1.5">
                                                 <label className="text-xs font-medium text-slate-500 uppercase">同日二堂服事 <span className="text-slate-400 font-normal">(選填)</span></label>
-                                                <select value={formData.dual_service_pref} onChange={e => setFormData({...formData, dual_service_pref: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 transition-all">
+                                                <select value={formData.dual_service_pref ?? 0} onChange={e => setFormData({...formData, dual_service_pref: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 transition-all">
                                                     <option value="0">無</option><option value="1">二堂同崗</option><option value="2">二堂異崗</option>
                                                 </select>
                                             </div>
                                             <div className="space-y-1.5">
                                                 <label className="text-xs font-medium text-slate-500 uppercase">新朋友關懷設定 <span className="text-slate-400 font-normal">(選填)</span></label>
-                                                <select value={formData.newcomer_rule === null ? '' : formData.newcomer_rule} onChange={e => setFormData({...formData, newcomer_rule: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 transition-all">
+                                                <select value={formData.newcomer_rule ?? ''} onChange={e => setFormData({...formData, newcomer_rule: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 transition-all">
                                                     <option value="">預設(正常排班)</option><option value="1">主責</option><option value="2">禁排第二週</option><option value="3">主責 ＋ 禁排第二週</option>
                                                 </select>
                                             </div>
@@ -606,7 +686,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                 {isAdmin && (
                                     <div className="space-y-2 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
                                         <label className="text-xs font-medium text-indigo-600 flex items-center gap-1.5 flex-wrap"><User size={14}/> 帳號 <span className="text-[10px] text-indigo-400 font-normal">(忘記密碼需變更帳號，再重新綁定)</span></label>
-                                        <input type="text" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full bg-white border border-indigo-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 transition-all" placeholder="電話號碼或電子郵件" />
+                                        <input type="text" value={formData.email ?? ''} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full bg-white border border-indigo-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 transition-all" placeholder="電話號碼或電子郵件" />
                                     </div>
                                 )}
                                 <div className="pt-2 border-t border-slate-100">
@@ -714,7 +794,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
 
                 {isCreateQuarterModalOpen && (
                     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
-                        <div className="bg-white w-full max-w-sm rounded-2xl shadow-hover-soft flex flex-col overflow-hidden animate-fade-in border border-slate-100">
+                        <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl flex flex-col overflow-hidden animate-fade-in border border-slate-100">
                             <div className="p-6">
                                 <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2"><Copy size={24} className="text-amber-500"/> 新增季度</h3>
                                 <div className="space-y-4">
@@ -734,14 +814,14 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                             </div>
                             <div className="p-3 bg-slate-50 flex gap-2 border-t border-slate-100">
                                 <button onClick={() => setIsCreateQuarterModalOpen(false)} className="flex-1 py-3 font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors">取消</button>
-                                <button onClick={handleExecuteCreateQuarter} className="flex-1 py-3 font-medium text-white bg-gradient-to-r from-amber-500 to-orange-500 shadow-button hover:-translate-y-0.5 rounded-lg transition-all duration-200">建立</button>
+                                <button onClick={handleExecuteCreateQuarter} className="flex-1 py-3 font-medium text-white bg-gradient-to-r from-amber-500 to-orange-500 shadow-[0_4px_14px_rgba(245,158,11,0.3)] hover:-translate-y-0.5 rounded-lg transition-all duration-200">建立</button>
                             </div>
                         </div>
                     </div>
                 )}
 
                 {message.text && (
-                    <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-[80] px-5 py-3 rounded-xl font-medium shadow-soft animate-fade-in flex items-start gap-2 max-w-[90vw] w-max ${message.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`}>
+                    <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-[80] px-5 py-3 rounded-xl font-medium shadow-md animate-fade-in flex items-start gap-2 max-w-[90vw] w-max ${message.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`}>
                         <div className="shrink-0 mt-0.5">{message.type === 'success' ? <CheckCircle2 size={18}/> : <AlertCircle size={18}/>}</div>
                         <div className="text-sm leading-snug break-words flex-1">{message.text}</div>
                     </div>
@@ -749,7 +829,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                 
                 {(confirmAction || isDeleteQuarterModalOpen) && (
                     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
-                        <div className="bg-white w-full max-w-sm rounded-2xl shadow-hover-soft flex flex-col overflow-hidden animate-fade-in border border-slate-100">
+                        <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl flex flex-col overflow-hidden animate-fade-in border border-slate-100">
                             <div className="p-8 text-center">
                                 <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5 ${confirmAction?.title === '警告' || isDeleteQuarterModalOpen ? 'bg-red-50 text-red-500' : 'bg-emerald-50 text-emerald-500'}`}>
                                     {isDeleteQuarterModalOpen ? <Trash2 size={32}/> : (confirmAction?.title === '警告' ? <AlertCircle size={32}/> : <Save size={32}/>)}
@@ -784,7 +864,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                             </div>
                             <div className="p-3 bg-slate-50 flex gap-2 border-t border-slate-100">
                                 <button onClick={() => {setConfirmAction(null); setIsDeleteQuarterModalOpen(false);}} className="flex-1 py-3 font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors">取消</button>
-                                <button onClick={isDeleteQuarterModalOpen ? executeDeleteQuarter : confirmAction?.onConfirm} disabled={isDeleteQuarterModalOpen && quartersToDelete.length === 0} className={`flex-1 py-3 font-medium text-white rounded-lg transition-all duration-200 ${isDeleteQuarterModalOpen || confirmAction?.title === '警告' ? 'bg-gradient-to-r from-red-500 to-rose-600 hover:-translate-y-0.5 shadow-button disabled:opacity-50' : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:-translate-y-0.5 shadow-button'} disabled:cursor-not-allowed`}>
+                                <button onClick={isDeleteQuarterModalOpen ? executeDeleteQuarter : confirmAction?.onConfirm} disabled={isDeleteQuarterModalOpen && quartersToDelete.length === 0} className={`flex-1 py-3 font-medium text-white rounded-lg transition-all duration-200 ${isDeleteQuarterModalOpen || confirmAction?.title === '警告' ? 'bg-gradient-to-r from-red-500 to-rose-600 hover:-translate-y-0.5 shadow-md disabled:opacity-50' : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:-translate-y-0.5 shadow-md'} disabled:cursor-not-allowed`}>
                                     {isDeleteQuarterModalOpen ? '刪除' : (confirmAction?.confirmText || '確定')}
                                 </button>
                             </div>
@@ -796,4 +876,4 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
     );
 };
 
-window.MemberDataCenter = MemberDataCenter;
+export default MemberDataCenter;
