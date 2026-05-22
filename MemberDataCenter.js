@@ -456,7 +456,8 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
     });
 
     return (
-        <div className="flex h-screen w-full bg-slate-50 overflow-hidden select-none relative">
+        // ★ 解除最外層的 select-none，避免在手機上干擾整體的滑動事件
+        <div className="flex h-screen w-full bg-slate-50 overflow-hidden relative">
             {/* 左側整合式現代功能導覽列：一般同工登入時自動隱藏 */}
             {isAdmin && (
                 <div className="w-64 bg-slate-900 flex flex-col justify-between shrink-0 border-r border-slate-800 z-30">
@@ -642,7 +643,8 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
 
                 {isModalOpen && (
                     <div className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm">
-                        <div className="bg-white w-full h-[95vh] sm:h-auto sm:max-h-[90vh] sm:max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-hover-soft overflow-hidden flex flex-col animate-slide-up sm:animate-fade-in border border-slate-100">
+                        {/* ★ 釋放高度：移除固定的 h-[95vh]，改用 max-h-[85vh]，讓視窗順應內容大小，並避免被底部網址列遮擋 */}
+                        <div className="bg-white w-full max-h-[85vh] sm:max-h-[90vh] sm:max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-hover-soft overflow-hidden flex flex-col animate-slide-up sm:animate-fade-in border border-slate-100">
                             <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0 sticky top-0 z-10">
                                 <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                                     {editingMember ? <Edit2 size={20} className="text-indigo-600"/> : <UserPlus size={20} className="text-indigo-600"/>}
@@ -651,11 +653,20 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                 <button onClick={closeModal} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors"><X size={20}/></button>
                             </div>
                             
-                            <div className="flex-1 overflow-y-auto p-5 space-y-6 pb-8">
+                            {/* ★ 加入 touch-pan-y 與 overscroll-contain，確保在手機上內部能順利滑動 */}
+                            <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-6 pb-8 touch-pan-y overscroll-contain">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-medium text-slate-500 uppercase">姓名 <span className="text-red-500">*</span></label>
-                                        <input type="text" value={formData.name ?? ''} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 transition-all" placeholder="請輸入姓名" disabled={!isAdmin && !!editingMember} />
+                                        {/* ★ 移除 disabled，改用 readOnly + pointer-events-none，確保手指觸碰輸入框時也能順利往下捲動畫面 */}
+                                        <input 
+                                            type="text" 
+                                            value={formData.name ?? ''} 
+                                            onChange={e => setFormData({...formData, name: e.target.value})} 
+                                            className={`w-full border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none font-normal text-slate-900 transition-all ${!isAdmin && !!editingMember ? 'bg-slate-100 text-slate-500 cursor-not-allowed pointer-events-none' : 'bg-slate-50 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'}`} 
+                                            placeholder="請輸入姓名" 
+                                            readOnly={!isAdmin && !!editingMember} 
+                                        />
                                     </div>
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-medium text-slate-500 uppercase">服事意願</label>
@@ -756,12 +767,13 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
 
                 {isHolidayManagerOpen && isAdmin && (
                     <div className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm">
-                        <div className="bg-white w-full h-[90vh] sm:h-auto sm:max-h-[90vh] sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-hover-soft overflow-hidden flex flex-col animate-slide-up sm:animate-fade-in border border-slate-100">
+                        {/* ★ 釋放高度：移除固定的 h-[90vh]，改為 max-h-[85vh] */}
+                        <div className="bg-white w-full max-h-[85vh] sm:max-h-[90vh] sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-hover-soft overflow-hidden flex flex-col animate-slide-up sm:animate-fade-in border border-slate-100">
                             <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0 sticky top-0">
                                 <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2"><CalendarX className="text-sky-500" size={20} /> 自訂節日提醒</h3>
                                 <button onClick={() => setIsHolidayManagerOpen(false)} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors"><X size={20}/></button>
                             </div>
-                            <div className="p-5 overflow-y-auto space-y-6 flex-1">
+                            <div className="p-5 overflow-y-auto custom-scrollbar space-y-6 flex-1 touch-pan-y overscroll-contain">
                                 <div className="bg-sky-50 p-4 rounded-xl border border-sky-100 text-sm font-normal text-sky-700 leading-relaxed">
                                     系統內建至 2030 年的節日。手動新增節日提醒，編輯同工資料時會自動標示！
                                 </div>
