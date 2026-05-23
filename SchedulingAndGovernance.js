@@ -823,36 +823,36 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                                     <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white shadow-sm text-xs ${idx < 3 && !searchTerm ? 'bg-gradient-to-br from-emerald-400 to-emerald-600' : 'bg-slate-300'}`}>{idx + 1}</div>
                                     <div>
                                         <div className="flex items-center gap-2"><p className="text-[15px] font-bold text-slate-900">{c.name}</p></div>
-                                        <div className="flex items-center gap-1 text-[11px] font-normal text-slate-500 mt-1 flex-wrap">
+                                        <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600 mt-1 flex-wrap">
                                             <span className="bg-slate-100 px-1.5 py-0.5 rounded-md text-slate-700">{c.preferred_session || '皆可'}</span><span>•</span><span>本季服事 {c.usage} 次</span>
-                                            {c.group_id && c.group_id.startsWith('FA') && <span className="ml-1 px-1.5 py-0.5 rounded-[4px] bg-slate-400 text-white text-[10px]">FA</span>}
-                                            {c.group_id && c.group_id.startsWith('FB') && <span className="ml-1 px-1.5 py-0.5 rounded-[4px] bg-slate-400 text-white text-[10px]">FB</span>}
-                                            {c.dual_service_pref === 1 && <span className="ml-1 px-1.5 py-0.5 rounded-[4px] bg-indigo-500 text-white text-[10px]">二堂同崗</span>}
-                                            {c.dual_service_pref === 2 && <span className="ml-1 px-1.5 py-0.5 rounded-[4px] bg-violet-500 text-white text-[10px]">二堂異崗</span>}
+                                            {c.group_id && c.group_id.startsWith('FA') && <span className="ml-1 px-1.5 py-0.5 rounded-[4px] bg-slate-400 text-white text-xs">FA</span>}
+                                            {c.group_id && c.group_id.startsWith('FB') && <span className="ml-1 px-1.5 py-0.5 rounded-[4px] bg-slate-400 text-white text-xs">FB</span>}
+                                            {c.dual_service_pref === 1 && <span className="ml-1 px-1.5 py-0.5 rounded-[4px] bg-indigo-500 text-white text-xs">二堂同崗</span>}
+                                            {c.dual_service_pref === 2 && <span className="ml-1 px-1.5 py-0.5 rounded-[4px] bg-violet-500 text-white text-xs">二堂異崗</span>}
                                         </div>
                                     </div>
                                 </div>
                                 <div className="mt-3 pt-3 border-t border-slate-100">
                                     {c.swapOptions && c.swapOptions.length > 0 ? (
                                         <div className="space-y-2.5">
-                                            <p className="text-[10px] font-medium text-slate-400 flex items-center gap-1"><RefreshCw size={10} /> 雙方可以互換的班次：</p>
+                                            <p className="text-sm font-bold text-slate-700 flex items-center gap-1.5"><RefreshCw size={14} /> 雙方可以互換的班次：</p>
                                             <div className="flex flex-col gap-2">
                                                 {c.swapOptions.map((swap, i) => (
                                                     <div key={i} className="flex items-center justify-between bg-indigo-50/50 text-indigo-800 px-2.5 py-1.5 rounded-lg border border-indigo-100">
-                                                        <div className="text-[11px] font-medium text-indigo-900">{swap.service_date}<span className="opacity-70 ml-1">({swap._positionName} • {swap.session})</span></div>
-                                                        <button onClick={() => requestSwap(c, swap)} className="flex items-center gap-1 bg-white text-indigo-600 hover:bg-indigo-600 hover:text-white border border-indigo-200 px-2 py-1 rounded-md text-[10px] font-medium transition-colors shadow-sm"><RefreshCw size={10} /> 換班</button>
+                                                        <div className="text-sm font-bold text-indigo-950">{swap.service_date}<span className="text-slate-600 ml-1">({swap._positionName} • {swap.session})</span></div>
+                                                        <button onClick={() => requestSwap(c, swap)} className="flex items-center gap-1 bg-white text-indigo-600 hover:bg-indigo-600 hover:text-white border border-indigo-200 py-1.5 px-3 rounded-md text-[13px] font-medium transition-colors shadow-sm"><RefreshCw size={14} /> 換班</button>
                                                     </div>
                                                 ))}
                                             </div>
                                             <div className="flex items-center justify-between bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200 mt-1">
-                                                <p className="text-[10px] font-medium text-slate-500 flex items-center gap-1.5"><Info size={10} /> 不換班，請求支援</p>
-                                                <button onClick={() => requestSubstitute(c)} className="flex items-center gap-1 bg-white text-orange-600 hover:bg-orange-500 hover:text-white border border-orange-200 px-2 py-1 rounded-md text-[10px] font-medium transition-colors shadow-sm"><HandHeart size={10} /> 替補</button>
+                                                <p className="text-sm font-bold text-slate-700 flex items-center gap-1.5"><Info size={14} /> 不換班，請求支援</p>
+                                                <button onClick={() => requestSubstitute(c)} className="flex items-center gap-1 bg-white text-orange-600 hover:bg-orange-500 hover:text-white border border-orange-200 py-1.5 px-3 rounded-md text-[13px] font-medium transition-colors shadow-sm"><HandHeart size={14} /> 替補</button>
                                             </div>
                                         </div>
                                     ) : (
                                         <div className="flex items-center justify-between bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200">
-                                            <p className="text-[10px] font-medium text-slate-500 flex items-center gap-1.5"><Info size={10} /> 無班可換，請求支援</p>
-                                            <button onClick={() => requestSubstitute(c)} className="flex items-center gap-1 bg-white text-orange-600 hover:bg-orange-500 hover:text-white border border-orange-200 px-2 py-1 rounded-md text-[10px] font-medium transition-colors shadow-sm"><HandHeart size={10} /> 替補</button>
+                                            <p className="text-sm font-bold text-slate-700 flex items-center gap-1.5"><Info size={14} /> 無班可換，請求支援</p>
+                                            <button onClick={() => requestSubstitute(c)} className="flex items-center gap-1 bg-white text-orange-600 hover:bg-orange-500 hover:text-white border border-orange-200 py-1.5 px-3 rounded-md text-[13px] font-medium transition-colors shadow-sm"><HandHeart size={14} /> 替補</button>
                                         </div>
                                     )}
                                 </div>
@@ -1064,9 +1064,9 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                         <div className="bg-white rounded-2xl p-6 md:p-8 max-w-md w-full shadow-hover-soft animate-pop border border-slate-100">
                             <h3 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">{confirmDialog.type === 'swap' ? <RefreshCw className="text-indigo-500" /> : <HandHeart className="text-orange-500" />}{confirmDialog.title}</h3>
                             <div className="mb-8 p-4 sm:p-5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-2 sm:gap-4 shadow-inner">
-                                <div className="flex-1 text-center break-words"><p className="text-[10px] font-medium text-slate-400 mb-1.5">目前同工</p><p className="text-sm sm:text-base font-bold text-slate-900">{confirmDialog.currentName}</p><div className="text-[10px] sm:text-[11px] text-slate-500 mt-1 leading-snug"><p>{confirmDialog.currentDate}</p><p>{confirmDialog.currentRole}</p></div></div>
+                                <div className="flex-1 text-center break-words"><p className="text-xs sm:text-sm font-bold text-slate-500 mb-1.5">目前同工</p><p className="text-lg sm:text-xl font-black text-slate-900">{confirmDialog.currentName}</p><div className="text-sm font-bold text-slate-600 mt-2 space-y-0.5"><p className="bg-slate-200/60 rounded py-0.5 px-1 inline-block">{confirmDialog.currentDate}</p><p className="text-indigo-700">{confirmDialog.currentRole}</p></div></div>
                                 <div className="shrink-0 text-slate-300 px-1"><ArrowLeftRight size={20} className={`sm:w-6 sm:h-6 ${confirmDialog.type === 'swap' ? 'text-indigo-400' : 'text-orange-400'}`} strokeWidth={2.5} /></div>
-                                <div className="flex-1 text-center break-words"><p className="text-[10px] font-medium text-slate-400 mb-1.5">替換同工</p><p className={`text-sm sm:text-base font-bold ${confirmDialog.type === 'swap' ? 'text-indigo-600' : 'text-orange-600'}`}>{confirmDialog.newName}</p><div className="text-[10px] sm:text-[11px] text-slate-500 mt-1 leading-snug"><p>{confirmDialog.newDate}</p><p>{confirmDialog.newRole}</p></div></div>
+                                <div className="flex-1 text-center break-words"><p className="text-xs sm:text-sm font-bold text-slate-500 mb-1.5">替換同工</p><p className={`text-lg sm:text-xl font-black ${confirmDialog.type === 'swap' ? 'text-indigo-600' : 'text-orange-600'}`}>{confirmDialog.newName}</p><div className="text-sm font-bold text-slate-600 mt-2 space-y-0.5"><p className="bg-slate-200/60 rounded py-0.5 px-1 inline-block">{confirmDialog.newDate}</p><p className="text-indigo-700">{confirmDialog.newRole}</p></div></div>
                             </div>
                             <div className="flex gap-3">
                                 <button onClick={() => setConfirmDialog({ ...confirmDialog, isOpen: false })} className="flex-1 py-3 px-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium rounded-lg transition-colors">取消</button>
