@@ -789,7 +789,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                         <div className="flex flex-col gap-1.5">
                             <p className="text-xl font-bold text-white">{activeSlot.service_date}</p>
                             <div className="flex items-center gap-2 flex-wrap">
-                                <span className={`px-2 py-0.5 rounded-md text-sm font-medium ${activeSlot.is_empty ? 'bg-rose-500 text-white animate-pulse shadow-[0_0_15px_rgba(244,63,94,0.5)]' : 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white'}`}>{activeSlot._memberName}</span>
+                                <span className={`px-3 py-1 rounded-lg text-lg font-semibold tracking-wide ${activeSlot.is_empty ? 'bg-rose-500 text-white animate-pulse shadow-[0_0_15px_rgba(244,63,94,0.5)]' : 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white'}`}>{activeSlot._memberName}</span>
                             </div>
                             <div className="flex items-center gap-1.5 text-xs font-normal text-slate-400 flex-wrap mt-1">
                                 <span className="bg-white/10 px-1.5 py-0.5 rounded text-slate-300">{activeSlot._positionName}</span>
@@ -862,7 +862,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                         <div className="p-8 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
                             <UserX className="mx-auto mb-3 opacity-30" size={32} />
                             <p className="font-medium text-sm">{searchTerm ? '找不到符合搜尋條件的人選' : '找不到合適人選'}</p>
-                            <p className="text-[10px] mt-1">同工可能已請假，或不符合兼任條件</p>
+                            <p className="text-[10px] mt-1">無符合條件者</p>
                         </div>
                     )}
                 </div>
