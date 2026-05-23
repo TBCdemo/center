@@ -221,8 +221,12 @@
                     } else {
                         const { data, error } = await supabase.auth.signUp({ email: loginEmail, password });
 
-// 【新增這段判斷】檢查 identities 是否為空，為空代表該 Email 已經在系統中了
-if (data?.user?.identities && data.user.identities.length === 0) {
+// 【終極防線】偵測 Supabase 是否在「假裝註冊成功」
+const isFakeSuccess = data?.user && data.user.identities && data.user.identities.length === 0;
+const isCompletelyNull = !error && (!data || !data.user);
+
+// 只要符合任何一種重複註冊的特徵，我們就自己丟出錯誤！
+if (isFakeSuccess || isCompletelyNull) {
     throw new Error('User already registered');
 }
 
