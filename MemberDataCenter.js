@@ -227,8 +227,8 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
 
     const triggerSaveToBase = () => {
         setConfirmAction({
-            title: '儲存同工基礎版',
-            message: `將【${viewQuarter.replace('-', '')}】資料覆寫至「同工資料（基礎版）」？`,
+            title: '儲存同工資料基礎版',
+            message: `將【${viewQuarter.replace('-', '')}】覆寫至「同工資料（基礎版）」？`,
             confirmText: '儲存',
             onConfirm: () => {
                 setConfirmAction(null);
@@ -274,7 +274,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
     const handleAddCustomHoliday = async () => {
         if (!newHolidayDate || !newHolidayName.trim()) return showMessage('error', '選擇日期，填寫節日提醒內容');
         const todayStr = new Date().toISOString().split('T')[0];
-        if (newHolidayDate < todayStr) return showMessage('error', '日期逾期，無法新增');
+        if (newHolidayDate < todayStr) return showMessage('error', '歷史日期，無法新增');
 
         setIsLoading(true);
         try {
@@ -627,7 +627,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                     {!isLoading && displayMembers.length === 0 && (
                         <div className="text-center py-20 px-4">
                             <div className="bg-slate-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"><Users size={24} className="text-slate-400"/></div>
-                            <p className="text-slate-500 font-normal mb-2">{!isAdmin ? '您尚未完成系統綁定，或找不到相符的帳號資料' : '找不到符合的同工資料'}</p>
+                            <p className="text-slate-500 font-normal mb-2">{!isAdmin ? '未完成註冊或找不到帳號' : '找不到符合的同工資料'}</p>
                         </div>
                     )}
                 </div>
@@ -700,7 +700,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                 </div>
                                 {isAdmin && (
                                     <div className="space-y-2 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
-                                        <label className="text-xs font-medium text-indigo-600 flex items-center gap-1.5 flex-wrap"><User size={14}/> 帳號 <span className="text-[10px] text-indigo-400 font-normal">(忘記密碼需變更帳號，再重新綁定)</span></label>
+                                        <label className="text-xs font-medium text-indigo-600 flex items-center gap-1.5 flex-wrap"><User size={14}/> 帳號 <span className="text-[10px] text-indigo-400 font-normal">(忘記密碼需通知「管理員」重設密碼)</span></label>
                                         <input type="text" value={formData.email ?? ''} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full bg-white border border-indigo-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 transition-all" placeholder="電話號碼或電子郵件" />
                                     </div>
                                 )}
