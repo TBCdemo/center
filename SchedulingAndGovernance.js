@@ -814,7 +814,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                 <div className="flex-1 overflow-y-auto custom-scrollbar px-6 pb-6 pt-2 space-y-4">
                     <div className="flex items-center justify-between px-1">
                         <h3 className="font-bold text-slate-900 flex items-center gap-2 text-sm"><UserCheck className="text-emerald-500" size={16}/> 推薦人選 ({finalRecommendations.length})</h3>
-                        <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-md font-medium">依本季次數排序</span>
+                        <span className="text-[12px] bg-slate-100 text-slate-500 px-2 py-1 rounded-md font-medium">依本季次數排序</span>
                     </div>
                     {finalRecommendations.length > 0 ? (
                         finalRecommendations.map((c, idx) => (
@@ -822,7 +822,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                                 <div className="flex items-center gap-3">
                                     <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white shadow-sm text-xs ${idx < 3 && !searchTerm ? 'bg-gradient-to-br from-emerald-400 to-emerald-600' : 'bg-slate-300'}`}>{idx + 1}</div>
                                     <div>
-                                        <div className="flex items-center gap-2"><p className="text-[15px] font-bold text-slate-900">{c.name}</p></div>
+                                        <div className="flex items-center gap-2"><p className="text-lg font-bold text-slate-900">{c.name}</p></div>
                                         <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600 mt-1 flex-wrap">
                                             <span className="bg-slate-100 px-1.5 py-0.5 rounded-md text-slate-700">{c.preferred_session || '皆可'}</span><span>•</span><span>本季服事 {c.usage} 次</span>
                                             {c.group_id && c.group_id.startsWith('FA') && <span className="ml-1 px-1.5 py-0.5 rounded-[4px] bg-slate-400 text-white text-xs">FA</span>}
@@ -1064,9 +1064,9 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                         <div className="bg-white rounded-2xl p-6 md:p-8 max-w-md w-full shadow-hover-soft animate-pop border border-slate-100">
                             <h3 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">{confirmDialog.type === 'swap' ? <RefreshCw className="text-indigo-500" /> : <HandHeart className="text-orange-500" />}{confirmDialog.title}</h3>
                             <div className="mb-8 p-4 sm:p-5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-2 sm:gap-4 shadow-inner">
-                                <div className="flex-1 text-center break-words"><p className="text-xs sm:text-sm font-bold text-slate-500 mb-1.5">目前同工</p><p className="text-lg sm:text-xl font-black text-slate-900">{confirmDialog.currentName}</p><div className="text-sm font-bold text-slate-600 mt-2 space-y-0.5"><p className="bg-slate-200/60 rounded py-0.5 px-1 inline-block">{confirmDialog.currentDate}</p><p className="text-indigo-700">{confirmDialog.currentRole}</p></div></div>
+                                <div className="flex-1 text-center break-words"><p className="text-xs sm:text-sm font-semibold text-slate-500 mb-1.5">目前同工</p><p className="text-lg sm:text-xl font-black text-slate-900">{confirmDialog.currentName}</p><div className="text-sm font-bold text-slate-600 mt-2 space-y-0.5"><p className="bg-slate-200/60 rounded py-0.5 px-1 inline-block">{confirmDialog.currentDate}</p><p className="text-indigo-700">{confirmDialog.currentRole}</p></div></div>
                                 <div className="shrink-0 text-slate-300 px-1"><ArrowLeftRight size={20} className={`sm:w-6 sm:h-6 ${confirmDialog.type === 'swap' ? 'text-indigo-400' : 'text-orange-400'}`} strokeWidth={2.5} /></div>
-                                <div className="flex-1 text-center break-words"><p className="text-xs sm:text-sm font-bold text-slate-500 mb-1.5">替換同工</p><p className={`text-lg sm:text-xl font-black ${confirmDialog.type === 'swap' ? 'text-indigo-600' : 'text-orange-600'}`}>{confirmDialog.newName}</p><div className="text-sm font-bold text-slate-600 mt-2 space-y-0.5"><p className="bg-slate-200/60 rounded py-0.5 px-1 inline-block">{confirmDialog.newDate}</p><p className="text-indigo-700">{confirmDialog.newRole}</p></div></div>
+                                <div className="flex-1 text-center break-words"><p className="text-xs sm:text-sm font-semibold text-slate-500 mb-1.5">替換同工</p><p className={`text-lg sm:text-xl font-black ${confirmDialog.type === 'swap' ? 'text-indigo-600' : 'text-orange-600'}`}>{confirmDialog.newName}</p><div className="text-sm font-bold text-slate-600 mt-2 space-y-0.5"><p className="bg-slate-200/60 rounded py-0.5 px-1 inline-block">{confirmDialog.newDate}</p><p className="text-indigo-700">{confirmDialog.newRole}</p></div></div>
                             </div>
                             <div className="flex gap-3">
                                 <button onClick={() => setConfirmDialog({ ...confirmDialog, isOpen: false })} className="flex-1 py-3 px-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium rounded-lg transition-colors">取消</button>
