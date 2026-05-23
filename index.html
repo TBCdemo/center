@@ -23,8 +23,7 @@
                     boxShadow: {
                         'soft': '0 4px 20px -2px rgba(79, 70, 229, 0.1)',
                         'hover-soft': '0 10px 25px -5px rgba(79, 70, 229, 0.15), 0 8px 10px -6px rgba(79, 70, 229, 0.1)',
-                        'button': '0 4px 14px 0 rgba(79, 70, 229, 0.3)',
-                        'glow': '0 0 20px rgba(79,70,229,0.5)'
+                        'button': '0 4px 14px 0 rgba(79, 70, 229, 0.3)'
                     }
                 }
             }
@@ -43,34 +42,16 @@
     </script>
     <style type="text/tailwindcss">
         body { background-color: #f8fafc; font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow: hidden; -webkit-tap-highlight-color: transparent; }
-        
         .schedule-table th { @apply px-3 py-4 bg-slate-200/80 text-slate-800 text-xs md:text-sm font-medium uppercase tracking-wider text-center border-b-2 border-slate-300; }
         .schedule-table td { @apply px-3 py-2.5 text-xs md:text-sm text-slate-700 border-b border-slate-200 vertical-top transition-all duration-300; }
-        
         .name-tag { @apply inline-flex items-center justify-center px-1.5 py-0.5 text-[15px] font-normal text-slate-700 cursor-pointer select-none transition-all whitespace-nowrap rounded-md; }
         .name-tag:hover { @apply text-indigo-600 bg-indigo-50/50; }
         .name-tag.active { @apply text-indigo-700 bg-indigo-100 scale-105 z-10 shadow-sm border border-indigo-200; }
-        .name-tag.dragging { @apply opacity-30; }
-        .name-tag.emergency { @apply text-orange-600; }
-        .name-tag.empty-slot { @apply text-red-500 font-bold animate-pulse; }
-        .name-tag.conflict { @apply text-rose-600 font-bold !important; }
-        .name-tag.orphan { @apply text-sky-600 font-bold !important; }
-        
-        @keyframes slideInRight { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
-        .animate-panel-right { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
-        @keyframes popIn { 0% { opacity: 0; transform: scale(0.95) translateY(10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
-        .animate-pop { animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(100%); } to { opacity: 1; transform: translateY(0); } }
-        .animate-slide-up { animation: slideUp 0.3s ease-out forwards; }
-        .vertical-top { vertical-align: top; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .custom-scrollbar::-webkit-scrollbar, ::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track, ::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb, ::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
         input, select, textarea { font-size: 16px !important; }
     </style>
 </head>
@@ -86,9 +67,6 @@
         import { Activity, LogOut, AlertCircle, User, Lock, Users, Calendar, ArrowRight, ShieldCheck } from 'lucide-react';
         import { createClient } from '@supabase/supabase-js';
 
-        // ==========================================
-        // 初始化連線與共用常數
-        // ==========================================
         const SUPABASE_URL = "https://iwmkzsredvbgcqvqlayn.supabase.co";
         const SUPABASE_KEY = "sb_publishable_GwDMLoXcHaTzQDCcQlDuGw_4J9mwiaA"; 
         const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -156,27 +134,15 @@
             getHolidayName: (dateStr, customHolidaysMap = {}) => {
                 if (customHolidaysMap && customHolidaysMap[dateStr]) return customHolidaysMap[dateStr];
                 const [year, month, day] = dateStr.split('-'); const md = `${month}-${day}`;
-                const lunarAndLongWeekends = {
-                    '2026-02-15': '春節連假', '2026-02-22': '春節連假', '2026-03-01': '228連假', '2026-04-05': '清明連假', '2026-06-21': '端午連假', '2026-09-27': '中秋連假', '2026-10-11': '國慶連假',
-                    '2027-02-07': '春節連假', '2027-02-14': '春節連假', '2027-02-28': '228連假', '2027-04-04': '清明連假', '2027-06-13': '端午連假', '2027-09-19': '中秋連假', '2027-10-10': '國慶連假'
-                };
-                if (lunarAndLongWeekends[dateStr]) return lunarAndLongWeekends[dateStr];
-                const dayNum = parseInt(day, 10); if (month === '05' && dayNum >= 8 && dayNum <= 14) return '母親節';
                 const fixedHolidays = { '01-01': '元旦', '02-28': '和平紀念日', '04-04': '兒童節', '04-05': '清明節', '05-01': '勞動節', '08-08': '父親節', '10-10': '國慶日', '12-25': '聖誕節' };
                 if (fixedHolidays[md]) return fixedHolidays[md]; return null; 
-            },
-            getQuarterDateRange: (y, q) => {
-                const startMonth = (q - 1) * 3; const startDate = new Date(y, startMonth, 1); const endDate = new Date(y, startMonth + 3, 0); 
-                const format = (d) => { const yyyy = d.getFullYear(); const mm = String(d.getMonth() + 1).padStart(2, '0'); const dd = String(d.getDate()).padStart(2, '0'); return `${yyyy}-${mm}-${dd}`; };
-                return { start: format(startDate), end: format(endDate) };
             }
         };
 
-        const StatCard = ({ icon: Icon, title, value, unit, iconBgClass, iconTextClass, trend = null, compact = false }) => (
-            <div className={`bg-white ${compact ? 'p-4 lg:p-5' : 'p-5 lg:p-6'} rounded-xl shadow-soft hover:shadow-hover-soft hover:-translate-y-1 transition-all duration-200 border border-slate-100 flex flex-col justify-between relative overflow-hidden`}>
+        const StatCard = ({ icon: Icon, title, value, unit, iconBgClass, iconTextClass, compact = false }) => (
+            <div className={`bg-white ${compact ? 'p-4 lg:p-5' : 'p-5 lg:p-6'} rounded-xl shadow-soft border border-slate-100 flex flex-col justify-between relative overflow-hidden`}>
                 <div className={`flex justify-between items-start ${compact ? 'mb-3' : 'mb-4'} relative z-10`}>
                     <div className={`${iconBgClass} ${compact ? 'p-2.5 rounded-lg' : 'p-3 rounded-xl'} ${iconTextClass}`}><Icon size={compact ? 18 : 22} strokeWidth={2.5}/></div>
-                    {trend && <div className="text-[11px] font-medium text-slate-400 bg-slate-50 px-2 py-1 rounded-md">{trend}</div>}
                 </div>
                 <div className="relative z-10">
                     <p className={`${compact ? 'text-xs' : 'text-[13px]'} font-medium text-slate-500 mb-1`}>{title}</p>
@@ -186,10 +152,8 @@
             </div>
         );
 
-        // ==========================================
-        // 登入元件 AuthScreen (包含獨立滾動視窗)
-        // ==========================================
         const AuthScreen = () => {
+            const [realName, setRealName] = useState(''); // ★ 新增：用於自動綁定
             const [account, setAccount] = useState('');
             const [password, setPassword] = useState('');
             const [confirmPassword, setConfirmPassword] = useState(''); 
@@ -211,13 +175,35 @@
                     if (isSignUp) {
                         if (password !== confirmPassword) throw new Error('兩次輸入的密碼不同');
                         if (inviteCode !== SECRET_INVITE_CODE) throw new Error('邀請碼錯誤');
+                        if (!realName.trim()) throw new Error('請輸入真實姓名');
 
+                        // 1. 確認管理員是否已經在系統內建立此同工
+                        const { data: memberData, error: memberErr } = await supabase
+                            .from('members')
+                            .select('id, email')
+                            .eq('name', realName.trim());
+
+                        if (memberErr || !memberData || memberData.length === 0) {
+                            throw new Error(`系統中找不到「${realName.trim()}」，請確認管理員已為您建檔`);
+                        }
+
+                        // 2. 建立 auth.users 登入帳號
                         const { error } = await supabase.auth.signUp({ email: loginEmail, password });
                         if (error) throw error;
-                        alert('註冊成功！現在您可以直接登入系統了。');
+                        
+                        // 3. ★ 核心同步：自動將此 Email 寫入 members 資料表完成綁定
+                        const { error: updateErr } = await supabase
+                            .from('members')
+                            .update({ email: loginEmail })
+                            .eq('id', memberData[0].id);
+                        
+                        if (updateErr) console.error("資料庫 Email 同步失敗", updateErr);
+
+                        alert('註冊綁定成功！系統已將帳號與您的同工資料連結，現在可以直接登入了。');
                         setIsSignUp(false);
                         setInviteCode('');
                         setConfirmPassword('');
+                        setRealName('');
                     } else {
                         const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
                         if (error) throw error;
@@ -235,11 +221,9 @@
                 }
             };
 
-            // 採用 fixed inset-0 與 overflow-y-auto 建立獨立的滾動容器
             return (
                 <div className="fixed inset-0 bg-slate-50 overflow-y-auto custom-scrollbar">
                     <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 py-8 relative">
-                        {/* 背景特效使用 fixed 固定，避免隨著滾動而變形 */}
                         <div className="fixed top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-indigo-600/10 blur-[120px] pointer-events-none"></div>
                         <div className="fixed bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-violet-600/10 blur-[120px] pointer-events-none"></div>
 
@@ -256,6 +240,17 @@
                             )}
 
                             <form onSubmit={handleAuth} className="space-y-4 sm:space-y-5">
+                                
+                                {isSignUp && (
+                                    <div className="space-y-1.5 animate-fade-in">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">真實姓名 <span className="text-red-500">*</span></label>
+                                        <div className="relative">
+                                            <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                            <input type="text" value={realName} onChange={(e) => setRealName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all font-semibold text-slate-700" placeholder="輸入您在系統中的姓名" required={isSignUp} />
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">帳號</label>
                                     <div className="relative">
@@ -300,14 +295,14 @@
                                 )}
 
                                 <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:opacity-95 disabled:from-indigo-400 disabled:to-violet-400 text-white font-medium py-3.5 rounded-lg shadow-button hover:-translate-y-0.5 transition-all duration-200 mt-4 text-base">
-                                    {loading ? '處理中...' : (isSignUp ? '綁定帳號' : '登入')}
+                                    {loading ? '處理中...' : (isSignUp ? '建立帳號並綁定' : '登入')}
                                 </button>
                             </form>
 
                             <div className="mt-6 flex flex-col gap-4 text-center">
                                 {isSignUp ? (
                                     <div className="text-sm font-medium text-slate-500">
-                                        已經有帳號？ <button type="button" onClick={() => { setIsSignUp(false); setErrorMsg(''); setConfirmPassword(''); setInviteCode(''); }} className="font-bold text-indigo-600 hover:text-indigo-700 transition-colors py-1">登入</button>
+                                        已經有帳號？ <button type="button" onClick={() => { setIsSignUp(false); setErrorMsg(''); setConfirmPassword(''); setInviteCode(''); setRealName(''); }} className="font-bold text-indigo-600 hover:text-indigo-700 transition-colors py-1">登入</button>
                                     </div>
                                 ) : (
                                     <div className="text-sm font-medium text-slate-500">
@@ -315,7 +310,6 @@
                                     </div>
                                 )}
                                 
-                                {/* 僅在登入畫面 (!isSignUp) 時顯示忘記密碼提示 */}
                                 {!isSignUp && (
                                     <div className="text-xs font-medium text-slate-400 pt-4 border-t border-slate-100/80">
                                         忘記密碼？請聯絡行政辦公室
@@ -328,27 +322,19 @@
             );
         };
 
-        // ==========================================
-        // 主應用框架 (分流與路由守衛)
-        // ==========================================
         const MainApp = ({ session }) => {
             const currentUserEmail = session.user?.email;
             const currentUserAccount = extractAccountFromEmail(currentUserEmail);
             const isAdmin = currentUserAccount === constants.ADMIN_ACCOUNT || currentUserEmail === constants.ADMIN_ACCOUNT;
 
-            // 一般同工強制進入 'members' 畫面，管理員進入 'home'
             const [currentApp, setCurrentApp] = useState(isAdmin ? 'home' : 'members'); 
 
             const handleLogout = async () => { await supabase.auth.signOut(); window.location.reload(); };
 
-            // 路由守衛：如果不是管理員且想離開 members 畫面，強制導回
             useEffect(() => {
-                if (!isAdmin && currentApp !== 'members') {
-                    setCurrentApp('members');
-                }
+                if (!isAdmin && currentApp !== 'members') setCurrentApp('members');
             }, [currentApp, isAdmin]);
 
-            // 管理員的首頁畫面
             if (currentApp === 'home' && isAdmin) {
                 return (
                     <div className="min-h-screen bg-slate-50 flex flex-col relative overflow-hidden">
@@ -386,7 +372,6 @@
                 );
             }
 
-            // 動態從 window 取得拆分後的 React 元件
             const MemberDataCenterComp = window.MemberDataCenter;
             const SchedulingAndGovernanceComp = window.SchedulingAndGovernance;
 
@@ -395,28 +380,12 @@
                     <main className="flex-1 flex flex-col h-full overflow-hidden relative z-10">
                         {currentApp === 'members' && (
                             MemberDataCenterComp 
-                                ? <MemberDataCenterComp 
-                                    session={session} 
-                                    // 若不是管理員，點擊「返回」實為「登出」
-                                    goBack={isAdmin ? () => setCurrentApp('home') : handleLogout} 
-                                    goToSchedule={() => setCurrentApp('scheduling')} 
-                                    supabase={supabase} 
-                                    utils={utils} 
-                                    constants={constants} 
-                                  />
+                                ? <MemberDataCenterComp session={session} goBack={isAdmin ? () => setCurrentApp('home') : handleLogout} goToSchedule={() => setCurrentApp('scheduling')} supabase={supabase} utils={utils} constants={constants} />
                                 : <div className="flex-1 flex items-center justify-center font-medium text-slate-500 animate-pulse">Loading...</div>
                         )}
                         {currentApp === 'scheduling' && isAdmin && (
                             SchedulingAndGovernanceComp 
-                                ? <SchedulingAndGovernanceComp 
-                                    session={session} 
-                                    goBack={() => setCurrentApp('home')} 
-                                    goToMembers={() => setCurrentApp('members')} 
-                                    supabase={supabase} 
-                                    utils={utils} 
-                                    constants={constants} 
-                                    StatCard={StatCard} 
-                                  />
+                                ? <SchedulingAndGovernanceComp session={session} goBack={() => setCurrentApp('home')} goToMembers={() => setCurrentApp('members')} supabase={supabase} utils={utils} constants={constants} StatCard={StatCard} />
                                 : <div className="flex-1 flex items-center justify-center font-medium text-slate-500 animate-pulse">Loading...</div>
                         )}
                     </main>
@@ -424,20 +393,13 @@
             );
         }
 
-        // ==========================================
-        // 系統進入點 App 
-        // ==========================================
         function App() {
             const [session, setSession] = useState(null);
             const [isSessionLoaded, setIsSessionLoaded] = useState(false);
             
             useEffect(() => {
-                supabase.auth.getSession().then(({ data: { session } }) => { 
-                    setSession(session); setIsSessionLoaded(true); 
-                });
-                const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => { 
-                    setSession(session); setIsSessionLoaded(true); 
-                });
+                supabase.auth.getSession().then(({ data: { session } }) => { setSession(session); setIsSessionLoaded(true); });
+                const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => { setSession(session); setIsSessionLoaded(true); });
                 return () => subscription.unsubscribe();
             }, []);
 
