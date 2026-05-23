@@ -225,7 +225,7 @@
                 } catch (error) {
                     let msg = error.message;
                     if (msg.includes('Invalid login credentials')) msg = '登入失敗：帳號或密碼錯誤。';
-                    if (msg.includes('User already registered')) msg = '綁定失敗：Oops！帳號有人用了';
+                    if (msg.includes('User already registered')) msg = 'Oops！帳號有人用了';
                     if (msg.includes('Password should be at least')) msg = '密碼長度至少6個字元';
                     if (msg.includes('邀請碼錯誤')) msg = error.message; 
                     if (msg.includes('兩次輸入的密碼不同')) msg = error.message; 
@@ -300,7 +300,7 @@
                                 )}
 
                                 <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:opacity-95 disabled:from-indigo-400 disabled:to-violet-400 text-white font-medium py-3.5 rounded-lg shadow-button hover:-translate-y-0.5 transition-all duration-200 mt-4 text-base">
-                                    {loading ? '處理中...' : (isSignUp ? '綁定帳號' : '登入')}
+                                    {loading ? '處理中...' : (isSignUp ? '註冊' : '登入')}
                                 </button>
                             </form>
 
