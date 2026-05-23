@@ -861,9 +861,8 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                     ) : (
                         <div className="p-8 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
                             <UserX className="mx-auto mb-3 opacity-30" size={32} />
-                            <p className="font-medium text-sm">{searchTerm ? '找不到符合搜尋條件的人選' : '找不到合適人選'}</p>
-                            <p className="text-[10px] mt-1">無符合條件者</p>
-                        </div>
+                            <p className="font-medium text-sm">{searchTerm ? '找不到符合條件的人選' : '找不到合適人選'}</p>
+                                                    </div>
                     )}
                 </div>
             </div>
