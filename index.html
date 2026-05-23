@@ -10,9 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
     <script src="scheduler.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@babel/standalone@7.22.20/babel.min.js"></script>
-
+    
     <script>
         tailwind.config = {
             theme: {
@@ -23,12 +21,15 @@
                     boxShadow: {
                         'soft': '0 4px 20px -2px rgba(79, 70, 229, 0.1)',
                         'hover-soft': '0 10px 25px -5px rgba(79, 70, 229, 0.15), 0 8px 10px -6px rgba(79, 70, 229, 0.1)',
-                        'button': '0 4px 14px 0 rgba(79, 70, 229, 0.3)'
+                        'button': '0 4px 14px 0 rgba(79, 70, 229, 0.3)',
+                        'glow': '0 0 20px rgba(79,70,229,0.5)'
                     }
                 }
             }
         }
     </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@babel/standalone@7.22.20/babel.min.js"></script>
 
     <script type="importmap">
     {
@@ -42,16 +43,36 @@
     </script>
     <style type="text/tailwindcss">
         body { background-color: #f8fafc; font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow: hidden; -webkit-tap-highlight-color: transparent; }
+        
         .schedule-table th { @apply px-3 py-4 bg-slate-200/80 text-slate-800 text-xs md:text-sm font-medium uppercase tracking-wider text-center border-b-2 border-slate-300; }
         .schedule-table td { @apply px-3 py-2.5 text-xs md:text-sm text-slate-700 border-b border-slate-200 vertical-top transition-all duration-300; }
+        
         .name-tag { @apply inline-flex items-center justify-center px-1.5 py-0.5 text-[15px] font-normal text-slate-700 cursor-pointer select-none transition-all whitespace-nowrap rounded-md; }
         .name-tag:hover { @apply text-indigo-600 bg-indigo-50/50; }
         .name-tag.active { @apply text-indigo-700 bg-indigo-100 scale-105 z-10 shadow-sm border border-indigo-200; }
+        .name-tag.dragging { @apply opacity-30; }
+        .name-tag.emergency { @apply text-orange-600; }
+        .name-tag.empty-slot { @apply text-red-500 font-bold animate-pulse; }
+        
+        /* 移除 !important 確保 CDN 穩定解析 */
+        .name-tag.conflict { @apply text-rose-600 font-bold; }
+        .name-tag.orphan { @apply text-sky-600 font-bold; }
+        
+        @keyframes slideInRight { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+        .animate-panel-right { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes popIn { 0% { opacity: 0; transform: scale(0.95) translateY(10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
+        .animate-pop { animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(100%); } to { opacity: 1; transform: translateY(0); } }
+        .animate-slide-up { animation: slideUp 0.3s ease-out forwards; }
+        .vertical-top { vertical-align: top; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .custom-scrollbar::-webkit-scrollbar, ::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track, ::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb, ::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
         input, select, textarea { font-size: 16px !important; }
     </style>
 </head>
@@ -153,7 +174,7 @@
         );
 
         const AuthScreen = () => {
-            const [realName, setRealName] = useState(''); // ★ 新增：用於自動綁定
+            const [realName, setRealName] = useState('');
             const [account, setAccount] = useState('');
             const [password, setPassword] = useState('');
             const [confirmPassword, setConfirmPassword] = useState(''); 
@@ -177,7 +198,6 @@
                         if (inviteCode !== SECRET_INVITE_CODE) throw new Error('邀請碼錯誤');
                         if (!realName.trim()) throw new Error('請輸入真實姓名');
 
-                        // 1. 確認管理員是否已經在系統內建立此同工
                         const { data: memberData, error: memberErr } = await supabase
                             .from('members')
                             .select('id, email')
@@ -187,11 +207,9 @@
                             throw new Error(`系統中找不到「${realName.trim()}」，請確認管理員已為您建檔`);
                         }
 
-                        // 2. 建立 auth.users 登入帳號
                         const { error } = await supabase.auth.signUp({ email: loginEmail, password });
                         if (error) throw error;
                         
-                        // 3. ★ 核心同步：自動將此 Email 寫入 members 資料表完成綁定
                         const { error: updateErr } = await supabase
                             .from('members')
                             .update({ email: loginEmail })
@@ -240,7 +258,6 @@
                             )}
 
                             <form onSubmit={handleAuth} className="space-y-4 sm:space-y-5">
-                                
                                 {isSignUp && (
                                     <div className="space-y-1.5 animate-fade-in">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">真實姓名 <span className="text-red-500">*</span></label>
@@ -398,8 +415,18 @@
             const [isSessionLoaded, setIsSessionLoaded] = useState(false);
             
             useEffect(() => {
-                supabase.auth.getSession().then(({ data: { session } }) => { setSession(session); setIsSessionLoaded(true); });
-                const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => { setSession(session); setIsSessionLoaded(true); });
+                const checkAdmin = async (sess) => {
+                    if (sess) {
+                        const acc = extractAccountFromEmail(sess.user?.email);
+                        if (acc !== constants.ADMIN_ACCOUNT && sess.user?.email !== constants.ADMIN_ACCOUNT) {
+                            await supabase.auth.signOut();
+                            setSession(null); setIsSessionLoaded(true); return;
+                        }
+                    }
+                    setSession(sess); setIsSessionLoaded(true);
+                };
+                supabase.auth.getSession().then(({ data: { session } }) => { checkAdmin(session); });
+                const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => { checkAdmin(session); });
                 return () => subscription.unsubscribe();
             }, []);
 
