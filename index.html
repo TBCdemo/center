@@ -227,7 +227,7 @@
 
                         if (error) throw error;
                         
-                        alert('註冊成功！現在您可以直接登入系統了。');
+                        alert('註冊成功');
                         setIsSignUp(false);
                         setInviteCode('');
                         setConfirmPassword('');
@@ -244,8 +244,8 @@
                     // 3. 錯誤訊息轉換
                     // ==========================================
                     let msg = error.message;
-                    if (msg.includes('Invalid login credentials')) msg = '登入失敗：帳號或密碼錯誤。';
-                    if (msg.includes('User already registered')) msg = 'Oops！此帳號已註冊過囉！請直接登入。若忘記密碼請聯絡行政辦公室。';
+                    if (msg.includes('Invalid login credentials')) msg = '登入失敗：帳號或密碼錯誤';
+                    if (msg.includes('User already registered')) msg = 'Oops！帳號已註冊，忘記密碼請聯絡行政辦公室';
                     if (msg.includes('Password should be at least')) msg = '密碼長度至少6個字元';
                     if (msg.includes('邀請碼錯誤')) msg = error.message; 
                     if (msg.includes('兩次輸入的密碼不同')) msg = error.message; 
@@ -315,7 +315,7 @@
                                 {isSignUp && (
                                     <div className="bg-amber-50 text-amber-700 text-xs font-bold p-3 rounded-xl border border-amber-100 flex items-start gap-2 leading-relaxed mt-2">
                                         <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                                        請聯絡行政辦公室完成授權並索取邀請碼，再進行帳號綁定。
+                                        請聯絡行政辦公室，索取邀請碼，再進行註冊。
                                     </div>
                                 )}
 
