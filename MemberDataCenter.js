@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
     Users, Copy, Trash2, CalendarX, Search, X, Edit2, ShieldCheck, 
     Check, Save, CheckCircle2, AlertCircle, UserPlus, User, ChevronLeft,
-    Home, LogOut, Calendar, Lock, Unlock, Link2Off
+    Home, LogOut, Calendar, Lock, Unlock
 } from 'lucide-react';
 
 const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, constants }) => {
@@ -22,6 +22,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
     const currentUserAccount = extractAccountFromEmail(currentUserEmail);
     const isAdmin = currentUserAccount === ADMIN_ACCOUNT || currentUserEmail === ADMIN_ACCOUNT;
 
+    // ★ 管理員手動控制的填寫權限狀態
     const [isSubmissionOpen, setIsSubmissionOpen] = useState(false);
 
     const [quarterOptions, setQuarterOptions] = useState(['BASE', ...generateBaseQuarters()]);
@@ -75,6 +76,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             setMemberPositions(mpData || []);
             setQuarterSettings(qsData || []);
 
+            // 處理系統假期與管理員權限設定
             const todayStr = new Date().toISOString().split('T')[0];
             let parsedHolidays = {};
             let needsUpdate = false;
@@ -121,6 +123,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
 
     const showMessage = (type, text) => { setMessage({ type, text }); setTimeout(() => setMessage({ type: '', text: '' }), 4000); };
 
+    // ★ 手動切換填寫權限 (管理員專用)
     const toggleSubmissionStatus = async () => {
         if (!isAdmin) return;
         setIsLoading(true);
@@ -134,7 +137,8 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                 sysMem = data[0];
             }
 
-            const { data: sysSettings } = await supabase.from('member_quarter_settings').select('*').eq('member_id', sysMem.id).eq('quarter', 'SYSTEM');
+            const { data: sysSettings } = await supabase.from('member_quarter_settings')
+                .select('*').eq('member_id', sysMem.id).eq('quarter', 'SYSTEM');
                 
             let existingDates = [];
             if (sysSettings && sysSettings.length > 0 && Array.isArray(sysSettings[0].unavailable_dates)) {
@@ -142,7 +146,10 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             }
 
             const { error } = await supabase.from('member_quarter_settings').upsert({
-                member_id: sysMem.id, quarter: 'SYSTEM', availability_status: newStatus, unavailable_dates: existingDates
+                member_id: sysMem.id,
+                quarter: 'SYSTEM',
+                availability_status: newStatus,
+                unavailable_dates: existingDates
             }, { onConflict: 'member_id, quarter' });
 
             if (error) throw error;
@@ -203,7 +210,12 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             
             const targetName = targetQ === 'BASE' ? '同工資料（基礎版）' : targetQ.replace('-', '');
             showMessage('success', `${targetName} 新增完成`);
-            if (targetQ !== 'BASE') setViewQuarter(targetQ); else loadData();
+            
+            if (targetQ !== 'BASE') {
+                setViewQuarter(targetQ);
+            } else {
+                loadData();
+            }
         } catch (err) { showMessage('error', '處理失敗: ' + err.message); } finally { setIsLoading(false); }
     };
 
@@ -248,7 +260,12 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             const deletedNames = quartersToDelete.map(q => q.replace('-', '')).join('、');
             showMessage('success', `${deletedNames}資料刪除成功`);
             setIsDeleteQuarterModalOpen(false);
-            if (quartersToDelete.includes(viewQuarter)) setViewQuarter(isAdmin ? getCurrentQuarter() : getNextQuarter(getCurrentQuarter())); else loadData(); 
+            
+            if (quartersToDelete.includes(viewQuarter)) {
+                setViewQuarter(isAdmin ? getCurrentQuarter() : getNextQuarter(getCurrentQuarter()));
+            } else {
+                loadData(); 
+            }
         } catch (err) { showMessage('error', '刪除失敗: ' + err.message); } finally { setIsLoading(false); }
     };
 
@@ -264,7 +281,8 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             const updatedHolidays = { ...customHolidays, [newHolidayDate]: newHolidayName.trim() };
             const holidaysArr = Object.entries(updatedHolidays).map(([d, n]) => `${d}|${n}`);
             const sysMem = members.find(m => m.name === 'SYSTEM_CUSTOM_HOLIDAYS_DB');
-            const systemStatus = isSubmissionOpen ? 'OPEN' : 'CLOSED';
+            
+            const systemStatus = isSubmissionOpen ? 'OPEN' : 'CLOSED'; // 保留當前狀態
             
             if (sysMem) {
                 const { error } = await supabase.from('member_quarter_settings').upsert({ member_id: sysMem.id, quarter: 'SYSTEM', unavailable_dates: holidaysArr, availability_status: systemStatus }, { onConflict: 'member_id, quarter' });
@@ -287,7 +305,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             const holidaysArr = Object.entries(updatedHolidays).map(([d, n]) => `${d}|${n}`);
             const sysMem = members.find(m => m.name === 'SYSTEM_CUSTOM_HOLIDAYS_DB');
             if (sysMem) {
-                const systemStatus = isSubmissionOpen ? 'OPEN' : 'CLOSED';
+                const systemStatus = isSubmissionOpen ? 'OPEN' : 'CLOSED'; // 保留當前狀態
                 const { error } = await supabase.from('member_quarter_settings').upsert({ member_id: sysMem.id, quarter: 'SYSTEM', unavailable_dates: holidaysArr, availability_status: systemStatus }, { onConflict: 'member_id, quarter' });
                 if (error) throw error;
             }
@@ -295,6 +313,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
         } catch (error) { showMessage('error', '刪除失敗: ' + error.message); } finally { setIsLoading(false); }
     };
 
+    // ★ 空值防護確保編輯畫面 100% 能開啟
     const openEditModal = (member) => {
         const settings = quarterSettings.find(s => s.member_id === member.id) || {};
         let safeDates = [];
@@ -337,6 +356,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
     };
 
     const handleSave = async () => {
+        // ★ 如果非管理員，且尚未開放填寫，禁止儲存
         if (!isAdmin && !isSubmissionOpen) {
             return showMessage('error', '非開放填寫期間無法儲存變更！');
         }
@@ -348,22 +368,9 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             const cleanedGroupId = (formData.group_id || '').trim().toUpperCase();
             const finalGroupId = cleanedGroupId === '' ? null : cleanedGroupId;
             const parsedNewcomerRule = formData.newcomer_rule === '' ? null : parseInt(formData.newcomer_rule);
-            
-            let oldEmail = editingMember ? editingMember.email : null;
-            let newEmail = formData.email ? formData.email.trim() : null;
 
             const memberPayload = { name: formData.name.trim() };
-            if (isAdmin) { 
-                memberPayload.group_id = finalGroupId; 
-                memberPayload.email = newEmail; 
-            }
-
-            // ★ 同步刪除：如果管理員清除了 Email (解除綁定)，呼叫 RPC 刪除 auth.users 帳號
-            if (isAdmin && oldEmail && !newEmail) {
-                supabase.rpc('delete_auth_user_by_email', { target_email: oldEmail }).then(({error}) => {
-                    if(error) console.error('解除綁定同步刪除帳號失敗:', error);
-                });
-            }
+            if (isAdmin) { memberPayload.group_id = finalGroupId; memberPayload.email = formData.email ? formData.email.trim() : null; }
 
             if (memberId) await supabase.from('members').update(memberPayload).eq('id', memberId);
             else {
@@ -392,23 +399,16 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
         } catch (err) { showMessage('error', `儲存失敗：${err.message}`); } finally { setIsLoading(false); }
     };
 
-    const handleDelete = async (id, name, email) => {
+    const handleDelete = async (id, name) => {
         if (!isAdmin) return;
         setConfirmAction({
-            title: '警告', message: `永久刪除「${name}」的所有資料與登入帳號，確認刪除？`, confirmText: '刪除',
+            title: '警告', message: `永久刪除「${name}」無法恢復，確認刪除？`, confirmText: '刪除',
             onConfirm: async () => {
                 setConfirmAction(null); setIsLoading(true);
                 try {
-                    // ★ 同步刪除：先呼叫 RPC 刪除 auth.users 登入帳號
-                    if (email) {
-                        const { error: authError } = await supabase.rpc('delete_auth_user_by_email', { target_email: email });
-                        if (authError) console.error("同步刪除登入帳號失敗:", authError);
-                    }
-
-                    // 接著刪除 members 資料
                     const { data, error } = await supabase.from('members').delete().eq('id', id).select();
                     if (error) throw error; if (!data || data.length === 0) throw new Error("無權限刪除！");
-                    showMessage('success', '已徹底刪除同工資料與登入帳號。'); loadData();
+                    showMessage('success', '已刪除同工資料。'); loadData();
                 } catch (err) { showMessage('error', '刪除失敗: ' + err.message); } finally { setIsLoading(false); }
             }
         });
@@ -417,9 +417,12 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
     let displayMembers = members.filter(m => {
         if (m.name === 'SYSTEM_CUSTOM_HOLIDAYS_DB' || m.name === 'SYSTEM_SCHEDULE_ARCHIVE') return false;
         
+        // 一般同工的專屬過濾：只能看到自己的資料
         if (!isAdmin) {
             const memberEmail = m.email ? m.email.trim() : '';
-            if (memberEmail !== currentUserAccount && memberEmail !== currentUserEmail) return false;
+            if (memberEmail !== currentUserAccount && memberEmail !== currentUserEmail) {
+                return false;
+            }
         }
 
         const term = searchTerm.toLowerCase();
@@ -453,7 +456,9 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
     });
 
     return (
+        // ★ 加入 h-[100dvh] 以完美適應手機動態視窗，移除 select-none 避免干擾滑動
         <div className="flex h-[100dvh] w-full bg-slate-50 overflow-hidden relative">
+            {/* 左側整合式現代功能導覽列：一般同工登入時自動隱藏 */}
             {isAdmin && (
                 <div className="w-64 bg-slate-900 flex flex-col justify-between shrink-0 border-r border-slate-800 z-30">
                     <div className="flex flex-col">
@@ -477,8 +482,15 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                         </nav>
                     </div>
                     
+                    {/* 底部安全登出按鈕 */}
                     <div className="p-4 border-t border-slate-800">
-                        <button onClick={async () => { if (supabase?.auth?.signOut) { await supabase.auth.signOut(); } window.location.reload(); }} className="w-full flex items-center gap-3 px-4 py-3 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl font-normal text-sm transition-all text-left group">
+                        <button 
+                            onClick={async () => { 
+                                if (supabase?.auth?.signOut) { await supabase.auth.signOut(); } 
+                                window.location.reload(); 
+                            }} 
+                            className="w-full flex items-center gap-3 px-4 py-3 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl font-normal text-sm transition-all text-left group"
+                        >
                             <LogOut size={18} className="text-rose-400 group-hover:translate-x-0.5 transition-transform" />
                             <span>Sign Out</span>
                         </button>
@@ -486,12 +498,18 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                 </div>
             )}
 
+            {/* 右側主工作視窗容器 */}
             <div className="flex-1 flex flex-col relative bg-slate-50 overflow-hidden animate-fade-in">
                 <div className="bg-white px-6 py-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0 shadow-sm z-20">
                     <div className="flex items-center gap-3 w-full md:w-auto">
-                        <button onClick={goBack} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors" title={isAdmin ? "返回首頁" : "登出系統"}>
+                        <button 
+                            onClick={goBack} 
+                            className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors" 
+                            title={isAdmin ? "返回首頁" : "登出系統"}
+                        >
                             {isAdmin ? <ChevronLeft size={24} /> : <LogOut size={22} className="ml-0.5" />}
                         </button>
+                        
                         <h2 className="text-2xl font-extrabold text-slate-900 flex items-center gap-3 tracking-tight">
                             <Users className="text-indigo-600" size={28}/> 同工資料中心
                         </h2>
@@ -570,8 +588,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                             </div>
                                             <div className={`flex gap-1.5 transition-opacity ${!isAdmin ? 'opacity-100' : 'opacity-100 sm:opacity-0 sm:group-hover:opacity-100'}`}>
                                                 {(isAdmin || isSubmissionOpen) && <button onClick={() => openEditModal(member)} className="p-2.5 bg-slate-50 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"><Edit2 size={16}/></button>}
-                                                {/* ★ 傳遞 member.email 確保刪除時可以同步刪除 auth.users */}
-                                                {isAdmin && <button onClick={() => handleDelete(member.id, member.name, member.email)} className="p-2.5 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-lg transition-colors"><Trash2 size={16}/></button>}
+                                                {isAdmin && <button onClick={() => handleDelete(member.id, member.name)} className="p-2.5 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-lg transition-colors"><Trash2 size={16}/></button>}
                                             </div>
                                         </div>
                                         <div className="space-y-2.5">
@@ -622,6 +639,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                 )}
 
                 {isModalOpen && (
+                    /* ★ 改為 p-4 置中浮動設計，視窗四周都會有安全距離，絕對不會被底部導覽列遮住 */
                     <div className="fixed inset-0 z-[100] flex flex-col justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
                         <div className="bg-white w-full mx-auto max-w-2xl max-h-[85dvh] rounded-2xl shadow-hover-soft overflow-hidden flex flex-col animate-fade-in border border-slate-100">
                             <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0 sticky top-0 z-10">
@@ -632,10 +650,12 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                 <button onClick={closeModal} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors"><X size={20}/></button>
                             </div>
                             
+                            {/* ★ 加入 touch-pan-y 與 overscroll-contain 確保滑動順暢 */}
                             <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-6 touch-pan-y overscroll-contain">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-medium text-slate-500 uppercase">姓名 <span className="text-red-500">*</span></label>
+                                        {/* ★ 移除 disabled 改用 readOnly，讓手指碰到這裡也能往下滑 */}
                                         <input 
                                             type="text" 
                                             value={formData.name ?? ''} 
@@ -678,35 +698,12 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                         </>
                                     )}
                                 </div>
-                                
-                                {/* ★ 核心同步：管理員的帳號綁定介面改為「唯讀與解除」 */}
                                 {isAdmin && (
                                     <div className="space-y-2 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
-                                        <label className="text-xs font-medium text-indigo-600 flex items-center gap-1.5 flex-wrap">
-                                            <User size={14}/> 帳號綁定 
-                                            <span className="text-[10px] text-indigo-400 font-normal">(由同工於登入頁自行綁定，此處僅供解除)</span>
-                                        </label>
-                                        <div className="flex gap-2">
-                                            <input 
-                                                type="text" 
-                                                value={formData.email ?? ''} 
-                                                className="w-full bg-slate-50 text-slate-500 cursor-not-allowed border border-indigo-100 rounded-lg px-4 py-3 sm:py-2.5 font-normal transition-all" 
-                                                placeholder="尚未綁定" 
-                                                readOnly={true} 
-                                            />
-                                            {formData.email && (
-                                                <button 
-                                                    type="button" 
-                                                    onClick={() => setFormData({...formData, email: ''})} 
-                                                    className="shrink-0 flex items-center gap-1 px-4 bg-white border border-red-200 text-red-500 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors"
-                                                >
-                                                    <Link2Off size={16} /> 解除
-                                                </button>
-                                            )}
-                                        </div>
+                                        <label className="text-xs font-medium text-indigo-600 flex items-center gap-1.5 flex-wrap"><User size={14}/> 帳號 <span className="text-[10px] text-indigo-400 font-normal">(忘記密碼需變更帳號，再重新綁定)</span></label>
+                                        <input type="text" value={formData.email ?? ''} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full bg-white border border-indigo-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 transition-all" placeholder="電話號碼或電子郵件" />
                                     </div>
                                 )}
-
                                 <div className="pt-2 border-t border-slate-100">
                                     <label className="text-sm font-medium text-slate-700 flex items-center gap-1.5 mb-3">
                                         <ShieldCheck size={18} className="text-indigo-500"/> 服事崗位 {!isAdmin && <span className="text-[10px] text-slate-400 font-normal ml-1">(僅供檢視)</span>}
@@ -756,6 +753,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                 )}
                             </div>
                             
+                            {/* ★ 移除額外的 padding-bottom (pb-8)，因為視窗已經不是貼齊底部了 */}
                             <div className="px-5 py-4 border-t border-slate-100 bg-white flex gap-3 shrink-0 sticky bottom-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
                                 <button onClick={closeModal} className="flex-1 py-3 sm:py-2.5 rounded-lg font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">取消</button>
                                 <button onClick={handleSave} disabled={isLoading} className="flex-[2] py-3 sm:py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:opacity-95 text-white rounded-lg font-medium flex items-center justify-center gap-2 shadow-button transition-all duration-200 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50">
