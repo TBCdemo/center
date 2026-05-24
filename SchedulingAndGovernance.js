@@ -9,7 +9,6 @@ import {
     Home, LogOut
 } from 'lucide-react';
 
-// 安全的 JSON 解析函數，防止資料庫格式錯誤導致白畫面
 const safeParseJSON = (data, fallback) => {
     if (!data) return fallback;
     if (typeof data !== 'string') return data;
@@ -53,7 +52,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
     const [selectedPersonalStats, setSelectedPersonalStats] = useState(null);
     const [hasQuerySchedule, setHasQuerySchedule] = useState(true); 
 
-    // 初始化載入
     useEffect(() => { 
         const fetchInitialData = async () => {
             setIsLoading(true);
@@ -75,7 +73,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
         fetchInitialData(); 
     }, [year, quarter]); 
 
-    // 檢查目標季度是否有備份檔
     useEffect(() => {
         const checkScheduleExists = async () => {
             if (appMode !== 'query') return;
@@ -85,9 +82,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                     const targetQ = `${queryYear}-Q${queryQuarter}`;
                     const { data } = await supabase.from('member_quarter_settings').select('id').eq('member_id', memData[0].id).eq('quarter', targetQ).limit(1);
                     setHasQuerySchedule(data && data.length > 0);
-                } else {
-                    setHasQuerySchedule(false);
-                }
+                } else { setHasQuerySchedule(false); }
             } catch (e) { setHasQuerySchedule(true); }
         };
         checkScheduleExists();
@@ -95,7 +90,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
 
     const currentQuarterStr = `${year}-Q${quarter}`;
 
-    // 資料梳理：過濾系統假帳號並整合設定
     const effectiveMembers = useMemo(() => {
         return dbData.members
             .filter(m => m.name !== 'SYSTEM_CUSTOM_HOLIDAYS_DB' && m.name !== 'SYSTEM_SCHEDULE_ARCHIVE')
@@ -105,7 +99,8 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                     ...m,
                     availability_status: qs?.availability_status || m.availability_status || '可排班',
                     preferred_session: qs?.preferred_session || m.preferred_session || '皆可',
-                    dual_service_pref: parseInt(qs?.dual_service_pref ?? m.dual_service_pref ?? 0, 10),
+                    // 精確保留 null, 0, 1, 2
+                    dual_service_pref: qs?.dual_service_pref ?? m.dual_service_pref ?? null,
                     unavailable_dates: qs?.unavailable_dates ? safeParseJSON(qs.unavailable_dates, []) : (m.unavailable_dates || [])
                 };
             });
@@ -115,7 +110,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
         return dbData.memberPositions.filter(mp => (mp.quarter === currentQuarterStr || !mp.quarter) && mp.is_active !== false);
     }, [dbData.memberPositions, currentQuarterStr]);
 
-    // 啟動排班引擎
     const runAutoSchedule = () => {
         const targetQuarterStr = `${year}-Q${quarter}`;
         const hasQuarterData = dbData.memberQuarterSettings.some(s => s.quarter === targetQuarterStr);
@@ -137,7 +131,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
         }, 300);
     };
 
-    // 查詢並解壓縮歷史班表
     const runQuerySchedule = async () => {
         setIsLoading(true);
         try {
@@ -342,8 +335,12 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
             if (activeRole === '執事輪值') {
                 if (mShiftsToday.some(d => d._positionName === '執事輪值')) return false;
             } else {
+                const dualPref = m.dual_service_pref; // null, 0, 1, 2
+
                 const shiftsThisSession = mShiftsToday.filter(d => d.session === session);
                 if (shiftsThisSession.length > 0) {
+                    if (dualPref === 0) return false; // 嚴格單崗防線
+
                     const concurrentRoles = ['接待', '收奉獻', '主餐', '新朋友關懷'];
                     const allExistingAreConcurrent = shiftsThisSession.every(d => concurrentRoles.includes(d._positionName));
                     const isActiveConcurrent = concurrentRoles.includes(activeRole);
@@ -351,14 +348,13 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                     if (shiftsThisSession.some(d => d._positionName === activeRole)) return false;
                 }
                 const shiftsOtherSession = mShiftsToday.filter(d => d.session !== session);
-                const dualPref = m.dual_service_pref || 0;
                 if (shiftsOtherSession.length > 0) {
-                    if (dualPref === 0) return false; 
+                    if (dualPref === 0 || dualPref === null || dualPref === undefined || dualPref === '') return false; 
                     const otherRoles = shiftsOtherSession.map(d => d._positionName);
                     if (dualPref === 1 && !otherRoles.includes(activeRole)) return false; 
                     if (dualPref === 2 && otherRoles.includes(activeRole)) return false;  
                 } else {
-                    if (dualPref === 0 && m.preferred_session && m.preferred_session !== '皆可') {
+                    if ((dualPref === 0 || dualPref === null || dualPref === undefined || dualPref === '') && m.preferred_session && m.preferred_session !== '皆可') {
                         if (!m.preferred_session.includes(session.replace('堂', ''))) return false;
                     }
                 }
@@ -411,8 +407,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
             let archiveMem = dbData.members.find(m => m.name === archiveName);
             if (!archiveMem) {
                 const { data: newMem, error: insErr } = await supabase.from('members').insert({ name: archiveName }).select();
-                if (insErr) throw insErr;
-                archiveMem = newMem[0];
+                if (insErr) throw insErr; archiveMem = newMem[0];
             }
 
             const scheduleData = generatedDraft.filter(d => !d.is_empty).map(d => ({
@@ -424,7 +419,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
             }, { onConflict: 'member_id, quarter' });
 
             if (qsErr) throw qsErr;
-
             setShowSuccessToast(true); setTimeout(() => setShowSuccessToast(false), 3000);
         } catch (err) { setErrorMsg('儲存失敗：' + err.message); } 
         finally { setIsSaving(false); }
@@ -440,7 +434,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
             tableData[key].positions[d._positionName].push(d.is_empty ? '⚠️空缺' : (d._memberName || '未知'));
         });
         
-        // 變更排序邏輯：優先以「堂別」排序，其次才是「日期」
         const sortedRows = Object.values(tableData).sort((a, b) => {
             if (a.session !== b.session) {
                 if (a.session === '第一堂') return -1;
@@ -480,9 +473,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
             stats.totalService += 1;
             if (d._positionName && stats.roles[d._positionName] !== undefined) stats.roles[d._positionName] += 1;
         });
-        return Object.values(memberStats).map(d => {
-            return { ...d, attendance: d.attendanceDates.size, distinctRolesCount: Object.values(d.roles).filter(c => c > 0).length, healthScore: 0 };
-        }); 
+        return Object.values(memberStats).map(d => ({ ...d, attendance: d.attendanceDates.size, distinctRolesCount: Object.values(d.roles).filter(c => c > 0).length, healthScore: 0 })); 
     }, [generatedDraft, effectiveMembers]);
 
     const dashboardStats = useMemo(() => {
@@ -663,114 +654,26 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                     {appMode === 'schedule' ? (
                         <div className="animate-fade-in">
                             <div className="grid grid-cols-2 gap-6 mb-10">
-                                <div className="space-y-2">
-                                    <label className="text-xs font-medium text-slate-500 ml-2">年份</label>
-                                    <input type="number" value={year} onChange={e => setYear(parseInt(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-6 py-4 font-normal text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-medium text-slate-500 ml-2">季度</label>
-                                    <select value={quarter} onChange={e => setQuarter(parseInt(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-6 py-4 font-normal text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all">
-                                        <option value={1}>Q1 (1-3月)</option><option value={2}>Q2 (4-6月)</option><option value={3}>Q3 (7-9月)</option><option value={4}>Q4 (10-12月)</option>
-                                    </select>
-                                </div>
+                                <div className="space-y-2"><label className="text-xs font-medium text-slate-500 ml-2">年份</label><input type="number" value={year} onChange={e => setYear(parseInt(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-6 py-4 font-normal text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" /></div>
+                                <div className="space-y-2"><label className="text-xs font-medium text-slate-500 ml-2">季度</label><select value={quarter} onChange={e => setQuarter(parseInt(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-6 py-4 font-normal text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"><option value={1}>Q1 (1-3月)</option><option value={2}>Q2 (4-6月)</option><option value={3}>Q3 (7-9月)</option><option value={4}>Q4 (10-12月)</option></select></div>
                             </div>
-                            <button onClick={runAutoSchedule} disabled={isLoading} className="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-medium py-4 rounded-xl flex items-center justify-center gap-3 transition-all active:scale-95 shadow-button hover:-translate-y-0.5">
-                                {isLoading ? <RefreshCw className="animate-spin" /> : <><Play size={20} fill="currentColor"/> 建立新班表</>}
-                            </button>
+                            <button onClick={runAutoSchedule} disabled={isLoading} className="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-medium py-4 rounded-xl flex items-center justify-center gap-3 transition-all active:scale-95 shadow-button hover:-translate-y-0.5">{isLoading ? <RefreshCw className="animate-spin" /> : <><Play size={20} fill="currentColor"/> 建立新班表</>}</button>
                             {!dbData.memberQuarterSettings.some(s => s.quarter === `${year}-Q${quarter}`) && !isLoading && (
-                                <p className="text-rose-500 text-[13px] font-medium text-center mt-4 flex items-center justify-center gap-1.5 animate-pulse">
-                                    <AlertCircle size={16} /> 尚未建立 {year}Q{quarter} 同工資料，請至「同工資料中心」新增。
-                                </p>
+                                <p className="text-rose-500 text-[13px] font-medium text-center mt-4 flex items-center justify-center gap-1.5 animate-pulse"><AlertCircle size={16} /> 尚未建立 {year}Q{quarter} 同工資料，請至「同工資料中心」新增。</p>
                             )}
                         </div>
                     ) : (
                         <div className="animate-fade-in">
                             <div className="grid grid-cols-2 gap-6 mb-10">
-                                <div className="space-y-2">
-                                    <label className="text-xs font-medium text-slate-500 ml-2">年份</label>
-                                    <input type="number" value={queryYear} onChange={e => setQueryYear(parseInt(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-6 py-4 font-normal text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-medium text-slate-500 ml-2">季度</label>
-                                    <select value={queryQuarter} onChange={e => setQueryQuarter(parseInt(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-6 py-4 font-normal text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all">
-                                        <option value={1}>Q1 (1-3月)</option><option value={2}>Q2 (4-6月)</option><option value={3}>Q3 (7-9月)</option><option value={4}>Q4 (10-12月)</option>
-                                    </select>
-                                </div>
+                                <div className="space-y-2"><label className="text-xs font-medium text-slate-500 ml-2">年份</label><input type="number" value={queryYear} onChange={e => setQueryYear(parseInt(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-6 py-4 font-normal text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" /></div>
+                                <div className="space-y-2"><label className="text-xs font-medium text-slate-500 ml-2">季度</label><select value={queryQuarter} onChange={e => setQueryQuarter(parseInt(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-6 py-4 font-normal text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"><option value={1}>Q1 (1-3月)</option><option value={2}>Q2 (4-6月)</option><option value={3}>Q3 (7-9月)</option><option value={4}>Q4 (10-12月)</option></select></div>
                             </div>
-                            <button onClick={runQuerySchedule} disabled={isLoading} className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:opacity-95 disabled:from-indigo-300 disabled:to-violet-300 text-white font-medium py-4 rounded-xl flex items-center justify-center gap-3 transition-all active:scale-95 shadow-button hover:-translate-y-0.5">
-                                {isLoading ? <RefreshCw className="animate-spin" /> : <><Search size={20} strokeWidth={3}/> 開始編輯</>}
-                            </button>
+                            <button onClick={runQuerySchedule} disabled={isLoading} className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:opacity-95 disabled:from-indigo-300 disabled:to-violet-300 text-white font-medium py-4 rounded-xl flex items-center justify-center gap-3 transition-all active:scale-95 shadow-button hover:-translate-y-0.5">{isLoading ? <RefreshCw className="animate-spin" /> : <><Search size={20} strokeWidth={3}/> 開始編輯</>}</button>
                             {!hasQuerySchedule && !isLoading && (
-                                <p className="text-rose-500 text-[13px] font-medium text-center mt-4 flex items-center justify-center gap-1.5 animate-pulse">
-                                    <AlertCircle size={16} /> 尚未建立 {queryYear}Q{queryQuarter} 排班資料，請至「預排作業」新增。
-                                </p>
+                                <p className="text-rose-500 text-[13px] font-medium text-center mt-4 flex items-center justify-center gap-1.5 animate-pulse"><AlertCircle size={16} /> 尚未建立 {queryYear}Q{queryQuarter} 排班資料，請至「預排作業」新增。</p>
                             )}
                         </div>
                     )}
-                </div>
-            </div>
-        );
-    };
-
-    const renderPersonalStatsPanelFixed = () => {
-        if (!selectedPersonalStats || !dashboardStats) return null;
-        const stats = selectedPersonalStats; 
-        const adviceList = []; 
-        const avg = parseFloat(dashboardStats.avgService);
-        if (stats.healthStatus === 'danger') adviceList.push({ icon: ShieldAlert, color: 'text-rose-600', bg: 'bg-rose-50', title: '高風險警示', desc: `本季服事高達 ${stats.totalService} 次，顯著高於平均。建議安排安息週。` });
-        else if (stats.healthStatus === 'warning') adviceList.push({ icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-50', title: '負荷偏高', desc: '服事頻率略高於群體平均，請留意是否需要適度替班輪休。' });
-        else adviceList.push({ icon: HeartPulse, color: 'text-emerald-600', bg: 'bg-emerald-50', title: '狀態健康', desc: '目前服事負荷在健康範圍內，感謝穩定的配搭。' });
-        if (stats.distinctRolesCount > 2) adviceList.push({ icon: GitBranch, color: 'text-indigo-600', bg: 'bg-indigo-50', title: '核心多工', desc: '承擔多項不同崗位，留意避免單日切換過多角色。' });
-        else if (stats.distinctRolesCount === 1 && stats.totalService < avg) adviceList.push({ icon: Lightbulb, color: 'text-sky-600', bg: 'bg-sky-50', title: '成長潛力', desc: '若恩賜相符，可考慮邀請參與第二專長培術。' });
-        
-        const diffFromAvg = (stats.totalService - parseFloat(dashboardStats.avgService)).toFixed(1);
-
-        return (
-            <div className="h-full flex flex-col bg-white animate-fade-in overflow-hidden shadow-soft">
-                <div className="bg-slate-900 p-6 pb-8 shrink-0 relative overflow-hidden">
-                    <div className="absolute top-[-50%] right-[-10%] w-32 h-32 rounded-full bg-indigo-500/30 blur-2xl pointer-events-none"></div>
-                    <div className="flex items-center gap-4 relative z-10">
-                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-400 to-violet-500 flex items-center justify-center text-white text-xl font-bold shadow-glow">{stats.name.charAt(0)}</div>
-                        <div className="text-white">
-                            <h2 className="text-xl font-bold">{stats.name}</h2>
-                            <p className="text-slate-400 text-xs font-normal flex items-center gap-2 mt-1">{stats.group ? <span className="bg-white/10 px-2 py-0.5 rounded text-[10px]">{stats.group}</span> : '一般同工'}<span>個人關懷儀表板</span></p>
-                        </div>
-                    </div>
-                </div>
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-slate-50 space-y-6 -mt-4 rounded-t-2xl relative z-10 border-t border-slate-200">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 text-center hover:shadow-soft transition-shadow">
-                            <p className="text-[11px] font-medium text-slate-400 mb-1">本季服事</p><p className="text-2xl font-bold text-slate-900">{stats.totalService} <span className="text-xs font-medium text-slate-400">次</span></p>
-                            <p className={`text-[10px] font-medium mt-1.5 px-1.5 py-0.5 rounded-md inline-block ${diffFromAvg > 0 ? 'bg-rose-50 text-rose-600' : (diffFromAvg < 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500')}`}>{diffFromAvg > 0 ? `+${diffFromAvg} 高於平均` : (diffFromAvg < 0 ? `${diffFromAvg} 低於平均` : '與平均持平')}</p>
-                        </div>
-                        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 text-center hover:shadow-soft transition-shadow">
-                            <p className="text-[11px] font-medium text-slate-400 mb-1">出席天數</p><p className="text-2xl font-bold text-slate-900">{stats.attendance} <span className="text-xs font-medium text-slate-400">天</span></p>
-                            <p className="text-[10px] font-medium text-slate-400 mt-1.5">單日最高 {(stats.totalService / Math.max(1, stats.attendance)).toFixed(1)} 次</p>
-                        </div>
-                    </div>
-                    <div>
-                        <h3 className="text-xs font-bold text-slate-900 mb-3 flex items-center gap-1.5"><Lightbulb size={14} className="text-amber-500"/> AI 關懷建議</h3>
-                        <div className="space-y-2.5">
-                            {adviceList.map((adv, idx) => (
-                                <div key={idx} className={`${adv.bg} border border-white shadow-sm p-3 rounded-xl flex gap-3 items-start`}>
-                                    <adv.icon className={`${adv.color} shrink-0 mt-0.5`} size={16} />
-                                    <div><p className={`text-[13px] font-bold ${adv.color} mb-0.5`}>{adv.title}</p><p className="text-[11px] font-normal text-slate-600 leading-relaxed">{adv.desc}</p></div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                    <div>
-                        <h3 className="text-xs font-bold text-slate-900 mb-3 flex items-center gap-1.5"><BarChart3 size={14} className="text-indigo-500"/> 崗位參與分佈</h3>
-                        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 space-y-3">
-                            {Object.entries(stats.roles).filter(([_, count]) => count > 0).sort((a,b)=>b[1]-a[1]).map(([role, count]) => (
-                                <div key={role}>
-                                    <div className="flex justify-between text-[11px] font-medium mb-1"><span className="text-slate-700">{role}</span><span className="text-indigo-600">{count} 次 <span className="text-slate-400 font-normal">({Math.round(count/stats.totalService*100)}%)</span></span></div>
-                                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-indigo-400 to-violet-400 rounded-full" style={{ width: `${(count/stats.totalService)*100}%` }}></div></div>
-                                </div>
-                            ))}
-                            {stats.distinctRolesCount === 0 && <p className="text-[11px] text-slate-400 text-center py-1">本季尚無安排服事</p>}
-                        </div>
-                    </div>
                 </div>
             </div>
         );
@@ -788,21 +691,11 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                         <div className={`p-3 rounded-xl ${activeSlot.is_empty ? 'bg-rose-500/20 text-rose-300' : 'bg-white/10 text-indigo-300'}`}><Calendar size={24} /></div>
                         <div className="flex flex-col gap-1.5">
                             <p className="text-xl font-bold text-white">{activeSlot.service_date}</p>
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <span className={`px-3 py-1 rounded-lg text-lg font-semibold tracking-wide ${activeSlot.is_empty ? 'bg-rose-500 text-white animate-pulse shadow-[0_0_15px_rgba(244,63,94,0.5)]' : 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white'}`}>{activeSlot._memberName}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 text-xs font-normal text-slate-400 flex-wrap mt-1">
-                                <span className="bg-white/10 px-1.5 py-0.5 rounded text-slate-300">{activeSlot._positionName}</span>
-                                <span>•</span>
-                                <span>{activeSlot._positionName === '執事輪值' ? '第一堂、第二堂' : activeSlot.session}</span>
-                                {!activeSlot.is_empty && (
-                                    <><span>•</span><span>本季服事 {currentUsageCount[activeSlot.member_id] || 0} 次</span></>
-                                )}
-                            </div>
+                            <div className="flex items-center gap-2 flex-wrap"><span className={`px-3 py-1 rounded-lg text-lg font-semibold tracking-wide ${activeSlot.is_empty ? 'bg-rose-500 text-white animate-pulse shadow-[0_0_15px_rgba(244,63,94,0.5)]' : 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white'}`}>{activeSlot._memberName}</span></div>
+                            <div className="flex items-center gap-1.5 text-xs font-normal text-slate-400 flex-wrap mt-1"><span className="bg-white/10 px-1.5 py-0.5 rounded text-slate-300">{activeSlot._positionName}</span><span>•</span><span>{activeSlot._positionName === '執事輪值' ? '第一堂、第二堂' : activeSlot.session}</span>{!activeSlot.is_empty && (<><span>•</span><span>本季服事 {currentUsageCount[activeSlot.member_id] || 0} 次</span></>)}</div>
                         </div>
                     </div>
                 </div>
-
                 <div className="px-6 pt-5 pb-2 bg-white z-10 sticky top-0 shrink-0">
                     <div className="relative">
                         <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -810,12 +703,8 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                         {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:bg-slate-200 rounded-md transition-all"><X size={14} /></button>}
                     </div>
                 </div>
-
                 <div className="flex-1 overflow-y-auto custom-scrollbar px-6 pb-6 pt-2 space-y-4">
-                    <div className="flex items-center justify-between px-1">
-                        <h3 className="font-bold text-slate-900 flex items-center gap-2 text-sm"><UserCheck className="text-emerald-500" size={16}/> 推薦人選 ({finalRecommendations.length})</h3>
-                        <span className="text-[12px] bg-slate-100 text-slate-500 px-2 py-1 rounded-md font-medium">依本季次數排序</span>
-                    </div>
+                    <div className="flex items-center justify-between px-1"><h3 className="font-bold text-slate-900 flex items-center gap-2 text-sm"><UserCheck className="text-emerald-500" size={16}/> 推薦人選 ({finalRecommendations.length})</h3><span className="text-[12px] bg-slate-100 text-slate-500 px-2 py-1 rounded-md font-medium">依本季次數排序</span></div>
                     {finalRecommendations.length > 0 ? (
                         finalRecommendations.map((c, idx) => (
                             <div key={c.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm transition-all hover:shadow-soft hover:-translate-y-0.5">
@@ -862,14 +751,13 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                         <div className="p-8 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
                             <UserX className="mx-auto mb-3 opacity-30" size={32} />
                             <p className="font-medium text-sm">{searchTerm ? '找不到符合條件的人選' : '找不到合適人選'}</p>
-                                                    </div>
+                        </div>
                     )}
                 </div>
             </div>
         );
     };
 
-    // ----- 主畫面渲染與 Return -----
     const tableData = {};
     generatedDraft.forEach(d => {
         if (!d.service_date || !d.session) return;
@@ -908,9 +796,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
             <td>
                 <div className={`${gridClass} min-h-[34px] w-max mx-auto`}>
                     {items.map((item, i) => (
-                        <div key={item.temp_id} draggable={!item.is_empty} onDragStart={(e) => handleDragStart(e, item)} onDragEnd={handleDragEnd} onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, row.date, row.session, positionName, i)} onClick={() => { setActiveSlot(item); setSearchTerm(''); }} className={getTagClass(item)}>
-                            {item._memberName || '未知'}
-                        </div>
+                        <div key={item.temp_id} draggable={!item.is_empty} onDragStart={(e) => handleDragStart(e, item)} onDragEnd={handleDragEnd} onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, row.date, row.session, positionName, i)} onClick={() => { setActiveSlot(item); setSearchTerm(''); }} className={getTagClass(item)}>{item._memberName || '未知'}</div>
                     ))}
                 </div>
             </td>
@@ -919,72 +805,29 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
 
     return (
         <div className="flex h-screen w-full bg-slate-50 overflow-hidden select-none relative">
-            {/* 左側整合式現代功能導覽列 */}
             <div className="w-64 bg-slate-900 flex flex-col justify-between shrink-0 border-r border-slate-800 z-30">
                 <div className="flex flex-col">
-                    {/* 系統識別標誌 */}
-                    <div className="p-6 border-b border-slate-800 flex items-center gap-3 relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-indigo-500/10 to-transparent pointer-events-none"></div>
-                        <span className="text-white font-bold text-base tracking-wider relative z-10">TBC Serve Manager</span>
-                    </div>
-                    
-                    {/* 功能導航項目 */}
+                    <div className="p-6 border-b border-slate-800 flex items-center gap-3 relative overflow-hidden"><div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-indigo-500/10 to-transparent pointer-events-none"></div><span className="text-white font-bold text-base tracking-wider relative z-10">TBC Serve Manager</span></div>
                     <nav className="p-4 space-y-1.5">
-                        <button onClick={goBack} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
-                            <Home size={18} className="text-slate-400 group-hover:text-indigo-400 transition-colors" />
-                            <span>Home</span>
-                        </button>
-                        <button onClick={goToMembers} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
-                            <Users size={18} className="text-slate-400 group-hover:text-violet-400 transition-colors" />
-                            <span>同工資料中心</span>
-                        </button>
-                        <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl font-medium text-sm shadow-button">
-                            <Calendar size={18} />
-                            <span>排班作業中心</span>
-                        </div>
+                        <button onClick={goBack} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group"><Home size={18} className="text-slate-400 group-hover:text-indigo-400 transition-colors" /><span>Home</span></button>
+                        <button onClick={goToMembers} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group"><Users size={18} className="text-slate-400 group-hover:text-violet-400 transition-colors" /><span>同工資料中心</span></button>
+                        <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl font-medium text-sm shadow-button"><Calendar size={18} /><span>排班作業中心</span></div>
                     </nav>
                 </div>
-                
-                {/* 底部安全登出按鈕 */}
-                <div className="p-4 border-t border-slate-800">
-                    <button 
-                        onClick={async () => { 
-                            if (supabase?.auth?.signOut) { await supabase.auth.signOut(); } 
-                            window.location.reload(); 
-                        }} 
-                        className="w-full flex items-center gap-3 px-4 py-3 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl font-normal text-sm transition-all text-left group"
-                    >
-                        <LogOut size={18} className="text-rose-400 group-hover:translate-x-0.5 transition-transform" />
-                        <span>Sign Out</span>
-                    </button>
-                </div>
+                <div className="p-4 border-t border-slate-800"><button onClick={async () => { if (supabase?.auth?.signOut) { await supabase.auth.signOut(); } window.location.reload(); }} className="w-full flex items-center gap-3 px-4 py-3 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl font-normal text-sm transition-all text-left group"><LogOut size={18} className="text-rose-400 group-hover:translate-x-0.5 transition-transform" /><span>Sign Out</span></button></div>
             </div>
 
-            {/* 右側主工作視窗容器 (原先完整的排班作業視窗) */}
             <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 relative">
-                {/* Header Area */}
                 <div className="p-6 lg:px-8 lg:py-6 bg-white border-b border-slate-200 shrink-0 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 shadow-sm z-10">
                     <div className="flex flex-col justify-center">
                         <div className="flex items-center gap-3">
                             <h2 className="text-2xl font-extrabold text-slate-900 flex items-center gap-3 tracking-tight">
-                                {schedulingPhase === 'setup' ? (
-                                    <>
-                                        <Calendar className="text-violet-600" size={28}/> 排班作業中心
-                                    </>
-                                ) : (
-                                    <div className="flex items-center gap-2">
-                                        <button onClick={() => { setSchedulingPhase('setup'); setActiveSlot(null); }} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors" title="返回設定"><ChevronLeft size={20} /></button>
-                                        <span>{year}Q{quarter} {appMode === 'schedule' ? '預排預覽' : '編輯預覽'}</span>
-                                    </div>
-                                )}
+                                {schedulingPhase === 'setup' ? (<><Calendar className="text-violet-600" size={28}/> 排班作業中心</>) : (<div className="flex items-center gap-2"><button onClick={() => { setSchedulingPhase('setup'); setActiveSlot(null); }} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors" title="返回設定"><ChevronLeft size={20} /></button><span>{year}Q{quarter} {appMode === 'schedule' ? '預排預覽' : '編輯預覽'}</span></div>)}
                             </h2>
                         </div>
                         {schedulingPhase === 'editor' && (
                             <>
-                                <div className="mt-3 flex flex-wrap items-center gap-6">
-                                    <p className="text-slate-500 text-xs font-medium flex items-center gap-1.5"><Search size={14} className="text-indigo-500"/> 點擊姓名選擇替代人選</p>
-                                    <p className="text-slate-500 text-xs font-medium flex items-center gap-1.5"><GripVertical size={14} className="text-indigo-500"/> 拖曳姓名可交換位置</p>
-                                </div>
+                                <div className="mt-3 flex flex-wrap items-center gap-6"><p className="text-slate-500 text-xs font-medium flex items-center gap-1.5"><Search size={14} className="text-indigo-500"/> 點擊姓名選擇替代人選</p><p className="text-slate-500 text-xs font-medium flex items-center gap-1.5"><GripVertical size={14} className="text-indigo-500"/> 拖曳姓名可交換位置</p></div>
                                 <div className="flex gap-3 mt-2 pt-2 border-t border-slate-100 flex-wrap">
                                     <p className="text-rose-600 text-[10px] font-bold flex items-center gap-1.5 bg-rose-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-rose-500"></span> 紅色：崗位兼任</p>
                                     <p className="text-sky-600 text-[10px] font-bold flex items-center gap-1.5 bg-sky-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-sky-500"></span> 藍色：群組落單</p>
@@ -1001,10 +844,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                                         <button key={tab} onClick={() => { setActiveSessionTab(tab); if(tab === '📊 數據分析') setActiveSlot(null); }} className={`px-5 py-2 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap ${activeSessionTab === tab ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>{tab}</button>
                                     ))}
                                     {appMode === 'schedule' && (
-                                        <>
-                                            <div className="w-px h-6 bg-slate-200 mx-2 self-center"></div>
-                                            <button onClick={runAutoSchedule} disabled={isLoading} className="px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap text-indigo-600 hover:bg-white hover:shadow-sm flex items-center gap-1.5"><RefreshCw size={16} className={isLoading ? "animate-spin" : ""} /> 重新排班</button>
-                                        </>
+                                        <><div className="w-px h-6 bg-slate-200 mx-2 self-center"></div><button onClick={runAutoSchedule} disabled={isLoading} className="px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap text-indigo-600 hover:bg-white hover:shadow-sm flex items-center gap-1.5"><RefreshCw size={16} className={isLoading ? "animate-spin" : ""} /> 重新排班</button></>
                                     )}
                                 </div>
                                 <div className="flex bg-slate-50 p-1.5 rounded-lg w-full md:w-auto overflow-x-auto custom-scrollbar border border-slate-200">
@@ -1016,7 +856,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                     )}
                 </div>
                 
-                {/* Main Content Area */}
                 <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
                     <div className="flex-1 flex flex-col h-full relative overflow-hidden">
                         {schedulingPhase === 'setup' ? renderSchedulingView() : (
@@ -1054,7 +893,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                     {schedulingPhase === 'editor' && activeSessionTab !== '📊 數據分析' && activeSlot && renderRecommendationPanel()}
                 </div>
 
-                {/* Modals & Toasts */}
                 {errorMsg && <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 bg-red-50 text-red-600 px-6 py-3 rounded-lg flex items-center gap-3 font-medium border border-red-100 shadow-xl animate-bounce"><AlertCircle size={20} /> {errorMsg}</div>}
                 {showSuccessToast && <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[200] bg-emerald-50 text-emerald-600 px-8 py-5 rounded-2xl flex items-center gap-4 font-bold text-xl border-2 border-emerald-200 shadow-glow animate-pop"><CheckCircle2 size={32} className="text-emerald-500" /> 發布成功</div>}
                 
