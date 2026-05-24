@@ -91,9 +91,20 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
     const currentQuarterStr = `${year}-Q${quarter}`;
 
     const effectiveMembers = useMemo(() => {
-        return dbData.members
-            .filter(m => m.name !== 'SYSTEM_CUSTOM_HOLIDAYS_DB' && m.name !== 'SYSTEM_SCHEDULE_ARCHIVE')
-            .map(m => {
+    return dbData.members
+        // 透過 startsWith 一次性排除所有系統保留帳號，避免未來新增系統帳號時混入排班名單
+        .filter(m => !m.name.startsWith('SYSTEM_'))
+        .map(m => {
+            const qs = dbData.memberQuarterSettings.find(s => s.member_id === m.id && s.quarter === currentQuarterStr);
+            return {
+                ...m,
+                availability_status: qs?.availability_status || m.availability_status || '可排班',
+                preferred_session: qs?.preferred_session || m.preferred_session || '皆可',
+                dual_service_pref: qs?.dual_service_pref ?? m.dual_service_pref ?? null,
+                unavailable_dates: qs?.unavailable_dates ? safeParseJSON(qs.unavailable_dates, []) : (m.unavailable_dates || [])
+            };
+        });
+}, [dbData.members, dbData.memberQuarterSettings, currentQuarterStr]);
                 const qs = dbData.memberQuarterSettings.find(s => s.member_id === m.id && s.quarter === currentQuarterStr);
                 return {
                     ...m,
