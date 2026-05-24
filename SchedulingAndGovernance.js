@@ -99,7 +99,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                     ...m,
                     availability_status: qs?.availability_status || m.availability_status || '可排班',
                     preferred_session: qs?.preferred_session || m.preferred_session || '皆可',
-                    // 精確保留 null, 0, 1, 2
                     dual_service_pref: qs?.dual_service_pref ?? m.dual_service_pref ?? null,
                     unavailable_dates: qs?.unavailable_dates ? safeParseJSON(qs.unavailable_dates, []) : (m.unavailable_dates || [])
                 };
@@ -333,28 +332,31 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
             const activeRole = activeSlot._positionName;
 
             if (activeRole === '執事輪值') {
-                if (mShiftsToday.some(d => d._positionName === '執事輪值')) return false;
+                if (mShiftsToday.length > 0) return false; 
             } else {
-                const dualPref = m.dual_service_pref; // null, 0, 1, 2
+                if (mShiftsToday.some(d => d._positionName === '執事輪值')) return false;
+
+                const rawPref = m.dual_service_pref;
+                const dualPref = (rawPref === null || rawPref === undefined || rawPref === '') ? null : parseInt(rawPref);
 
                 const shiftsThisSession = mShiftsToday.filter(d => d.session === session);
                 if (shiftsThisSession.length > 0) {
-                    if (dualPref === 0) return false; // 嚴格單崗防線
+                    if (dualPref === 0) return false; 
 
                     const concurrentRoles = ['接待', '收奉獻', '主餐', '新朋友關懷'];
+                    if (!concurrentRoles.includes(activeRole)) return false;
                     const allExistingAreConcurrent = shiftsThisSession.every(d => concurrentRoles.includes(d._positionName));
-                    const isActiveConcurrent = concurrentRoles.includes(activeRole);
-                    if (!allExistingAreConcurrent || !isActiveConcurrent) return false;
+                    if (!allExistingAreConcurrent) return false;
                     if (shiftsThisSession.some(d => d._positionName === activeRole)) return false;
                 }
                 const shiftsOtherSession = mShiftsToday.filter(d => d.session !== session);
                 if (shiftsOtherSession.length > 0) {
-                    if (dualPref === 0 || dualPref === null || dualPref === undefined || dualPref === '') return false; 
+                    if (dualPref === 0 || dualPref === null) return false; 
                     const otherRoles = shiftsOtherSession.map(d => d._positionName);
                     if (dualPref === 1 && !otherRoles.includes(activeRole)) return false; 
                     if (dualPref === 2 && otherRoles.includes(activeRole)) return false;  
                 } else {
-                    if ((dualPref === 0 || dualPref === null || dualPref === undefined || dualPref === '') && m.preferred_session && m.preferred_session !== '皆可') {
+                    if ((dualPref === 0 || dualPref === null) && m.preferred_session && m.preferred_session !== '皆可') {
                         if (!m.preferred_session.includes(session.replace('堂', ''))) return false;
                     }
                 }
@@ -716,8 +718,8 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                                             <span className="bg-slate-100 px-1.5 py-0.5 rounded-md text-slate-700">{c.preferred_session || '皆可'}</span><span>•</span><span>本季服事 {c.usage} 次</span>
                                             {c.group_id && c.group_id.startsWith('FA') && <span className="ml-1 px-1.5 py-0.5 rounded-[4px] bg-slate-400 text-white text-xs">FA</span>}
                                             {c.group_id && c.group_id.startsWith('FB') && <span className="ml-1 px-1.5 py-0.5 rounded-[4px] bg-slate-400 text-white text-xs">FB</span>}
-                                            {c.dual_service_pref === 1 && <span className="ml-1 px-1.5 py-0.5 rounded-[4px] bg-indigo-500 text-white text-xs">二堂同崗</span>}
-                                            {c.dual_service_pref === 2 && <span className="ml-1 px-1.5 py-0.5 rounded-[4px] bg-violet-500 text-white text-xs">二堂異崗</span>}
+                                            {parseInt(c.dual_service_pref) === 1 && <span className="ml-1 px-1.5 py-0.5 rounded-[4px] bg-indigo-500 text-white text-xs">二堂同崗</span>}
+                                            {parseInt(c.dual_service_pref) === 2 && <span className="ml-1 px-1.5 py-0.5 rounded-[4px] bg-violet-500 text-white text-xs">二堂異崗</span>}
                                         </div>
                                     </div>
                                 </div>
