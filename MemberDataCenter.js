@@ -418,21 +418,40 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             if (memberEmail !== currentUserAccount && memberEmail !== currentUserEmail) return false;
         }
         const term = searchTerm.toLowerCase();
+        
+        // 1. 搜尋姓名與群組
         if (m.name.toLowerCase().includes(term)) return true;
         if (m.group_id && m.group_id.toLowerCase().includes(term)) return true;
+        
+        // 2. 搜尋服事崗位
         const hasMatchingPosition = memberPositions.filter(mp => mp.member_id === m.id).some(mp => {
             const p = positions.find(pos => pos.id === mp.position_id);
             return p && p.name.toLowerCase().includes(term);
         });
         if (hasMatchingPosition) return true;
-        const settings = quarterSettings.find(s => s.member_id === m.id);
-        if (settings && settings.preferred_session && settings.preferred_session.toLowerCase().includes(term)) return true;
-        if (settings && settings.availability_status && settings.availability_status.toLowerCase().includes(term)) return true;
         
+        // 3. 搜尋狀態、堂別與兼任設定
+        const settings = quarterSettings.find(s => s.member_id === m.id);
+        if (settings) {
+            if (settings.preferred_session && settings.preferred_session.toLowerCase().includes(term)) return true;
+            if (settings.availability_status && settings.availability_status.toLowerCase().includes(term)) return true;
+            
+            // --- 新增：崗位兼任狀態搜尋 ---
+            let dualPrefText = '預設兼任 開啟兼任'; 
+            if (settings.dual_service_pref === 0) dualPrefText = '關閉兼任';
+            if (settings.dual_service_pref === 1) dualPrefText = '二堂同崗';
+            if (settings.dual_service_pref === 2) dualPrefText = '二堂異崗';
+            
+            if (dualPrefText.includes(term)) return true;
+            // -----------------------------
+        }
+        
+        // 4. 搜尋暫停狀態
         if (term.includes('暫停')) {
             const hasSuspendedPosition = memberPositions.filter(mp => mp.member_id === m.id).some(mp => mp.is_active === false);
             if (hasSuspendedPosition) return true;
         }
+        
         return false;
     });
 
@@ -557,7 +576,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                             <div>
                                                 <h3 className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2 flex-wrap leading-tight">
                                                     {member.name}
-                                                    {/* ★ 更新卡片標籤顯示邏輯 */}
                                                     {isAdmin && settings.dual_service_pref === 0 && <span className="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded border border-red-100 font-normal">關閉兼任</span>}
                                                     {isAdmin && settings.dual_service_pref === 1 && <span className="text-[10px] bg-violet-50 text-violet-600 px-2 py-0.5 rounded border border-violet-100 font-normal">二堂同崗</span>}
                                                     {isAdmin && settings.dual_service_pref === 2 && <span className="text-[10px] bg-violet-50 text-violet-600 px-2 py-0.5 rounded border border-violet-100 font-normal">二堂異崗</span>}
@@ -668,7 +686,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                             </div>
                                             <div className="space-y-1.5">
                                                 <label className="text-xs font-medium text-slate-500 uppercase">崗位兼任 <span className="text-slate-400 font-normal">(選填)</span></label>
-                                                {/* ★ 修正選單文字，符合新的定義規範 */}
                                                 <select value={formData.dual_service_pref ?? ''} onChange={e => setFormData({...formData, dual_service_pref: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 transition-all">
                                                     <option value="">預設 (開啟兼任)</option>
                                                     <option value="0">關閉兼任</option>
