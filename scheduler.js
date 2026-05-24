@@ -148,39 +148,47 @@ const ScheduleEngine = {
     const dayShifts = state.draft.filter((d) => d.service_date === context.dateStr && d.member_id === m.id);
     const dayRoles = dayShifts.map(d => d._positionName);
 
+    // 最大班次限制：單日最多兩班 (無論是跨堂還是同堂兼任)
     if (dayShifts.length >= 2) return false; 
 
-    // 取出明確原始值 (null, 0, 1, 2)
-    const dualPref = m.dual_service_pref;
+    // 【執事絕對互斥機制】：已是執事不可接其他崗；已是其他崗不可接執事 (但可以排第二堂的執事)
+    if (roleName === '執事輪值') {
+        if (dayShifts.length > 0 && !dayRoles.includes('執事輪值')) return false; 
+        if (dayRoles.includes('執事輪值') && dayShifts[0].session === session) return false; 
+    } else {
+        if (dayRoles.includes('執事輪值')) return false; 
 
-    if (roleName !== '執事輪值') {
-        // 【嚴格單日單崗防線】：如果是 0，一旦當日已有任何排班，全面擋下
-        if (dualPref === 0 && dayShifts.length >= 1) return false;
-
+        // 一般崗位的兼任與偏好檢查
         if (dayShifts.length === 1) {
             const firstShift = dayShifts[0];
-            if (dualPref === 1) {
+            const rawPref = m.dual_service_pref;
+            const dualPref = (rawPref === null || rawPref === undefined || rawPref === '') ? null : parseInt(rawPref);
+            
+            if (dualPref === 0) {
+                // 【關閉兼任】：同日同堂只排一個崗位 (也不允許跨堂)
+                return false; 
+            } else if (dualPref === 1) {
                 if (firstShift.session === session) return false; 
                 if (firstShift._positionName !== roleName) return false; 
             } else if (dualPref === 2) {
                 if (firstShift.session === session) return false; 
                 if (firstShift._positionName === roleName) return false; 
-            } else if (dualPref === null || dualPref === undefined || dualPref === '') {
-                // 如果是 null (預設)，不允許跨堂兼任，但放行進入後續的同堂兼任判定
-                if (firstShift.session !== session) return false; 
+            } else {
+                // 【預設 (null)】：允許同日同堂兼任特定崗位
+                if (firstShift.session !== session) return false; // null 不允許跨堂
+                
+                // 嚴格檢驗是否符合「同日同堂可兼任崗位清單」
+                const concurrentRoles = ['接待', '收奉獻', '主餐', '新朋友關懷'];
+                if (!concurrentRoles.includes(roleName)) return false;
+                if (!concurrentRoles.includes(firstShift._positionName)) return false;
+                if (firstShift._positionName === roleName) return false; // 同堂不可排兩個相同崗位
             }
         }
 
-        // null (預設) 的同堂兼任判定：領袖崗位不兼任
-        if (dualPref === null || dualPref === undefined || dualPref === '') {
-            const leaderRoles = ['司會', 'PPT'];
-            if (leaderRoles.includes(roleName) && dayShifts.length > 0) return false;
-            if (dayRoles.some(r => leaderRoles.includes(r))) return false;
-        }
-
         if (dayShifts.length === 0) {
-            // 0 與 null 皆須遵守指定的偏好堂別
-            if ((dualPref === 0 || dualPref === null || dualPref === undefined || dualPref === '') && m.preferred_session && m.preferred_session !== '皆可') {
+            const rawPref = m.dual_service_pref;
+            const dualPref = (rawPref === null || rawPref === undefined || rawPref === '') ? null : parseInt(rawPref);
+            if ((dualPref === 0 || dualPref === null) && m.preferred_session && m.preferred_session !== '皆可') {
                 const prefStr = String(m.preferred_session);
                 if (!prefStr.includes(session.replace('堂', ''))) return false;
             }
@@ -281,7 +289,7 @@ const ScheduleEngine = {
       const avgUsage = activeMembers.length > 0 ? activeMembers.reduce((sum, m) => sum + (state.totalUsage[m.id] || 0), 0) / activeMembers.length : 0;
 
       const dualMembers = members.filter(m => {
-          const p = parseInt(m.dual_service_pref) || 0;
+          const p = parseInt(m.dual_service_pref);
           if (p !== 1 && p !== 2) return false;
           if ((context.dailyAssignments[m.id] || []).length > 0) return false;
           if (state.lastServedWeek[m.id] === context.weekIndex - 1) return false;
@@ -419,7 +427,7 @@ const ScheduleEngine = {
   },
 
   _immediateFOFill(baseMember, state, context, members) {
-      const pref = parseInt(baseMember.dual_service_pref) || 0;
+      const pref = parseInt(baseMember.dual_service_pref);
       if (pref !== 1 && pref !== 2) return;
 
       const dayShifts = state.draft.filter(d => d.service_date === context.dateStr && d.member_id === baseMember.id);
