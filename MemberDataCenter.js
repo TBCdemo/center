@@ -412,7 +412,9 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
     };
 
     let displayMembers = members.filter(m => {
-        if (m.name === 'SYSTEM_CUSTOM_HOLIDAYS_DB' || m.name === 'SYSTEM_SCHEDULE_ARCHIVE') return false;
+        // 使用 startsWith 來隱藏所有以 SYSTEM_ 開頭的同工卡片
+        if (m.name && m.name.startsWith('SYSTEM_')) return false;
+    
         if (!isAdmin) {
             const memberEmail = m.email ? m.email.trim() : '';
             if (memberEmail !== currentUserAccount && memberEmail !== currentUserEmail) return false;
