@@ -512,16 +512,16 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                             <Users className="text-indigo-600" size={28}/> 同工資料中心
                         </h2>
                     </div>
-                    <div className="flex items-center gap-3 overflow-x-auto w-full md:w-auto no-scrollbar pb-1 md:pb-0">
+                   <div className="flex items-center gap-3 overflow-x-auto w-full md:w-auto no-scrollbar pb-1 md:pb-0">
                         
-                        {/* 放大字體切換按鈕 */}
-                        <button 
-                            onClick={() => setIsLargeFont(!isLargeFont)} 
-                            className={`whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm border ${isLargeFont ? 'bg-indigo-100 text-indigo-700 border-indigo-300 hover:bg-indigo-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
-                        >
-                            <span className="font-bold text-sm">Aa</span> {isLargeFont ? '標準字體' : '放大字體'}
-                        </button>
+                        {/* 1. 狀態顯示 (Open Now / View Only) 移至前方 */}
+                        {!isAdmin && (
+                            <div className={`whitespace-nowrap text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5 border shadow-sm ${isSubmissionOpen ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
+                                {isSubmissionOpen ? `🟢 Open Now` : `🔴 View Only`}
+                            </div>
+                        )}
 
+                        {/* Admin 季度選單 */}
                         {isAdmin && (
                             <div className="flex items-center bg-slate-50 rounded-lg px-2 py-1.5 border border-slate-200">
                                 <select value={viewQuarter} onChange={(e) => setViewQuarter(e.target.value)} className="bg-transparent border-none font-medium text-indigo-600 text-sm outline-none cursor-pointer">
@@ -530,12 +530,15 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                             </div>
                         )}
 
-                        {!isAdmin && (
-                            <div className={`whitespace-nowrap text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5 border shadow-sm ${isSubmissionOpen ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
-                                {isSubmissionOpen ? `🟢 Open Now` : `🔴 View Only`}
-                            </div>
-                        )}
+                        {/* 2. 放大字體切換按鈕 移至狀態後方 */}
+                        <button 
+                            onClick={() => setIsLargeFont(!isLargeFont)} 
+                            className={`whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm border ${isLargeFont ? 'bg-indigo-100 text-indigo-700 border-indigo-300 hover:bg-indigo-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                        >
+                            <span className="font-bold text-sm">Aa</span> {isLargeFont ? '標準' : '較大'}
+                        </button>
 
+                        {/* 這裡保留原本 isAdmin 的其他按鈕 (新增/刪除/儲存/節日提醒...) */}
                         {isAdmin && (
                             <>
                                 <button onClick={openCreateQuarterModal} className="whitespace-nowrap flex items-center gap-1.5 bg-amber-50 text-amber-600 hover:bg-amber-100 text-xs font-medium px-3 py-1.5 rounded-lg transition-all"><Copy size={14} /> 新增</button>
