@@ -23,6 +23,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
     const isAdmin = currentUserAccount === ADMIN_ACCOUNT || currentUserEmail === ADMIN_ACCOUNT;
 
     const [isSubmissionOpen, setIsSubmissionOpen] = useState(false);
+    const [isLargeFont, setIsLargeFont] = useState(false); // 控制字體大小的 state
 
     const [quarterOptions, setQuarterOptions] = useState(['BASE', ...generateBaseQuarters()]);
     const initialQuarter = isAdmin ? getCurrentQuarter() : getNextQuarter(getCurrentQuarter());
@@ -412,7 +413,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
     };
 
     let displayMembers = members.filter(m => {
-        // 使用 startsWith 來隱藏所有以 SYSTEM_ 開頭的同工卡片
         if (m.name && m.name.startsWith('SYSTEM_')) return false;
     
         if (!isAdmin) {
@@ -421,34 +421,28 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
         }
         const term = searchTerm.toLowerCase();
         
-        // 1. 搜尋姓名與群組
         if (m.name.toLowerCase().includes(term)) return true;
         if (m.group_id && m.group_id.toLowerCase().includes(term)) return true;
         
-        // 2. 搜尋服事崗位
         const hasMatchingPosition = memberPositions.filter(mp => mp.member_id === m.id).some(mp => {
             const p = positions.find(pos => pos.id === mp.position_id);
             return p && p.name.toLowerCase().includes(term);
         });
         if (hasMatchingPosition) return true;
         
-        // 3. 搜尋狀態、堂別與兼任設定
         const settings = quarterSettings.find(s => s.member_id === m.id);
         if (settings) {
             if (settings.preferred_session && settings.preferred_session.toLowerCase().includes(term)) return true;
             if (settings.availability_status && settings.availability_status.toLowerCase().includes(term)) return true;
             
-            // --- 新增：崗位兼任狀態搜尋 ---
             let dualPrefText = '預設兼任 開啟兼任'; 
             if (settings.dual_service_pref === 0) dualPrefText = '關閉兼任';
             if (settings.dual_service_pref === 1) dualPrefText = '二堂同崗';
             if (settings.dual_service_pref === 2) dualPrefText = '二堂異崗';
             
             if (dualPrefText.includes(term)) return true;
-            // -----------------------------
         }
         
-        // 4. 搜尋暫停狀態
         if (term.includes('暫停')) {
             const hasSuspendedPosition = memberPositions.filter(mp => mp.member_id === m.id).some(mp => mp.is_active === false);
             if (hasSuspendedPosition) return true;
@@ -519,6 +513,15 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                         </h2>
                     </div>
                     <div className="flex items-center gap-3 overflow-x-auto w-full md:w-auto no-scrollbar pb-1 md:pb-0">
+                        
+                        {/* 放大字體切換按鈕 */}
+                        <button 
+                            onClick={() => setIsLargeFont(!isLargeFont)} 
+                            className={`whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm border ${isLargeFont ? 'bg-indigo-100 text-indigo-700 border-indigo-300 hover:bg-indigo-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                        >
+                            <span className="font-bold text-sm">Aa</span> {isLargeFont ? '標準字體' : '放大字體'}
+                        </button>
+
                         {isAdmin && (
                             <div className="flex items-center bg-slate-50 rounded-lg px-2 py-1.5 border border-slate-200">
                                 <select value={viewQuarter} onChange={(e) => setViewQuarter(e.target.value)} className="bg-transparent border-none font-medium text-indigo-600 text-sm outline-none cursor-pointer">
@@ -576,15 +579,14 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                     <div key={member.id} className="bg-white rounded-xl p-4 sm:p-6 shadow-soft border border-slate-100 hover:shadow-hover-soft hover:-translate-y-1 transition-all duration-200 relative group">
                                         <div className="flex justify-between items-start mb-3">
                                             <div>
-                                                <h3 className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2 flex-wrap leading-tight">
+                                                <h3 className={`${isLargeFont ? 'text-2xl sm:text-3xl' : 'text-xl sm:text-2xl'} font-bold text-slate-900 flex items-center gap-2 flex-wrap leading-tight`}>
                                                     {member.name}
-                                                    {isAdmin && settings.dual_service_pref === 0 && <span className="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded border border-red-100 font-normal">關閉兼任</span>}
-                                                    {isAdmin && settings.dual_service_pref === 1 && <span className="text-[10px] bg-violet-50 text-violet-600 px-2 py-0.5 rounded border border-violet-100 font-normal">二堂同崗</span>}
-                                                    {isAdmin && settings.dual_service_pref === 2 && <span className="text-[10px] bg-violet-50 text-violet-600 px-2 py-0.5 rounded border border-violet-100 font-normal">二堂異崗</span>}
-                                                    
-                                                    {isAdmin && member.group_id && <span className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded border border-indigo-100 font-normal">{member.group_id}</span>}
+                                                    {isAdmin && settings.dual_service_pref === 0 && <span className={`${isLargeFont ? 'text-xs px-2.5 py-1' : 'text-[10px] px-2 py-0.5'} bg-red-50 text-red-600 rounded border border-red-100 font-normal`}>關閉兼任</span>}
+                                                    {isAdmin && settings.dual_service_pref === 1 && <span className={`${isLargeFont ? 'text-xs px-2.5 py-1' : 'text-[10px] px-2 py-0.5'} bg-violet-50 text-violet-600 rounded border border-violet-100 font-normal`}>二堂同崗</span>}
+                                                    {isAdmin && settings.dual_service_pref === 2 && <span className={`${isLargeFont ? 'text-xs px-2.5 py-1' : 'text-[10px] px-2 py-0.5'} bg-violet-50 text-violet-600 rounded border border-violet-100 font-normal`}>二堂異崗</span>}
+                                                    {isAdmin && member.group_id && <span className={`${isLargeFont ? 'text-xs px-2.5 py-1' : 'text-[10px] px-2 py-0.5'} bg-indigo-50 text-indigo-600 rounded border border-indigo-100 font-normal`}>{member.group_id}</span>}
                                                 </h3>
-                                                <div className="flex items-center flex-wrap gap-1.5 text-xs font-normal mt-2">
+                                                <div className={`flex items-center flex-wrap gap-1.5 ${isLargeFont ? 'text-sm' : 'text-xs'} font-normal mt-3`}>
                                                     <span className={`px-2 py-0.5 rounded-full ${settings.availability_status === '穩定服事' ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
                                                         {settings.availability_status}
                                                     </span>
@@ -597,29 +599,29 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                                 {isAdmin && <button onClick={() => handleDelete(member.id, member.name)} className="p-2.5 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-lg transition-colors"><Trash2 size={16}/></button>}
                                             </div>
                                         </div>
-                                        <div className="space-y-2.5">
+                                        <div className="space-y-3">
                                             <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                                                <p className="text-[10px] font-medium text-slate-400 mb-1.5 flex items-center gap-1"><ShieldCheck size={12}/> 服事崗位 ({ownedPosList.length})</p>
-                                                <div className="flex flex-wrap gap-1.5">
+                                                <p className={`${isLargeFont ? 'text-base' : 'text-sm'} font-medium text-slate-700 mb-2 flex items-center gap-1.5`}><ShieldCheck size={isLargeFont ? 16 : 12}/> 服事崗位 ({ownedPosList.length})</p>
+                                                <div className="flex flex-wrap gap-2">
                                                     {ownedPosList.length > 0 ? ownedPosList.map(p => (
-                                                        <span key={p.name} className={`text-xs font-normal px-2 py-1 rounded-md border flex items-center gap-1 ${p.isActive ? 'bg-white border-slate-200 text-slate-700 shadow-sm' : 'bg-slate-100 border-slate-200 border-dashed text-slate-400'}`}>
+                                                        <span key={p.name} className={`${isLargeFont ? 'text-base px-3 py-2' : 'text-sm px-2.5 py-1.5'} font-medium rounded-lg border flex items-center gap-1.5 ${p.isActive ? 'bg-white border-slate-200 text-slate-700 shadow-sm' : 'bg-slate-100 border-slate-200 border-dashed text-slate-400'}`}>
                                                             {p.name} 
-                                                            {isAdmin && !p.isActive && <span className="text-[10px] bg-slate-200 text-slate-500 px-1 rounded">暫停</span>}
+                                                            {isAdmin && !p.isActive && <span className={`${isLargeFont ? 'text-xs px-1.5' : 'text-[10px] px-1'} bg-slate-200 text-slate-500 rounded`}>暫停</span>}
                                                             {isAdmin && (p.name.includes('新朋友') && settings.newcomer_rule > 0) && (
-                                                                <span className="text-[10px] text-indigo-500 ml-0.5">
+                                                                <span className={`${isLargeFont ? 'text-xs' : 'text-[10px]'} text-indigo-500 ml-0.5`}>
                                                                     {settings.newcomer_rule === 1 ? "(主責)" : settings.newcomer_rule === 2 ? "(禁排)" : "(主責+禁排)"}
                                                                 </span>
                                                             )}
                                                         </span>
-                                                    )) : <span className="text-xs text-slate-400">尚未設定</span>}
+                                                    )) : <span className={`${isLargeFont ? 'text-sm' : 'text-xs'} text-slate-400`}>尚未設定</span>}
                                                 </div>
                                             </div>
                                             {(settings.unavailable_dates && settings.unavailable_dates.length > 0) && (
                                                 <div className="bg-orange-50/60 p-3 rounded-lg border border-orange-100">
-                                                    <p className="text-[10px] font-medium text-orange-400 mb-1.5 flex items-center gap-1"><CalendarX size={12}/> 不可排班日 ({settings.unavailable_dates.length})</p>
-                                                    <div className="flex flex-wrap gap-1.5">
+                                                    <p className={`${isLargeFont ? 'text-base' : 'text-sm'} font-medium text-orange-500 mb-2 flex items-center gap-1.5`}><CalendarX size={isLargeFont ? 16 : 12}/> 不可排班日 ({settings.unavailable_dates.length})</p>
+                                                    <div className="flex flex-wrap gap-2">
                                                         {settings.unavailable_dates.map(d => (
-                                                            <span key={d} className="text-[11px] font-normal bg-white text-orange-600 px-2 py-0.5 rounded border border-orange-200 shadow-sm">{d.split('-').slice(1).join('/')}</span>
+                                                            <span key={d} className={`${isLargeFont ? 'text-base px-4 py-1.5' : 'text-sm px-3 py-1'} font-medium bg-white text-orange-600 rounded-md border border-orange-200 shadow-sm`}>{d.split('-').slice(1).join('/')}</span>
                                                         ))}
                                                     </div>
                                                 </div>
