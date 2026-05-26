@@ -83,14 +83,15 @@
     <script type="text/babel" data-type="module">
         import React, { useState, useEffect } from 'react';
         import { createRoot } from 'react-dom/client';
-        import { Activity, LogOut, AlertCircle, User, Lock, Users, Calendar, ArrowRight, ShieldCheck } from 'lucide-react';
+        import { Activity, LogOut, AlertCircle, User, Lock, Users, Calendar, ArrowRight, ShieldCheck, Eye, EyeOff } from 'lucide-react';
         import { createClient } from '@supabase/supabase-js';
 
         // ==========================================
         // 初始化連線與共用常數
         // ==========================================
-        const SUPABASE_URL = "https://iwmkzsredvbgcqvqlayn.supabase.co";
-        const SUPABASE_KEY = "sb_publishable_GwDMLoXcHaTzQDCcQlDuGw_4J9mwiaA"; 
+        // ⚠️ 請填入你的專案 URL 和金鑰
+        const SUPABASE_URL = "https://jtjgqrqbewbgxscytkod.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_TcixlGOMSLBSZNoMNOp6Ng_B-N4Tw1K"; 
         const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
         const constants = {
@@ -187,7 +188,7 @@
         );
 
         // ==========================================
-        // 登入元件 AuthScreen (包含獨立滾動視窗)
+        // 登入元件 AuthScreen
         // ==========================================
         const AuthScreen = () => {
             const [account, setAccount] = useState('');
@@ -197,6 +198,8 @@
             const [loading, setLoading] = useState(false);
             const [isSignUp, setIsSignUp] = useState(false);
             const [errorMsg, setErrorMsg] = useState('');
+            const [showPassword, setShowPassword] = useState(false);
+            const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
             const SECRET_INVITE_CODE = "HAPPY";
 
@@ -210,56 +213,79 @@
                 try {
                     if (isSignUp) {
                         // ==========================================
-                        // 1. 註冊邏輯
+                        // 1. 註冊邏輯：前置防呆
                         // ==========================================
                         if (password !== confirmPassword) throw new Error('兩次輸入的密碼不同');
                         if (inviteCode !== SECRET_INVITE_CODE) throw new Error('邀請碼錯誤');
 
+                        // ==========================================
+                        // 2. 註冊邏輯：白名單機制檢查
+                        // ==========================================
+                        // 呼叫我們在 Supabase 建立的 Security Definer 函數
+                        const { data: isMember, error: checkError } = await supabase.rpc('check_member_exists', { 
+                            p_account: account 
+                        });
+
+                        if (checkError) {
+                            console.error("白名單檢查失敗:", checkError);
+                            throw new Error('系統連線異常，無法驗證您的身分，請稍後再試');
+                        }
+
+                        if (!isMember) {
+                            // 如果回傳 false，代表同工名單中沒有這個帳號/電話
+                            throw new Error('查無帳號！再試一次，或聯絡行政辦公室。');
+                        }
+
+                        // ==========================================
+                        // 3. 通過檢查，正式寫入 Auth 系統
+                        // ==========================================
                         const { data, error } = await supabase.auth.signUp({ email: loginEmail, password });
                         
-                        // 【終極防線】偵測 Supabase 是否在「假裝註冊成功」
+                        // 【防呆】偵測 Supabase 是否在「假裝註冊成功」
                         const isFakeSuccess = data?.user && data.user.identities && data.user.identities.length === 0;
                         const isCompletelyNull = !error && (!data || !data.user);
                         
                         if (isFakeSuccess || isCompletelyNull) {
-                            throw new Error('User already registered');
+                            throw new Error('User already registered'); // 丟給 catch 區塊翻譯
                         }
 
                         if (error) throw error;
                         
-                        alert('註冊成功');
+                        // 註冊成功，自動切換回登入畫面並提示
+                        alert('註冊成功！');
                         setIsSignUp(false);
                         setInviteCode('');
                         setConfirmPassword('');
+                        setShowPassword(false);
+                        setShowConfirmPassword(false);
                         
                     } else {
                         // ==========================================
-                        // 2. 登入邏輯
+                        // 一般登入邏輯
                         // ==========================================
                         const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
                         if (error) throw error;
                     }
                 } catch (error) {
                     // ==========================================
-                    // 3. 錯誤訊息轉換
+                    // 錯誤訊息轉換
                     // ==========================================
                     let msg = error.message;
                     if (msg.includes('Invalid login credentials')) msg = '登入失敗：帳號或密碼錯誤';
-                    if (msg.includes('User already registered')) msg = 'Oops！帳號已註冊，忘記密碼請聯絡行政辦公室';
-                    if (msg.includes('Password should be at least')) msg = '密碼長度至少6個字元';
+                    if (msg.includes('User already registered')) msg = 'Oops！帳號已註冊';
+                    if (msg.includes('Password should be at least')) msg = '密碼長度至少需6個字元';
                     if (msg.includes('邀請碼錯誤')) msg = error.message; 
                     if (msg.includes('兩次輸入的密碼不同')) msg = error.message; 
+                    if (msg.includes('查無帳號')) msg = error.message; 
                     setErrorMsg(msg);
                 } finally {
                     setLoading(false);
                 }
             };
 
-            // 採用 fixed inset-0 與 overflow-y-auto 建立獨立的滾動容器
             return (
                 <div className="fixed inset-0 bg-slate-50 overflow-y-auto custom-scrollbar">
                     <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 py-8 relative">
-                        {/* 背景特效使用 fixed 固定，避免隨著滾動而變形 */}
                         <div className="fixed top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-indigo-600/10 blur-[120px] pointer-events-none"></div>
                         <div className="fixed bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-violet-600/10 blur-[120px] pointer-events-none"></div>
 
@@ -288,7 +314,21 @@
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">密碼</label>
                                     <div className="relative">
                                         <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                                        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all font-semibold text-slate-700" placeholder="6位以上英數組合" required />
+                                        <input 
+                                            type={showPassword ? "text" : "password"} 
+                                            value={password} 
+                                            onChange={(e) => setPassword(e.target.value)} 
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-11 py-3.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all font-semibold text-slate-700" 
+                                            placeholder="6位以上英數組合" 
+                                            required 
+                                        />
+                                        <button 
+                                            type="button" 
+                                            onClick={() => setShowPassword(!showPassword)} 
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition-colors focus:outline-none"
+                                        >
+                                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                        </button>
                                     </div>
                                 </div>
 
@@ -297,7 +337,21 @@
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">確認密碼 <span className="text-red-500">*</span></label>
                                         <div className="relative">
                                             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                                            <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all font-semibold text-slate-700" placeholder="再次輸入密碼" required={isSignUp} />
+                                            <input 
+                                                type={showConfirmPassword ? "text" : "password"} 
+                                                value={confirmPassword} 
+                                                onChange={(e) => setConfirmPassword(e.target.value)} 
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-11 py-3.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all font-semibold text-slate-700" 
+                                                placeholder="再次輸入密碼" 
+                                                required={isSignUp} 
+                                            />
+                                            <button 
+                                                type="button" 
+                                                onClick={() => setShowConfirmPassword(!showConfirmPassword)} 
+                                                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition-colors focus:outline-none"
+                                            >
+                                                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                            </button>
                                         </div>
                                     </div>
                                 )}
@@ -315,7 +369,7 @@
                                 {isSignUp && (
                                     <div className="bg-amber-50 text-amber-700 text-xs font-bold p-3 rounded-xl border border-amber-100 flex items-start gap-2 leading-relaxed mt-2">
                                         <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                                        請聯絡行政辦公室，索取邀請碼，再進行註冊。
+                                        聯絡行政辦公室，確認已建立帳號並索取邀請碼。
                                     </div>
                                 )}
 
@@ -327,15 +381,14 @@
                             <div className="mt-6 flex flex-col gap-4 text-center">
                                 {isSignUp ? (
                                     <div className="text-sm font-medium text-slate-500">
-                                        已經有帳號？ <button type="button" onClick={() => { setIsSignUp(false); setErrorMsg(''); setConfirmPassword(''); setInviteCode(''); }} className="font-bold text-indigo-600 hover:text-indigo-700 transition-colors py-1">登入</button>
+                                        已有帳號？ <button type="button" onClick={() => { setIsSignUp(false); setErrorMsg(''); setConfirmPassword(''); setInviteCode(''); setShowPassword(false); setShowConfirmPassword(false); }} className="font-bold text-indigo-600 hover:text-indigo-700 transition-colors py-1">登入</button>
                                     </div>
                                 ) : (
                                     <div className="text-sm font-medium text-slate-500">
-                                        沒有帳號嗎？ <button type="button" onClick={() => { setIsSignUp(true); setErrorMsg(''); setConfirmPassword(''); setInviteCode(''); }} className="font-bold text-indigo-600 hover:text-indigo-700 transition-colors py-1">建立一個吧！</button>
+                                        沒有帳號？ <button type="button" onClick={() => { setIsSignUp(true); setErrorMsg(''); setConfirmPassword(''); setInviteCode(''); setShowPassword(false); setShowConfirmPassword(false); }} className="font-bold text-indigo-600 hover:text-indigo-700 transition-colors py-1">建立一個吧！</button>
                                     </div>
                                 )}
                                 
-                                {/* 僅在登入畫面 (!isSignUp) 時顯示忘記密碼提示 */}
                                 {!isSignUp && (
                                     <div className="text-xs font-medium text-slate-400 pt-4 border-t border-slate-100/80">
                                         忘記密碼？請聯絡行政辦公室
@@ -356,19 +409,16 @@
             const currentUserAccount = extractAccountFromEmail(currentUserEmail);
             const isAdmin = currentUserAccount === constants.ADMIN_ACCOUNT || currentUserEmail === constants.ADMIN_ACCOUNT;
 
-            // 一般同工強制進入 'members' 畫面，管理員進入 'home'
             const [currentApp, setCurrentApp] = useState(isAdmin ? 'home' : 'members'); 
 
             const handleLogout = async () => { await supabase.auth.signOut(); window.location.reload(); };
 
-            // 路由守衛：如果不是管理員且想離開 members 畫面，強制導回
             useEffect(() => {
                 if (!isAdmin && currentApp !== 'members') {
                     setCurrentApp('members');
                 }
             }, [currentApp, isAdmin]);
 
-            // 管理員的首頁畫面
             if (currentApp === 'home' && isAdmin) {
                 return (
                     <div className="min-h-screen bg-slate-50 flex flex-col relative overflow-hidden">
@@ -406,7 +456,6 @@
                 );
             }
 
-            // 動態從 window 取得拆分後的 React 元件
             const MemberDataCenterComp = window.MemberDataCenter;
             const SchedulingAndGovernanceComp = window.SchedulingAndGovernance;
 
@@ -417,7 +466,6 @@
                             MemberDataCenterComp 
                                 ? <MemberDataCenterComp 
                                     session={session} 
-                                    // 若不是管理員，點擊「返回」實為「登出」
                                     goBack={isAdmin ? () => setCurrentApp('home') : handleLogout} 
                                     goToSchedule={() => setCurrentApp('scheduling')} 
                                     supabase={supabase} 
