@@ -92,7 +92,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
 
     const effectiveMembers = useMemo(() => {
         return dbData.members
-            // 透過 startsWith 一次性排除所有系統保留帳號
             .filter(m => m.name && !m.name.startsWith('SYSTEM_'))
             .map(m => {
                 const qs = dbData.memberQuarterSettings.find(s => s.member_id === m.id && s.quarter === currentQuarterStr);
@@ -291,9 +290,8 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
     };
 
     const requestSubstitute = (newMember) => {
-        const sessionText = activeSlot._positionName === '執事輪值' ? '第一堂、第二堂' : activeSlot.session;
         const cDate = activeSlot.service_date.replace(/-/g,'/');
-        const cRole = `${sessionText}‧${activeSlot._positionName}`;
+        const cRole = activeSlot._positionName === '執事輪值' ? activeSlot._positionName : `${activeSlot.session}‧${activeSlot._positionName}`;
         setConfirmDialog({
             isOpen: true, title: '執行替補', currentName: activeSlot._memberName, currentDate: cDate, currentRole: cRole,
             newName: newMember.name, newDate: cDate, newRole: cRole, type: 'substitute',
@@ -302,12 +300,12 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
     };
 
     const requestSwap = (newMember, targetShift) => {
-        const sessionText = activeSlot._positionName === '執事輪值' ? '第一堂、第二堂' : activeSlot.session;
         const cDate = activeSlot.service_date.replace(/-/g,'/');
-        const cRole = `${sessionText}‧${activeSlot._positionName}`;
-        const targetSessionText = targetShift._positionName === '執事輪值' ? '第一堂、第二堂' : targetShift.session;
+        const cRole = activeSlot._positionName === '執事輪值' ? activeSlot._positionName : `${activeSlot.session}‧${activeSlot._positionName}`;
+        
         const nDate = targetShift.service_date.replace(/-/g,'/');
-        const nRole = `${targetSessionText}‧${targetShift._positionName}`;
+        const nRole = targetShift._positionName === '執事輪值' ? targetShift._positionName : `${targetShift.session}‧${targetShift._positionName}`;
+        
         setConfirmDialog({
             isOpen: true, title: '執行換班', currentName: activeSlot._memberName, currentDate: cDate, currentRole: cRole,
             newName: newMember.name, newDate: nDate, newRole: nRole, type: 'swap',
@@ -686,16 +684,33 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
         if (!activeSlot) return null;
         return (
             <div className="w-full lg:w-[400px] xl:w-[450px] shrink-0 bg-white border-l border-slate-200 overflow-hidden h-full flex flex-col shadow-soft z-20 animate-panel-right relative">
-                <div className="bg-slate-900 p-6 rounded-b-[1.5rem] shadow-sm border-b border-slate-800 relative z-20 shrink-0 overflow-hidden">
+                <div className="bg-slate-900 px-5 py-4 rounded-b-[1.25rem] shadow-sm border-b border-slate-800 relative z-20 shrink-0 overflow-hidden">
                     <div className="absolute top-[-20%] right-[-10%] w-40 h-40 rounded-full bg-violet-600/30 blur-3xl pointer-events-none"></div>
-                    <button onClick={() => { setActiveSlot(null); setSearchTerm(''); }} className="absolute right-5 top-5 p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-300 hover:text-white"><X size={20}/></button>
-                    <h3 className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-3 mt-1 relative z-10">幫此服事找合適人選：</h3>
-                    <div className="flex items-start gap-3 relative z-10">
-                        <div className={`p-3 rounded-xl ${activeSlot.is_empty ? 'bg-rose-500/20 text-rose-300' : 'bg-white/10 text-indigo-300'}`}><Calendar size={24} /></div>
-                        <div className="flex flex-col gap-1.5">
-                            <p className="text-xl font-bold text-white">{activeSlot.service_date}</p>
-                            <div className="flex items-center gap-2 flex-wrap"><span className={`px-3 py-1 rounded-lg text-lg font-semibold tracking-wide ${activeSlot.is_empty ? 'bg-rose-500 text-white animate-pulse shadow-[0_0_15px_rgba(244,63,94,0.5)]' : 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white'}`}>{activeSlot._memberName}</span></div>
-                            <div className="flex items-center gap-1.5 text-xs font-normal text-slate-400 flex-wrap mt-1"><span className="bg-white/10 px-1.5 py-0.5 rounded text-slate-300">{activeSlot._positionName}</span><span>•</span><span>{activeSlot._positionName === '執事輪值' ? '第一堂、第二堂' : activeSlot.session}</span>{!activeSlot.is_empty && (<><span>•</span><span>本季服事 {currentUsageCount[activeSlot.member_id] || 0} 次</span></>)}</div>
+                    <button onClick={() => { setActiveSlot(null); setSearchTerm(''); }} className="absolute right-4 top-4 z-50 p-1.5 rounded-lg text-slate-300 transition-colors duration-75 hover:bg-white/20 hover:text-white cursor-pointer active:scale-95"><X size={18}/></button>
+                    
+                    {/* 修改：整個左側間距微調，從 gap-3 縮小為 gap-2.5 以適應更小的字體 */}
+                    <div className="flex items-center gap-2.5 relative z-10 pr-6">
+                        
+                        {/* 修改：Icon 外框縮小為 p-2，Calendar 尺寸縮小為 18 */}
+                        <div className={`p-2 rounded-lg shrink-0 ${activeSlot.is_empty ? 'bg-rose-500/20 text-rose-300' : 'bg-white/10 text-indigo-300'}`}>
+                            <Calendar size={22} />
+                        </div>
+                        
+                        <div className="flex flex-col gap-1 w-full">
+                            
+                            {/* 修改：日期與姓名標籤，統一使用 text-[15px]，間距改為 gap-2 */}
+                            <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-[18px] font-bold text-white leading-none">{activeSlot.service_date}</p>
+                                <span className={`px-3 py-1 rounded-md text-[15px] font-semibold tracking-wide leading-none ${activeSlot.is_empty ? 'bg-rose-500 text-white animate-pulse shadow-[0_0_10px_rgba(244,63,94,0.5)]' : 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white'}`}>{activeSlot._memberName}</span>
+                            </div>
+                            
+                            {/* 下方資訊列維持 text-[13px]，但稍微調小上距為 mt-1 讓排版更緊湊 */}
+                            <div className="flex items-center gap-1.5 text-[13px] font-normal text-slate-400 flex-wrap mt-1">
+                                <span className="bg-white/10 px-1.5 py-0.5 rounded text-slate-300">{activeSlot._positionName}</span>
+                                {activeSlot._positionName !== '執事輪值' && <><span>•</span><span>{activeSlot.session}</span></>}
+                                {!activeSlot.is_empty && (<><span>•</span><span>本季服事 {currentUsageCount[activeSlot.member_id] || 0} 次</span></>)}
+                            </div>
+                            
                         </div>
                     </div>
                 </div>
@@ -731,7 +746,10 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                                             <div className="flex flex-col gap-2">
                                                 {c.swapOptions.map((swap, i) => (
                                                     <div key={i} className="flex items-center justify-between bg-indigo-50/50 text-indigo-800 px-2.5 py-1.5 rounded-lg border border-indigo-100">
-                                                        <div className="text-sm font-bold text-indigo-950">{swap.service_date}<span className="text-slate-600 ml-1">({swap._positionName} • {swap.session})</span></div>
+                                                        <div className="text-sm font-bold text-indigo-950">
+                                                            {swap.service_date}
+                                                            <span className="text-slate-600 ml-1">({swap._positionName}{swap._positionName !== '執事輪值' ? ` • ${swap.session}` : ''})</span>
+                                                        </div>
                                                         <button onClick={() => requestSwap(c, swap)} className="flex items-center gap-1 bg-white text-indigo-600 hover:bg-indigo-600 hover:text-white border border-indigo-200 py-1.5 px-3 rounded-md text-[13px] font-medium transition-colors shadow-sm"><RefreshCw size={14} /> 換班</button>
                                                     </div>
                                                 ))}

@@ -23,8 +23,9 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
     const isAdmin = currentUserAccount === ADMIN_ACCOUNT || currentUserEmail === ADMIN_ACCOUNT;
 
     const [isSubmissionOpen, setIsSubmissionOpen] = useState(false);
-    const [isLargeFont, setIsLargeFont] = useState(false); // 控制字體大小的 state
+    const [isLargeFont, setIsLargeFont] = useState(false); 
 
+    // 修改1：初始只載入 BASE，實際季度由資料庫決定
     const [quarterOptions, setQuarterOptions] = useState(['BASE']);
     const initialQuarter = isAdmin ? getCurrentQuarter() : getNextQuarter(getCurrentQuarter());
     const [viewQuarter, setViewQuarter] = useState(initialQuarter); 
@@ -110,16 +111,12 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             setCustomHolidays(parsedHolidays);
 
             if (allSettingsQs) {
-    // 1. 取出資料庫實際存在的季度
-    const dbQuarters = allSettingsQs.map(d => d.quarter).filter(q => q !== 'SYSTEM' && q !== 'BASE');
-    
-    // 2. 保留當前檢視的 viewQuarter，避免 <select> 找不到預設選項而顯示空白
-    const viewQFiltered = viewQuarter === 'BASE' ? [] : [viewQuarter];
-    
-    // 3. 移除預設生成的 generateBaseQuarters()，只依賴真實資料與當前檢視項
-    const combinedQs = [...new Set([...dbQuarters, ...viewQFiltered])].sort();
-    setQuarterOptions(['BASE', ...combinedQs]);
-}
+                // 修改1：過濾資料庫中實際季度
+                const dbQuarters = allSettingsQs.map(d => d.quarter).filter(q => q !== 'SYSTEM' && q !== 'BASE');
+                const viewQFiltered = viewQuarter === 'BASE' ? [] : [viewQuarter];
+                const combinedQs = [...new Set([...dbQuarters, ...viewQFiltered])].sort();
+                setQuarterOptions(['BASE', ...combinedQs]);
+            }
         } catch (err) { showMessage('error', '載入資料失敗，請確認連線。'); } finally { setIsLoading(false); }
     };
 
@@ -211,7 +208,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                 if (insErr2) throw new Error("寫入資格失敗: " + insErr2.message);
             }
             
-            const targetName = targetQ === 'BASE' ? '同工資料（基礎版）' : targetQ.replace('-', '');
+            const targetName = targetQ === 'BASE' ? '基礎版' : targetQ.replace('-', '');
             showMessage('success', `${targetName} 新增完成`);
             
             if (targetQ !== 'BASE') {
@@ -231,7 +228,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
     const triggerSaveToBase = () => {
         setConfirmAction({
             title: '儲存同工資料基礎版',
-            message: `將【${viewQuarter.replace('-', '')}】覆寫至「同工資料（基礎版）」？`,
+            message: `將【${viewQuarter.replace('-', '')}】覆寫至「基礎版」？`,
             confirmText: '儲存',
             onConfirm: () => {
                 setConfirmAction(null);
@@ -272,12 +269,13 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
         } catch (err) { showMessage('error', '刪除失敗: ' + err.message); } finally { setIsLoading(false); }
     };
 
+    // 修改2：確保 dual_service_pref 被重置為空字串（預設狀態）
     const openAddModal = () => { 
-    setEditingMember(null); 
-    setFormData({ ...DEFAULT_MEMBER, dual_service_pref: '' }); 
-    setFormPositions({}); 
-    setIsModalOpen(true); 
-};
+        setEditingMember(null); 
+        setFormData({ ...DEFAULT_MEMBER, dual_service_pref: '' }); 
+        setFormPositions({}); 
+        setIsModalOpen(true); 
+    };
 
     const handleAddCustomHoliday = async () => {
         if (!newHolidayDate || !newHolidayName.trim()) return showMessage('error', '選擇日期，填寫節日提醒內容');
@@ -522,12 +520,27 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                             <Users className="text-indigo-600" size={28}/> 同工資料中心
                         </h2>
                     </div>
-                   <div className="flex items-center gap-3 overflow-x-auto w-full md:w-auto no-scrollbar pb-1 md:pb-0">
+                    <div className="flex items-center gap-3 overflow-x-auto w-full md:w-auto no-scrollbar pb-1 md:pb-0">
                         
-                        {/* 1. 狀態顯示 (Open Now / View Only) 移至前方 */}
+                        {/* 非管理員狀態標籤 */}
                         {!isAdmin && (
-                            <div className={`whitespace-nowrap text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5 border shadow-sm ${isSubmissionOpen ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
-                                {isSubmissionOpen ? `🟢 Open Now` : `🔴 View Only`}
+                            <div className="flex items-center bg-slate-50 p-1.5 rounded-lg border border-slate-200 shadow-sm shrink-0">
+                                <div className={`h-8 px-4 rounded-md text-xs font-medium whitespace-nowrap flex items-center gap-2 shadow-sm bg-white ${isSubmissionOpen ? 'text-emerald-600' : 'text-red-600'}`}>
+                                    {isSubmissionOpen ? (
+                                        <>
+                                            <span className="relative flex h-2.5 w-2.5">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                                            </span>
+                                            Open Now
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                                            View Only
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         )}
 
@@ -535,34 +548,61 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                         {isAdmin && (
                             <div className="flex items-center bg-slate-50 rounded-lg px-2 py-1.5 border border-slate-200">
                                 <select value={viewQuarter} onChange={(e) => setViewQuarter(e.target.value)} className="bg-transparent border-none font-medium text-indigo-600 text-sm outline-none cursor-pointer">
-                                    {quarterOptions.map(q => <option key={q} value={q}>{q === 'BASE' ? '同工資料（基礎版）' : q.replace('-', '')}</option>)}
+                                    {quarterOptions.map(q => <option key={q} value={q}>{q === 'BASE' ? '基礎版' : q.replace('-', '')}</option>)}
                                 </select>
                             </div>
                         )}
 
-                        {/* 2. 放大字體切換按鈕 移至狀態後方 */}
-                        <button 
-                            onClick={() => setIsLargeFont(!isLargeFont)} 
-                            className={`whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm border ${isLargeFont ? 'bg-indigo-100 text-indigo-700 border-indigo-300 hover:bg-indigo-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
-                        >
-                            <span className="font-bold text-sm">Aa</span> {isLargeFont ? '標準' : '較大'}
-                        </button>
-
-                        {/* 這裡保留原本 isAdmin 的其他按鈕 (新增/刪除/儲存/節日提醒...) */}
+                        {/* Group 1: 動作按鈕 (新增、刪除、儲存) */}
                         {isAdmin && (
-                            <>
-                                <button onClick={openCreateQuarterModal} className="whitespace-nowrap flex items-center gap-1.5 bg-amber-50 text-amber-600 hover:bg-amber-100 text-xs font-medium px-3 py-1.5 rounded-lg transition-all"><Copy size={14} /> 新增</button>
-                                <button onClick={openDeleteQuarterModal} className="whitespace-nowrap flex items-center gap-1.5 bg-red-50 text-red-600 hover:bg-red-100 text-xs font-medium px-3 py-1.5 rounded-lg transition-all"><Trash2 size={14} /> 刪除</button>
-                                {viewQuarter !== 'BASE' && (
-                                    <button onClick={triggerSaveToBase} className="whitespace-nowrap flex items-center gap-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-xs font-medium px-3 py-1.5 rounded-lg transition-all"><Save size={14} /> 儲存</button>
-                                )}
-                                <button onClick={() => setIsHolidayManagerOpen(true)} className="whitespace-nowrap flex items-center gap-1.5 bg-sky-50 text-sky-600 hover:bg-sky-100 text-xs font-medium px-3 py-1.5 rounded-lg transition-all"><CalendarX size={14} /> 節日提醒</button>
-                                
-                                <button onClick={toggleSubmissionStatus} className={`whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm border ${isSubmissionOpen ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}>
-                                    {isSubmissionOpen ? <><Unlock size={14} /> 開放填寫</> : <><Lock size={14} /> 關閉填寫</>}
+                            <div className="flex items-center bg-slate-50 p-1.5 rounded-lg border border-slate-200 overflow-x-auto custom-scrollbar shadow-sm shrink-0">
+                                <button onClick={openCreateQuarterModal} className="h-8 px-4 rounded-md text-xs font-medium transition-all duration-200 whitespace-nowrap text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 flex items-center gap-1.5">
+                                    <Copy size={14} className="text-slate-500" /> 新增
                                 </button>
-                            </>
+                                
+                                {viewQuarter !== 'BASE' && (
+                                    <>
+                                        <button onClick={openDeleteQuarterModal} className="h-8 px-4 rounded-md text-xs font-medium transition-all duration-200 whitespace-nowrap text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 flex items-center gap-1.5">
+                                            <Trash2 size={14} className="text-slate-500" /> 刪除
+                                        </button>
+                                        <button onClick={triggerSaveToBase} className="h-8 px-4 rounded-md text-xs font-medium transition-all duration-200 whitespace-nowrap text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 flex items-center gap-1.5">
+                                            <Save size={14} className="text-slate-500" /> 儲存
+                                        </button>
+                                    </>
+                                )}
+                            </div>
                         )}
+
+                        {/* Group 2: 狀態切換 (節日提醒、開放填寫) */}
+                        {isAdmin && (
+                            <div className="flex items-center bg-slate-50 p-1.5 rounded-lg border border-slate-200 overflow-x-auto custom-scrollbar shadow-sm shrink-0">
+                                <button 
+                                    onClick={() => setIsHolidayManagerOpen(true)} 
+                                    className="h-8 px-4 rounded-md text-xs font-medium transition-all duration-200 whitespace-nowrap text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 flex items-center gap-1.5"
+                                >
+                                    <CalendarX size={14} className="text-slate-500" /> 節日提醒
+                                </button>
+                                
+                                <div className="w-px h-5 bg-slate-200 mx-2 self-center"></div>
+                                
+                                <button 
+                                    onClick={toggleSubmissionStatus} 
+                                    className={`h-8 px-4 rounded-md text-xs font-medium transition-all duration-200 whitespace-nowrap flex items-center gap-1.5 ${isSubmissionOpen ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
+                                >
+                                    {isSubmissionOpen ? <><Unlock size={14} className="text-emerald-500" /> 開放填寫</> : <><Lock size={14} className="text-slate-500" /> 關閉填寫</>}
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Group 3: Aa 放大獨立按鈕 (保有膠囊外觀) */}
+                        <div className="flex items-center bg-slate-50 p-1.5 rounded-lg border border-slate-200 shadow-sm shrink-0">
+                            <button 
+                                onClick={() => setIsLargeFont(!isLargeFont)} 
+                                className={`h-8 px-4 rounded-md text-xs font-medium transition-all duration-200 whitespace-nowrap flex items-center gap-1.5 ${isLargeFont ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
+                            >
+                                <span className="font-bold text-[14px] leading-none">Aa</span> {isLargeFont ? '標準' : '較大'}
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -594,10 +634,10 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                             <div>
                                                 <h3 className={`${isLargeFont ? 'text-2xl sm:text-3xl' : 'text-xl sm:text-2xl'} font-bold text-slate-900 flex items-center gap-2 flex-wrap leading-tight`}>
                                                     {member.name}
-                                                    {isAdmin && settings.dual_service_pref === 0 && <span className={`${isLargeFont ? 'text-xs px-2.5 py-1' : 'text-[10px] px-2 py-0.5'} bg-red-50 text-red-600 rounded border border-red-100 font-normal`}>關閉兼任</span>}
-                                                    {isAdmin && settings.dual_service_pref === 1 && <span className={`${isLargeFont ? 'text-xs px-2.5 py-1' : 'text-[10px] px-2 py-0.5'} bg-violet-50 text-violet-600 rounded border border-violet-100 font-normal`}>二堂同崗</span>}
-                                                    {isAdmin && settings.dual_service_pref === 2 && <span className={`${isLargeFont ? 'text-xs px-2.5 py-1' : 'text-[10px] px-2 py-0.5'} bg-violet-50 text-violet-600 rounded border border-violet-100 font-normal`}>二堂異崗</span>}
-                                                    {isAdmin && member.group_id && <span className={`${isLargeFont ? 'text-xs px-2.5 py-1' : 'text-[10px] px-2 py-0.5'} bg-indigo-50 text-indigo-600 rounded border border-indigo-100 font-normal`}>{member.group_id}</span>}
+                                                    {isAdmin && settings.dual_service_pref === 0 && <span className={`${isLargeFont ? 'text-xs px-2.5 py-1' : 'text-[10px] px-2 py-0.5'} bg-red-50 text-red-600 rounded border border-red-100 font-bold`}>關閉兼任</span>}
+                                                    {isAdmin && settings.dual_service_pref === 1 && <span className={`${isLargeFont ? 'text-xs px-2.5 py-1' : 'text-[10px] px-2 py-0.5'} bg-violet-50 text-violet-600 rounded border border-violet-100 font-bold`}>二堂同崗</span>}
+                                                    {isAdmin && settings.dual_service_pref === 2 && <span className={`${isLargeFont ? 'text-xs px-2.5 py-1' : 'text-[10px] px-2 py-0.5'} bg-violet-50 text-violet-600 rounded border border-violet-100 font-bold`}>二堂異崗</span>}
+                                                    {isAdmin && member.group_id && <span className={`${isLargeFont ? 'text-xs px-2.5 py-1' : 'text-[10px] px-2 py-0.5'} bg-indigo-50 text-indigo-600 rounded border border-indigo-100 font-bold`}>{member.group_id}</span>}
                                                 </h3>
                                                 <div className={`flex items-center flex-wrap gap-1.5 ${isLargeFont ? 'text-sm' : 'text-xs'} font-normal mt-3`}>
                                                     <span className={`px-2 py-0.5 rounded-full ${settings.availability_status === '穩定服事' ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
@@ -721,7 +761,10 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                 </div>
                                 {isAdmin && (
                                     <div className="space-y-2 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
-                                        <label className="text-xs font-medium text-indigo-600 flex items-center gap-1.5 flex-wrap">     <User size={14}/> 帳號      <span className="text-xs text-indigo-400 font-normal">(忘記密碼需通知「管理員」重設密碼)</span> </label>
+                                        <label className="text-xs font-medium text-indigo-600 flex items-center gap-1.5 flex-wrap">
+                                            <User size={14}/> 帳號 
+                                            <span className="text-xs text-indigo-400 font-normal">(忘記密碼需通知「管理員」重設密碼)</span>
+                                        </label>
                                         <input type="text" value={formData.email ?? ''} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full bg-white border border-indigo-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 transition-all" placeholder="電話號碼或電子郵件" />
                                     </div>
                                 )}
@@ -833,12 +876,12 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
                         <div className="bg-white w-full max-w-sm rounded-2xl shadow-hover-soft flex flex-col overflow-hidden animate-fade-in border border-slate-100">
                             <div className="p-6">
-                                <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2"><Copy size={24} className="text-amber-500"/> 新增季度</h3>
+                                <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2"><Copy size={24} className="text-amber-500"/> 新增季度資料</h3>
                                 <div className="space-y-4">
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-medium text-slate-500">資料來源</label>
                                         <select value={createSourceQ} onChange={e => setCreateSourceQ(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none font-normal text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all">
-                                            {quarterOptions.map(q => <option key={q} value={q}>{q === 'BASE' ? '同工資料（基礎版）' : q.replace('-', '')}</option>)}
+                                            {quarterOptions.map(q => <option key={q} value={q}>{q === 'BASE' ? '基礎版' : q.replace('-', '')}</option>)}
                                         </select>
                                     </div>
                                     <div className="space-y-1.5">
