@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
     Users, Copy, Trash2, CalendarX, Search, X, Edit2, ShieldCheck, 
     Check, Save, CheckCircle2, AlertCircle, UserPlus, User, ChevronLeft,
-    Home, LogOut, Calendar, Lock, Unlock
+    Home, LogOut, Calendar, Lock, Unlock, Menu
 } from 'lucide-react';
 
 const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, constants }) => {
@@ -24,8 +24,8 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
 
     const [isSubmissionOpen, setIsSubmissionOpen] = useState(false);
     const [isLargeFont, setIsLargeFont] = useState(false); 
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // 控制手機版側邊欄
 
-    // 修改1：初始只載入 BASE，實際季度由資料庫決定
     const [quarterOptions, setQuarterOptions] = useState(['BASE']);
     const initialQuarter = isAdmin ? getCurrentQuarter() : getNextQuarter(getCurrentQuarter());
     const [viewQuarter, setViewQuarter] = useState(initialQuarter); 
@@ -111,7 +111,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             setCustomHolidays(parsedHolidays);
 
             if (allSettingsQs) {
-                // 修改1：過濾資料庫中實際季度
                 const dbQuarters = allSettingsQs.map(d => d.quarter).filter(q => q !== 'SYSTEM' && q !== 'BASE');
                 const viewQFiltered = viewQuarter === 'BASE' ? [] : [viewQuarter];
                 const combinedQs = [...new Set([...dbQuarters, ...viewQFiltered])].sort();
@@ -269,7 +268,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
         } catch (err) { showMessage('error', '刪除失敗: ' + err.message); } finally { setIsLoading(false); }
     };
 
-    // 修改2：確保 dual_service_pref 被重置為空字串（預設狀態）
     const openAddModal = () => { 
         setEditingMember(null); 
         setFormData({ ...DEFAULT_MEMBER, dual_service_pref: '' }); 
@@ -472,15 +470,33 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
 
     return (
         <div className="flex h-[100dvh] w-full bg-slate-50 overflow-hidden relative">
+            
+            {/* 響應式側邊欄的遮罩（當手機選單打開時點擊旁邊可關閉） */}
+            {isAdmin && isMobileMenuOpen && (
+                <div 
+                    className="fixed inset-0 bg-slate-900/50 z-40 md:hidden backdrop-blur-sm transition-opacity"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                />
+            )}
+
+            {/* 響應式側邊欄 */}
             {isAdmin && (
-                <div className="w-64 bg-slate-900 flex flex-col justify-between shrink-0 border-r border-slate-800 z-30">
+                <div className={`
+                    ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} 
+                    md:translate-x-0 transition-transform duration-300 ease-in-out
+                    absolute md:relative inset-y-0 left-0 w-64 bg-slate-900 flex flex-col justify-between shrink-0 border-r border-slate-800 z-50 md:z-30 shadow-2xl md:shadow-none h-full
+                `}>
                     <div className="flex flex-col">
-                        <div className="p-6 border-b border-slate-800 flex items-center gap-3">
+                        <div className="p-6 border-b border-slate-800 flex items-center justify-between gap-3">
                             <span className="text-white font-bold text-base tracking-wider">TBC Serve Manager</span>
+                            {/* 手機版選單內的關閉按鈕 */}
+                            <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-slate-400 hover:text-white">
+                                <X size={20} />
+                            </button>
                         </div>
                         
                         <nav className="p-4 space-y-1.5">
-                            <button onClick={goBack} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
+                            <button onClick={() => { goBack(); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
                                 <Home size={18} className="text-slate-400 group-hover:text-indigo-400 transition-colors" />
                                 <span>Home</span>
                             </button>
@@ -488,7 +504,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                 <Users size={18} />
                                 <span>同工資料中心</span>
                             </div>
-                            <button onClick={goToSchedule} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
+                            <button onClick={() => { goToSchedule(); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
                                 <Calendar size={18} className="text-slate-400 group-hover:text-violet-400 transition-colors" />
                                 <span>排班作業中心</span>
                             </button>
@@ -513,15 +529,33 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             <div className="flex-1 flex flex-col relative bg-slate-50 overflow-hidden animate-fade-in">
                 <div className="bg-white px-6 py-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0 shadow-sm z-20">
                     <div className="flex items-center gap-3 w-full md:w-auto">
-                        <button onClick={goBack} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors" title={isAdmin ? "返回首頁" : "登出系統"}>
+                        
+                        {/* 手機版：漢堡選單按鈕 (僅限管理員顯示) */}
+                        {isAdmin && (
+                            <button 
+                                onClick={() => setIsMobileMenuOpen(true)} 
+                                className="md:hidden p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors"
+                            >
+                                <Menu size={24} />
+                            </button>
+                        )}
+                        
+                        {/* 電腦版/個人登入版的返回按鈕 */}
+                        <button 
+                            onClick={goBack} 
+                            className={`${isAdmin ? 'hidden md:block' : 'block'} p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors`} 
+                            title={isAdmin ? "返回首頁" : "登出系統"}
+                        >
                             {isAdmin ? <ChevronLeft size={24} /> : <LogOut size={22} className="ml-0.5" />}
                         </button>
-                        <h2 className="text-2xl font-extrabold text-slate-900 flex items-center gap-3 tracking-tight">
-                            <Users className="text-indigo-600" size={28}/> 同工資料中心
+                        
+                        <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 flex items-center gap-2 sm:gap-3 tracking-tight">
+                            <Users className="text-indigo-600 hidden sm:block" size={28}/> 
+                            <span className="truncate">同工資料中心</span>
                         </h2>
                     </div>
+                    
                     <div className="flex items-center gap-3 overflow-x-auto w-full md:w-auto no-scrollbar pb-1 md:pb-0">
-                        
                         {/* 非管理員狀態標籤 */}
                         {!isAdmin && (
                             <div className="flex items-center bg-slate-50 p-1.5 rounded-lg border border-slate-200 shadow-sm shrink-0">
@@ -553,7 +587,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                             </div>
                         )}
 
-                        {/* Group 1: 動作按鈕 (新增、刪除、儲存) */}
+                        {/* Group 1: 動作按鈕 */}
                         {isAdmin && (
                             <div className="flex items-center bg-slate-50 p-1.5 rounded-lg border border-slate-200 overflow-x-auto custom-scrollbar shadow-sm shrink-0">
                                 <button onClick={openCreateQuarterModal} className="h-8 px-4 rounded-md text-xs font-medium transition-all duration-200 whitespace-nowrap text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 flex items-center gap-1.5">
@@ -573,7 +607,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                             </div>
                         )}
 
-                        {/* Group 2: 狀態切換 (節日提醒、開放填寫) */}
+                        {/* Group 2: 狀態切換 */}
                         {isAdmin && (
                             <div className="flex items-center bg-slate-50 p-1.5 rounded-lg border border-slate-200 overflow-x-auto custom-scrollbar shadow-sm shrink-0">
                                 <button 
@@ -594,7 +628,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                             </div>
                         )}
 
-                        {/* Group 3: Aa 放大獨立按鈕 (保有膠囊外觀) */}
+                        {/* Group 3: Aa 放大獨立按鈕 */}
                         <div className="flex items-center bg-slate-50 p-1.5 rounded-lg border border-slate-200 shadow-sm shrink-0">
                             <button 
                                 onClick={() => setIsLargeFont(!isLargeFont)} 
@@ -666,7 +700,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                                                 </span>
                                                             )}
                                                         </span>
-                                                    )) : <span className={`${isLargeFont ? 'text-sm' : 'text-xs'} text-slate-400`}>尚未設定</span>}
+                                                    )) : <span className={`${isLargeFont ? 'text-sm' : 'text-slate-400'} text-xs`}>尚未設定</span>}
                                                 </div>
                                             </div>
                                             {(settings.unavailable_dates && settings.unavailable_dates.length > 0) && (
@@ -699,9 +733,10 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                     </button>
                 )}
 
+                {/* 彈窗：在手機版強制變為滿版 (h-[100dvh] rounded-none)，電腦版維持彈窗 (sm:h-auto sm:max-h-[85dvh] sm:rounded-2xl) */}
                 {isModalOpen && (
-                    <div className="fixed inset-0 z-[100] flex flex-col justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-                        <div className="bg-white w-full mx-auto max-w-2xl max-h-[85dvh] rounded-2xl shadow-hover-soft overflow-hidden flex flex-col animate-fade-in border border-slate-100">
+                    <div className="fixed inset-0 z-[100] flex flex-col justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm">
+                        <div className="bg-white w-full h-[100dvh] sm:h-auto mx-auto max-w-2xl sm:max-h-[85dvh] rounded-none sm:rounded-2xl shadow-hover-soft overflow-hidden flex flex-col animate-fade-in sm:border sm:border-slate-100">
                             <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0 sticky top-0 z-10">
                                 <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                                     {editingMember ? <Edit2 size={20} className="text-indigo-600"/> : <UserPlus size={20} className="text-indigo-600"/>}
@@ -828,8 +863,8 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                 )}
 
                 {isHolidayManagerOpen && isAdmin && (
-                    <div className="fixed inset-0 z-[100] flex flex-col justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-                        <div className="bg-white w-full mx-auto max-h-[85dvh] max-w-lg rounded-2xl shadow-hover-soft overflow-hidden flex flex-col animate-fade-in border border-slate-100">
+                    <div className="fixed inset-0 z-[100] flex flex-col justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm">
+                        <div className="bg-white w-full h-[100dvh] sm:h-auto mx-auto max-h-full max-w-lg sm:rounded-2xl shadow-hover-soft overflow-hidden flex flex-col animate-fade-in border border-slate-100">
                             <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0 sticky top-0">
                                 <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2"><CalendarX className="text-sky-500" size={20} /> 自訂節日提醒</h3>
                                 <button onClick={() => setIsHolidayManagerOpen(false)} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors"><X size={20}/></button>
