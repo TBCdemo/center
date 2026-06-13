@@ -1,18 +1,6 @@
 /**
- * 教會季排班系統 - 核心引擎 (Scheduler Engine V18 - FA 獨立與共同技能分流版)
- * 依據 Logic_Analysis.md 實作：
- * 1. L=2 新朋友禁排邏輯 (每月 8-14 號)
- * 2. 嚴格的分數排序演算法 ([權重分, 歷史次數, 技能數量, 隨機/索引])
- * 3. 執行流程：執事 -> 跨堂預排 -> 家庭預排 -> 單堂填充 -> 補位 -> 最終 Refill
- * 4. FA 絕對同日同崗位，FB 同日即可
- * 5. FA/FB 終極防落單替換機制 (依服事次數踢人)
- * 6. 完美平衡：配對預查機制 (Lookahead)，兼顧配對與次數平均。
- * 7. FA/FB 家庭優先進場機制，徹底解決 FB 在第二堂尾聲找不到異崗位而落單的問題。
- * 8. 動態剔除無效家人：若家人請假或暫停服事，另一人不連坐，可獨立正常排班且不亮落單藍燈。
- * 9. 一季三次排班限制
- * 10. 終極防壟斷機制：保護單技能一般人，強制家庭達平均次數即刻退讓。
- * 11. 【V18 新增】FA 家庭技能交集與容量檢查，名額不足或無共同技能則不強排同崗位。
- * 12. 【V18 新增】獨立技能單飛機制：當家人服事各自的「獨立技能」時，解除同崗位綁定與連坐補位。
+ * 教會季排班系統 - 核心引擎 (Scheduler Engine V18.1 - 穩定防呆版)
+ * 修正：強化 Set 展開與 Undefined 屬性的防護機制，避免資料缺失導致引擎崩潰。
  */
 
 const sessionsToSchedule = ['第一堂', '第二堂'];
@@ -39,11 +27,9 @@ const ScheduleEngine = {
     return sundays;
   },
 
-  // 取得特定職位的所有成員之平均服事次數
   _getSkillAvgUsage(state, members, posId) {
-    const skilledMembers = members.filter(m => state.memberSkills[m.id]?.has(posId));
+    const skilledMembers = members.filter(m => state.memberSkills[m.id] && state.memberSkills[m.id].has(posId));
     if (skilledMembers.length === 0) return 0;
-    
     const sum = skilledMembers.reduce((acc, m) => acc + (state.totalUsage[m.id] || 0), 0);
     return sum / skilledMembers.length;
   },
@@ -59,8 +45,6 @@ const ScheduleEngine = {
     } = params;
 
     const currentQuarterStr = `${year}-Q${quarter}`;
-
-    // 深拷貝 members 避免修改原始 Props 導致 Vue/React 狀態崩潰
     const clonedMembers = JSON.parse(JSON.stringify(effectiveMembers));
 
     clonedMembers.forEach(m => {
@@ -72,8 +56,6 @@ const ScheduleEngine = {
                 if (qs.availability_status) m.availability_status = qs.availability_status;
             }
         }
-        
-        // 將一季三次的人強制轉為單堂，保留配額
         if (['一季三次', '一季一次'].includes(m.availability_status)) {
              m.dual_service_pref = 0; 
         }
@@ -89,7 +71,7 @@ const ScheduleEngine = {
       lastServedWeek: {},
       memberSkills: {},
       memberGroups: {}, 
-      uniqueSkills: {}, // 儲存獨立技能
+      uniqueSkills: {}, 
     };
 
     this._prepareData(state, clonedMembers, effectiveMemberPositions);
@@ -132,7 +114,6 @@ const ScheduleEngine = {
       }
     });
 
-    // 計算每個人的獨立技能 (Unique Skills)
     members.forEach(m => {
         state.uniqueSkills[m.id] = new Set();
         const myGroupId = state.memberGroups[m.id];
@@ -140,11 +121,12 @@ const ScheduleEngine = {
         if (myGroupId && (myGroupId.startsWith('FA') || myGroupId.startsWith('FB'))) {
             const familyMembers = members.filter(fam => fam.id !== m.id && state.memberGroups[fam.id] === myGroupId);
             
-            state.memberSkills[m.id].forEach(posId => {
-                // 如果家人中「沒有任何人」會這個技能，它就是獨立技能
-                const isUnique = familyMembers.every(fam => !state.memberSkills[fam.id].has(posId));
-                if (isUnique) state.uniqueSkills[m.id].add(posId);
-            });
+            if (state.memberSkills[m.id]) {
+                state.memberSkills[m.id].forEach(posId => {
+                    const isUnique = familyMembers.every(fam => !state.memberSkills[fam.id] || !state.memberSkills[fam.id].has(posId));
+                    if (isUnique) state.uniqueSkills[m.id].add(posId);
+                });
+            }
         }
     });
   },
@@ -180,7 +162,7 @@ const ScheduleEngine = {
     if (!this._isAvailableOnDate(m, context.dateStr)) return false;
     if (m.availability_status === '一季一次' && (state.totalUsage[m.id] || 0) >= 1) return false;
     if (m.availability_status === '一季三次' && (state.totalUsage[m.id] || 0) >= 3) return false;
-    if (!state.memberSkills[m.id].has(posId)) return false;
+    if (!state.memberSkills[m.id] || !state.memberSkills[m.id].has(posId)) return false;
 
     if (roleName === '執事輪值') {
       if ((state.roleUsage[m.id][posId] || 0) >= 4) return false;
@@ -244,8 +226,7 @@ const ScheduleEngine = {
                 });
                 
                 if (myGroupId.startsWith('FA')) {
-                    const isMyUniqueSkill = state.uniqueSkills[m.id]?.has(posId);
-                    // 只有在「不是獨立技能」的情況下，才強制受 FA 同崗位規則限制
+                    const isMyUniqueSkill = state.uniqueSkills[m.id] && state.uniqueSkills[m.id].has(posId);
                     if (!isMyUniqueSkill && !familyRoles.has(roleName)) return false;
                 } 
             }
@@ -295,7 +276,7 @@ const ScheduleEngine = {
     }
 
     const isFamily = myGroupId && (String(myGroupId).startsWith('FA') || String(myGroupId).startsWith('FB'));
-    if (!isFamily && state.memberSkills[m.id].size === 1) {
+    if (!isFamily && state.memberSkills[m.id] && state.memberSkills[m.id].size === 1) {
         weight -= 800; 
     }
 
@@ -309,7 +290,7 @@ const ScheduleEngine = {
     return [
         weight, 
         state.totalUsage[m.id] || 0, 
-        state.memberSkills[m.id].size, 
+        state.memberSkills[m.id] ? state.memberSkills[m.id].size : 0, 
         Math.random()
     ];
   },
@@ -428,12 +409,12 @@ const ScheduleEngine = {
 
           const isFA = gid.startsWith('FA');
 
-          // 尋找家庭共同擁有的技能交集
-          const commonSkills = [...state.memberSkills[gMembers[0].id]].filter(posId => {
-              return gMembers.every(m => state.memberSkills[m.id].has(posId));
-          });
+          // 【安全修正】防呆處理沒有技能的家人
+          const baseSkills = state.memberSkills[gMembers[0].id];
+          const commonSkills = baseSkills ? Array.from(baseSkills).filter(posId => {
+              return gMembers.every(m => state.memberSkills[m.id] && state.memberSkills[m.id].has(posId));
+          }) : [];
 
-          // 如果 FA 家庭沒有共同技能，直接跳過不排班 (讓他們在單獨排班階段以獨立技能上場)
           if (isFA && commonSkills.length === 0) continue; 
 
           let placed = false;
@@ -445,7 +426,6 @@ const ScheduleEngine = {
                   
                   if (!slot0) continue;
                   
-                  // 若是 FA，必須排入共同技能，且該崗位剩餘名額需大於等於家庭人數
                   if (isFA && !commonSkills.includes(slot0.posId)) continue; 
                   if (isFA && slot0.needed < gMembers.length) continue;
 
@@ -556,8 +536,7 @@ const ScheduleEngine = {
       const baseShift = state.draft.find(d => d.service_date === context.dateStr && d.member_id === baseMember.id);
       if (!baseShift) return;
       
-      // 如果觸發排班的是該成員的獨立技能，阻斷強制連坐機制
-      const isServingUniqueSkill = state.uniqueSkills[baseMember.id]?.has(baseShift.position_id);
+      const isServingUniqueSkill = state.uniqueSkills[baseMember.id] && state.uniqueSkills[baseMember.id].has(baseShift.position_id);
       if (isServingUniqueSkill) return;
 
       const unassignedFamily = members.filter(m => 
@@ -678,10 +657,9 @@ const ScheduleEngine = {
       const unassignedMembers = gMembers.filter(m => !context.dailyAssignments[m.id]);
 
       if (assignedMembers.length > 0 && unassignedMembers.length > 0) {
-         // 如果已經排班的家人，全部都是在做他們的「獨立技能」，則視為單飛，不觸發強制補位連坐
          const isAssignedServingUnique = assignedMembers.every(am => {
              const shift = state.draft.find(d => d.service_date === context.dateStr && d.member_id === am.id);
-             return shift && state.uniqueSkills[am.id]?.has(shift.position_id);
+             return shift && state.uniqueSkills[am.id] && state.uniqueSkills[am.id].has(shift.position_id);
          });
          if (isAssignedServingUnique) return;
 
@@ -723,8 +701,13 @@ const ScheduleEngine = {
                 if (currentAssignedCount >= 2) {
                     return; 
                 } else {
-                    this._forceSwapForFamily(unM, assignedMembers[0], state, context, members);
-                    currentAssignedCount++; 
+                    // 【安全修正】若踢人失敗則放棄，避免無窮迴圈
+                    const swapSuccess = this._forceSwapForFamily(unM, assignedMembers[0], state, context, members);
+                    if (swapSuccess) {
+                        currentAssignedCount++; 
+                    } else {
+                        return;
+                    }
                 }
             }
          });
@@ -767,7 +750,9 @@ const ScheduleEngine = {
 
       if (bestSwap) {
           this._replaceAssignment(unM, bestSwap.victim.id, bestSwap.shift.temp_id, bestSwap.mockSlot, state, context);
+          return true; // 告知上層替換成功
       }
+      return false; // 告知上層替換失敗
   },
 
   _replaceAssignment(newMember, oldMemberId, targetTempId, slotInfo, state, context) {
@@ -876,10 +861,12 @@ const ScheduleEngine = {
         if (gid && groupFreq[gid]) {
             const activeCount = groupActiveMembersCount[gid] || 0;
             
-            // 確認該班次是否為成員的獨立技能
-            const isUniqueSkill = state.uniqueSkills && state.uniqueSkills[d.member_id]?.has(d.position_id);
+            // 【安全修正】防呆處理 EMPTY_SLOT 導致的 undefined 報錯
+            let isUniqueSkill = false;
+            if (state.uniqueSkills && state.uniqueSkills[d.member_id]) {
+                isUniqueSkill = state.uniqueSkills[d.member_id].has(d.position_id);
+            }
             
-            // 若不是獨立技能且只有一人排班，才標記落單藍燈
             if (activeCount > 1 && groupFreq[gid].size < 2 && !isUniqueSkill) {
                 d.is_lonely_family = true;
             }
