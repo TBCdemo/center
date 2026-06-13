@@ -24,7 +24,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
 
     const [isSubmissionOpen, setIsSubmissionOpen] = useState(false);
     const [isLargeFont, setIsLargeFont] = useState(false); 
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // 控制手機版側邊欄
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     const [quarterOptions, setQuarterOptions] = useState(['BASE']);
     const initialQuarter = isAdmin ? getCurrentQuarter() : getNextQuarter(getCurrentQuarter());
@@ -418,6 +418,39 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
         });
     };
 
+    // ==========================================
+    // 群組 ID 自動編號邏輯 (預設 FA, 只有 FA/FB)
+    // ==========================================
+    const currentGroupID = formData.group_id || '';
+    const groupPrefix = currentGroupID.replace(/[0-9]/g, '') || 'FA'; 
+    const groupNumberStr = currentGroupID.replace(/[^0-9]/g, ''); 
+    const groupNumber = groupNumberStr ? parseInt(groupNumberStr, 10) : '';
+
+    const handlePrefixChange = (newPrefix) => {
+        const numberPart = groupNumber !== '' ? String(groupNumber) : '';
+        setFormData({ ...formData, group_id: newPrefix + numberPart });
+    };
+
+    const handleNumberChange = (newNumber) => {
+        if (newNumber === '') {
+            setFormData({ ...formData, group_id: '' });
+            return;
+        }
+        setFormData({ ...formData, group_id: groupPrefix + String(newNumber) });
+    };
+
+    const autoFillNextNumber = () => {
+        const existingNums = members
+            .map(m => m.group_id || '')
+            .filter(id => id.startsWith(groupPrefix))
+            .map(id => parseInt(id.replace(groupPrefix, ''), 10))
+            .filter(n => !isNaN(n));
+        
+        const nextNum = existingNums.length === 0 ? 1 : Math.max(...existingNums) + 1;
+        setFormData({ ...formData, group_id: groupPrefix + String(nextNum) });
+    };
+    // ==========================================
+
     let displayMembers = members.filter(m => {
         if (m.name && m.name.startsWith('SYSTEM_')) return false;
     
@@ -471,7 +504,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
     return (
         <div className="flex h-[100dvh] w-full bg-slate-50 overflow-hidden relative">
             
-            {/* 響應式側邊欄的遮罩（當手機選單打開時點擊旁邊可關閉） */}
             {isAdmin && isMobileMenuOpen && (
                 <div 
                     className="fixed inset-0 bg-slate-900/50 z-40 md:hidden backdrop-blur-sm transition-opacity"
@@ -479,7 +511,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                 />
             )}
 
-            {/* 響應式側邊欄 */}
             {isAdmin && (
                 <div className={`
                     ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} 
@@ -489,7 +520,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                     <div className="flex flex-col">
                         <div className="p-6 border-b border-slate-800 flex items-center justify-between gap-3">
                             <span className="text-white font-bold text-base tracking-wider">TBC Serve Manager</span>
-                            {/* 手機版選單內的關閉按鈕 */}
                             <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-slate-400 hover:text-white">
                                 <X size={20} />
                             </button>
@@ -530,7 +560,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                 <div className="bg-white px-6 py-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0 shadow-sm z-20">
                     <div className="flex items-center gap-3 w-full md:w-auto">
                         
-                        {/* 手機版：漢堡選單按鈕 (僅限管理員顯示) */}
                         {isAdmin && (
                             <button 
                                 onClick={() => setIsMobileMenuOpen(true)} 
@@ -540,7 +569,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                             </button>
                         )}
                         
-                        {/* 電腦版/個人登入版的返回按鈕 */}
                         <button 
                             onClick={goBack} 
                             className={`${isAdmin ? 'hidden md:block' : 'block'} p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors`} 
@@ -556,7 +584,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                     </div>
                     
                     <div className="flex items-center gap-3 overflow-x-auto w-full md:w-auto no-scrollbar pb-1 md:pb-0">
-                        {/* 非管理員狀態標籤 */}
                         {!isAdmin && (
                             <div className="flex items-center bg-slate-50 p-1.5 rounded-lg border border-slate-200 shadow-sm shrink-0">
                                 <div className={`h-8 px-4 rounded-md text-xs font-medium whitespace-nowrap flex items-center gap-2 shadow-sm bg-white ${isSubmissionOpen ? 'text-emerald-600' : 'text-red-600'}`}>
@@ -578,7 +605,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                             </div>
                         )}
 
-                        {/* Admin 季度選單 */}
                         {isAdmin && (
                             <div className="flex items-center bg-slate-50 rounded-lg px-2 py-1.5 border border-slate-200">
                                 <select value={viewQuarter} onChange={(e) => setViewQuarter(e.target.value)} className="bg-transparent border-none font-medium text-indigo-600 text-sm outline-none cursor-pointer">
@@ -587,7 +613,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                             </div>
                         )}
 
-                        {/* Group 1: 動作按鈕 */}
                         {isAdmin && (
                             <div className="flex items-center bg-slate-50 p-1.5 rounded-lg border border-slate-200 overflow-x-auto custom-scrollbar shadow-sm shrink-0">
                                 <button onClick={openCreateQuarterModal} className="h-8 px-4 rounded-md text-xs font-medium transition-all duration-200 whitespace-nowrap text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 flex items-center gap-1.5">
@@ -607,7 +632,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                             </div>
                         )}
 
-                        {/* Group 2: 狀態切換 */}
                         {isAdmin && (
                             <div className="flex items-center bg-slate-50 p-1.5 rounded-lg border border-slate-200 overflow-x-auto custom-scrollbar shadow-sm shrink-0">
                                 <button 
@@ -628,7 +652,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                             </div>
                         )}
 
-                        {/* Group 3: Aa 放大獨立按鈕 */}
                         <div className="flex items-center bg-slate-50 p-1.5 rounded-lg border border-slate-200 shadow-sm shrink-0">
                             <button 
                                 onClick={() => setIsLargeFont(!isLargeFont)} 
@@ -733,7 +756,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                     </button>
                 )}
 
-                {/* 彈窗：在手機版強制變為滿版 (h-[100dvh] rounded-none)，電腦版維持彈窗 (sm:h-auto sm:max-h-[85dvh] sm:rounded-2xl) */}
                 {isModalOpen && (
                     <div className="fixed inset-0 z-[100] flex flex-col justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm">
                         <div className="bg-white w-full h-[100dvh] sm:h-auto mx-auto max-w-2xl sm:max-h-[85dvh] rounded-none sm:rounded-2xl shadow-hover-soft overflow-hidden flex flex-col animate-fade-in sm:border sm:border-slate-100">
@@ -774,8 +796,36 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                         <>
                                             <div className="space-y-1.5">
                                                 <label className="text-xs font-medium text-slate-500 uppercase">群組 ID <span className="text-slate-400 font-normal">(選填)</span></label>
-                                                <input type="text" value={formData.group_id ?? ''} onChange={e => setFormData({...formData, group_id: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 uppercase transition-all" placeholder="例如：FA" />
+                                                <div className="flex gap-2 items-stretch">
+                                                    <select 
+                                                        value={groupPrefix} 
+                                                        onChange={e => handlePrefixChange(e.target.value)} 
+                                                        className="w-1/3 sm:w-1/4 bg-slate-50 border border-slate-200 rounded-lg px-2 sm:px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 transition-all"
+                                                    >
+                                                        <option value="FA">FA</option>
+                                                        <option value="FB">FB</option>
+                                                    </select>
+                                                    <div className="flex-1 relative">
+                                                        <input 
+                                                            type="number" 
+                                                            value={groupNumber} 
+                                                            onChange={e => handleNumberChange(e.target.value)} 
+                                                            className="w-full h-full bg-slate-50 border border-slate-200 rounded-lg pl-4 pr-[4.5rem] py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 transition-all" 
+                                                            placeholder="號碼(例:1)" 
+                                                            min="1"
+                                                        />
+                                                        <button 
+                                                            type="button"
+                                                            onClick={autoFillNextNumber}
+                                                            className="absolute right-1.5 top-1/2 -translate-y-1/2 px-2 py-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-md text-[10px] sm:text-xs font-medium transition-colors border border-indigo-100 flex items-center gap-1 whitespace-nowrap"
+                                                            title="自動帶入下一號"
+                                                        >
+                                                            自動編號
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             </div>
+
                                             <div className="space-y-1.5">
                                                 <label className="text-xs font-medium text-slate-500 uppercase">崗位兼任 <span className="text-slate-400 font-normal">(選填)</span></label>
                                                 <select value={formData.dual_service_pref ?? ''} onChange={e => setFormData({...formData, dual_service_pref: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 transition-all">
