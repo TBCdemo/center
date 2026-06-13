@@ -1,7 +1,9 @@
 /**
- * 教會季排班系統 - 核心引擎 (Scheduler Engine V18.2 - 極致防呆版)
- * 修正：全面加入 Optional Chaining (?.) 避免任何 Undefined 資料引發 Runtime Error 崩潰。
- * 保留 V18 獨立技能單飛功能與防落單機制。
+ * 教會季排班系統 - 核心引擎 (Scheduler Engine V18.3 - FA完美綁定防呆版)
+ * 修正 1：全面加入 Optional Chaining (?.) 避免任何 Undefined 資料引發 Runtime Error 崩潰。
+ * 修正 2：放寬 FA 家庭進場的防壟斷容忍度 (+1.5)，避免輕易被踢出家庭優先區。
+ * 修正 3：_immediateFamilyFill 與 _enforceFamily 嚴格限制 FA 只能在「同堂同崗位」尋找空缺，寧缺勿濫。
+ * 修正 4：強制換班 (_forceSwapForFamily) 中，FA 也只能踢掉「同崗位」的人，徹底防止崗位錯置。
  */
 
 const sessionsToSchedule = ['第一堂', '第二堂'];
@@ -442,7 +444,9 @@ const ScheduleEngine = {
                   if (isFA && slot0.needed < gMembers.length) continue;
 
                   if (!this._canAssign(m0, slot0, state, context, 0, members)) continue;
-                  if ((state.totalUsage[m0.id] || 0) > this._getSkillAvgUsage(state, members, slot0.posId) + 0.1) continue;
+                  
+                  // 【修正 1】：放寬家庭進場時的防壟斷標準，從 0.1 改為 1.5，讓有共同技能的家庭更容易綁在一起
+                  if ((state.totalUsage[m0.id] || 0) > this._getSkillAvgUsage(state, members, slot0.posId) + 1.5) continue;
 
                   let allCanBePlaced = true;
                   let plannedSlots = [{ member: m0, slot: slot0 }];
@@ -464,7 +468,8 @@ const ScheduleEngine = {
                               if (slotN.needed - plannedCount <= 0) continue;
 
                               if (this._canAssign(m, slotN, state, context, 0, true)) {
-                                  if ((state.totalUsage[m.id] || 0) > this._getSkillAvgUsage(state, members, slotN.posId) + 0.1) continue;
+                                  // 【修正 1】：同樣放寬其他家人的防壟斷標準
+                                  if ((state.totalUsage[m.id] || 0) > this._getSkillAvgUsage(state, members, slotN.posId) + 1.5) continue;
 
                                   plannedSlots.push({ member: m, slot: slotN });
                                   familyRoles.add(tRole);
@@ -570,6 +575,12 @@ const ScheduleEngine = {
           let assigned = false;
           
           let availableSlots = (context.availableSlots || []).filter(s => s?.session === targetSession && s?.needed > 0);
+          
+          // 【修正 2】：如果是 FA 家庭，尋找空缺時強迫只能找相同崗位
+          if (groupId.startsWith('FA')) {
+              availableSlots = availableSlots.filter(s => s?.roleName === baseShift._positionName);
+          }
+
           for (let slot of availableSlots) {
               if (this._canAssign(famMember, slot, state, context, 0, true)) {
                   this._assign(famMember, slot, state, context);
@@ -579,9 +590,10 @@ const ScheduleEngine = {
               }
           }
 
-          if (!assigned) {
-              availableSlots = (context.availableSlots || []).filter(s => s?.session !== targetSession && s?.needed > 0);
-              for (let slot of availableSlots) {
+          // 如果是 FA 家庭，同堂同崗位排不進去，就直接放棄，不允許跨堂或跨崗位補位
+          if (!assigned && !groupId.startsWith('FA')) {
+              let otherSlots = (context.availableSlots || []).filter(s => s?.session !== targetSession && s?.needed > 0);
+              for (let slot of otherSlots) {
                   if (this._canAssign(famMember, slot, state, context, 0, true)) {
                       this._assign(famMember, slot, state, context);
                       this._immediateFOFill(famMember, state, context, members); 
@@ -695,7 +707,14 @@ const ScheduleEngine = {
          unassignedMembers.forEach(unM => {
             let assigned = false;
             
-            const targetSlots = (context.availableSlots || []).filter(s => s?.session === targetSession && s?.needed > 0);
+            let targetSlots = (context.availableSlots || []).filter(s => s?.session === targetSession && s?.needed > 0);
+            
+            // 【修正 3】：最終強制補位時，如果是 FA 家庭，也絕對不允許跨崗位尋找空缺
+            if (gid.startsWith('FA')) {
+                const assignedRole = state.draft.find(d => d?.service_date === context.dateStr && d?.member_id === assignedMembers[0]?.id)?._positionName;
+                targetSlots = targetSlots.filter(s => s?.roleName === assignedRole);
+            }
+
             for (let s of targetSlots) {
                if (this._canAssign(unM, s, state, context, 0, true)) {
                   this._assign(unM, s, state, context);
@@ -704,7 +723,8 @@ const ScheduleEngine = {
                }
             }
 
-            if (!assigned) {
+            // 同樣，如果是 FA，不允許去另外一堂亂塞
+            if (!assigned && !gid.startsWith('FA')) {
                 const otherSlots = (context.availableSlots || []).filter(s => s?.session !== targetSession && s?.needed > 0);
                 for (let s of otherSlots) {
                    if (this._canAssign(unM, s, state, context, 0, true)) {
@@ -745,11 +765,18 @@ const ScheduleEngine = {
           d?.member_id !== baseMember.id
       );
       
+      const groupId = state.memberGroups[unM.id];
+      const isFA = groupId && groupId.startsWith('FA');
+      const baseRole = state.draft.find(d => d?.service_date === context.dateStr && d?.member_id === baseMember.id)?._positionName;
+      
       let bestSwap = null;
       let bestScore = -9999;
 
       for (let shift of todayShifts) {
           if (shift._positionName === '執事輪值') continue;
+          
+          // 【修正 4】：如果是 FA，強制換班時也「只能踢同崗位的人」，保護 FA 規則
+          if (isFA && shift._positionName !== baseRole) continue;
 
           const mockSlot = { roleName: shift._positionName, session: shift.session, posId: shift.position_id };
           if (!this._canAssign(unM, mockSlot, state, context, 0, true)) continue;
@@ -896,7 +923,6 @@ const ScheduleEngine = {
             const activeCount = groupActiveMembersCount[gid] || 0;
             
             let isUniqueSkill = false;
-            // 防護 uniqueSkills 的存在
             if (this.uniqueSkills && this.uniqueSkills[d.member_id]) {
                 isUniqueSkill = this.uniqueSkills[d.member_id].has(d.position_id);
             }
