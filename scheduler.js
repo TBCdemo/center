@@ -1,5 +1,5 @@
 /**
- * 教會季排班系統 - 核心引擎 (Scheduler Engine V19 + FA 核心崗位豁免機制)
+ * 教會季排班系統 - 核心引擎 (Scheduler Engine V20 + 暫停服事獨立解綁)
  * 依據 Logic_Analysis.md 實作：
  * 1. L=2 新朋友禁排邏輯 (每月 8-14 號)
  * 2. 嚴格的分數排序演算法 ([權重分, 歷史次數, 技能數量, 隨機/索引])
@@ -8,9 +8,9 @@
  * 5. FA/FB 終極防落單替換機制 (依服事次數踢人)
  * 6. 完美平衡：配對預查機制 (Lookahead)，兼顧配對與次數平均。
  * 7. FA/FB 家庭優先進場機制，徹底解決 FB 在第二堂尾聲找不到異崗位而落單的問題。
- * 8. FA 嚴格共進退：名額(僅計算未上車家人)、技能、請假、配額、禁排期與單日上限全面預查防護。
+ * 8. FA 嚴格共進退：名額、技能、配額、禁排期與單日上限全面預查防護。
  * 9. FA 核心崗位豁免：當一人排入司會、PPT、執事輪值，另一人強制不排班，且不亮落單警報。
- * 10. 一季三次排班限制與防壟斷退讓機制。
+ * 10. 【新增】暫停服事解綁：若 FA/FB 一人「暫停服事/安息季」，另一人直接視為獨立排班，不受同進退連坐影響。(單日請假仍維持連坐避開)
  */
 
 const sessionsToSchedule = ['第一堂', '第二堂'];
@@ -240,10 +240,20 @@ const ScheduleEngine = {
                 const comboRoles = ['接待', '收奉獻', '主餐', '新朋友關懷'];
                 
                 if (comboRoles.includes(roleName)) {
+                    // 找出「尚未被排入該崗位」的家人
                     const unassignedFamilyIds = Object.keys(state.memberGroups).filter(
-                        fid => fid !== m.id && 
-                               state.memberGroups[fid] === myGroupId && 
-                               !(context.dailyAssignments[fid] && context.dailyAssignments[fid].includes(roleName))
+                        fid => {
+                            if (fid === m.id || state.memberGroups[fid] !== myGroupId) return false;
+                            if (context.dailyAssignments[fid] && context.dailyAssignments[fid].includes(roleName)) return false;
+                            
+                            // 【關鍵修改：暫停服事解綁】
+                            // 若家人已經「暫停服事」或「安息季」，直接無視該家人，不再為他保留位子或受他拖累
+                            const famMember = state.membersList.find(mem => mem.id === fid);
+                            if (famMember && ['暫停服事', '安息季'].includes(famMember.availability_status)) {
+                                return false; 
+                            }
+                            return true;
+                        }
                     );
                     
                     if (slot.needed < (unassignedFamilyIds.length + 1)) {
@@ -254,6 +264,8 @@ const ScheduleEngine = {
                         const famMember = state.membersList.find(mem => mem.id === fid);
                         if (!famMember) continue;
 
+                        // 若非「暫停服事」，而是單純單日請假 (unavailable_dates)，則這裡會觸發 false
+                        // 維持 FA「單日請假則跟著避開」的連坐規則
                         if (!this._isAvailableOnDate(famMember, context.dateStr)) return false;
                         if (!state.memberSkills[fid]?.has(posId)) return false; 
 
@@ -350,7 +362,7 @@ const ScheduleEngine = {
   _runSchedulingPipeline(state, context, members, specialIds) {
     this._assignDeacons(state, context, members, specialIds.deacon);
     this._assignDualService(state, context, members);
-    this._assignFamilyGroups(state, context, members, specialIds); // 傳入 specialIds 供排序
+    this._assignFamilyGroups(state, context, members, specialIds); 
 
     sessionsToSchedule.forEach((sess) => {
       roleOrder.forEach(roleName => {
@@ -452,9 +464,8 @@ const ScheduleEngine = {
 
       for (let gid of sortedGroupIds) {
           const gMembers = groups[gid];
-          if (gMembers.length < 2) continue;
+          if (gMembers.length < 2) continue; // 若一人暫停服事，這裡長度只剩 1，會自動跳過家族預排機制
 
-          // 【新增】排序機制：優先將具備核心崗位技能的家人排在第一順位 (m0)
           gMembers.sort((a, b) => {
               const aCore = (specialIds && (state.memberSkills[a.id]?.has(specialIds.mc) || state.memberSkills[a.id]?.has(specialIds.ppt) || state.memberSkills[a.id]?.has(specialIds.deacon))) ? 1 : 0;
               const bCore = (specialIds && (state.memberSkills[b.id]?.has(specialIds.mc) || state.memberSkills[b.id]?.has(specialIds.ppt) || state.memberSkills[b.id]?.has(specialIds.deacon))) ? 1 : 0;
@@ -473,7 +484,6 @@ const ScheduleEngine = {
 
                   if ((state.totalUsage[m0.id] || 0) > this._getSkillAvgUsage(state, members, slot0.posId) + 0.1) continue;
 
-                  // 【新增】核心豁免機制：若 FA 家人首位取得核心崗位，則賦予豁免權，不用再幫家人找崗位
                   if (isFA && ['司會', 'PPT', '執事輪值'].includes(role)) {
                       this._assign(m0, slot0, state, context);
                       placed = true;
@@ -586,7 +596,6 @@ const ScheduleEngine = {
       const targetSession = baseShift.session;
       const targetRole = baseShift._positionName;
 
-      // 【新增】核心豁免機制：若剛剛排入的是核心崗位，截斷補位邏輯，不把家人扯進來
       if (groupId.startsWith('FA') && ['司會', 'PPT', '執事輪值'].includes(targetRole)) {
           return;
       }
@@ -706,14 +715,13 @@ const ScheduleEngine = {
 
     sortedGroupIds.forEach(gid => {
       const gMembers = groups[gid];
-      if (gMembers.length < 2) return;
+      if (gMembers.length < 2) return; // 若其中一人暫停服事，這裡人數不足2人，自然解除同進退警報
 
       const assignedMembers = gMembers.filter(m => context.dailyAssignments[m.id]);
       const unassignedMembers = gMembers.filter(m => !context.dailyAssignments[m.id]);
 
       if (assignedMembers.length > 0 && unassignedMembers.length > 0) {
          
-         // 【新增】核心豁免機制：檢查已排班的家人是否在核心崗位，若是，則不啟動防落單強制換位
          const aRoles = context.dailyAssignments[assignedMembers[0].id] || [];
          if (aRoles.some(r => ['司會', 'PPT', '執事輪值'].includes(r))) {
              return; 
@@ -910,7 +918,6 @@ const ScheduleEngine = {
         if (gid && groupFreq[gid]) {
             const activeCount = groupActiveMembersCount[gid] || 0;
             if (activeCount > 1 && groupFreq[gid].size < 2) {
-                // 【新增】解除核心崗位的落單警報：這是一個合法的狀態
                 const coreRoles = ['司會', 'PPT', '執事輪值'];
                 if (!coreRoles.includes(d._positionName)) {
                     d.is_lonely_family = true;
