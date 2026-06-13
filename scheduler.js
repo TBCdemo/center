@@ -37,9 +37,11 @@ const ScheduleEngine = {
     return sundays;
   },
 
+  // 取得特定職位的所有成員之平均服事次數
   _getSkillAvgUsage(state, members, posId) {
     const skilledMembers = members.filter(m => state.memberSkills[m.id]?.has(posId));
     if (skilledMembers.length === 0) return 0;
+    
     const sum = skilledMembers.reduce((acc, m) => acc + (state.totalUsage[m.id] || 0), 0);
     return sum / skilledMembers.length;
   },
@@ -55,6 +57,8 @@ const ScheduleEngine = {
     } = params;
 
     const currentQuarterStr = `${year}-Q${quarter}`;
+
+    // 【修正】深拷貝 members 避免修改原始 Props 導致 Vue/React 狀態崩潰
     const clonedMembers = JSON.parse(JSON.stringify(effectiveMembers));
 
     clonedMembers.forEach(m => {
@@ -63,10 +67,12 @@ const ScheduleEngine = {
             if (qs) {
                 if (qs.newcomer_rule !== undefined && qs.newcomer_rule !== null) m.newcomer_rule = qs.newcomer_rule;
                 if (qs.dual_service_pref !== undefined && qs.dual_service_pref !== null) m.dual_service_pref = qs.dual_service_pref;
+                
                 if (qs.availability_status) m.availability_status = qs.availability_status;
             }
         }
         
+        // 將一季三次的人強制轉為單堂，保留配額
         if (['一季三次', '一季一次'].includes(m.availability_status)) {
              m.dual_service_pref = 0; 
         }
@@ -76,7 +82,12 @@ const ScheduleEngine = {
     const sundays = this.getSundaysInQuarter(year, quarter);
 
     const state = {
-      draft: [], totalUsage: {}, roleUsage: {}, lastServedWeek: {}, memberSkills: {}, memberGroups: {}, 
+      draft: [],
+      totalUsage: {},
+      roleUsage: {},
+      lastServedWeek: {},
+      memberSkills: {},
+      memberGroups: {}, 
     };
 
     this._prepareData(state, clonedMembers, effectiveMemberPositions);
@@ -90,9 +101,13 @@ const ScheduleEngine = {
 
     sundays.forEach((sunday, weekIndex) => {
       const context = {
-        sunday, weekIndex, dateStr: this.formatDate(sunday),
-        dailyAssignments: {}, availableSlots: this._createAvailableSlots(sunday, positions, roleSettings),
+        sunday,
+        weekIndex,
+        dateStr: this.formatDate(sunday),
+        dailyAssignments: {},
+        availableSlots: this._createAvailableSlots(sunday, positions, roleSettings),
       };
+
       this._runSchedulingPipeline(state, context, clonedMembers, specialIds);
     });
 
@@ -104,22 +119,32 @@ const ScheduleEngine = {
 
   _prepareData(state, members, memberPositions) {
     members.forEach((m) => {
-      state.totalUsage[m.id] = 0; state.roleUsage[m.id] = {}; state.lastServedWeek[m.id] = -99;
-      state.memberSkills[m.id] = new Set(memberPositions.filter((mp) => mp.member_id === m.id).map((mp) => mp.position_id));
-      if (m.group_id) state.memberGroups[m.id] = String(m.group_id);
+      state.totalUsage[m.id] = 0;
+      state.roleUsage[m.id] = {};
+      state.lastServedWeek[m.id] = -99;
+      state.memberSkills[m.id] = new Set(
+        memberPositions.filter((mp) => mp.member_id === m.id).map((mp) => mp.position_id)
+      );
+      if (m.group_id) {
+          state.memberGroups[m.id] = String(m.group_id);
+      }
     });
   },
 
   _createAvailableSlots(sunday, positions, roleSettings) {
     const slots = [];
     const isFirstSunday = sunday.getDate() <= 7;
+    
     sessionsToSchedule.forEach((sess) => {
       positions.forEach((p) => {
+        // 安全防護：轉型為字串
         const roleName = String(p.name || '').trim();
         if (!roleName) return;
+
         const needed = roleSettings[roleName] !== undefined ? roleSettings[roleName] : p.max_people || 0;
         if (needed <= 0) return;
         if (roleName === '主餐' && !isFirstSunday) return;
+        
         slots.push({ session: sess, roleName: roleName, posId: p.id, needed: needed, assigned: [] });
       });
     });
@@ -134,61 +159,61 @@ const ScheduleEngine = {
 
   _canAssign(m, slot, state, context, strictLevel = 0, skipFamilyCheck = false) {
     const { roleName, session, posId } = slot;
+    
     if (!this._isAvailableOnDate(m, context.dateStr)) return false;
-    if (m.availability_status === '一季一次' && (state.totalUsage[m.id] || 0) >= 1) return false;
-    if (m.availability_status === '一季三次' && (state.totalUsage[m.id] || 0) >= 3) return false;
+    
+    if (m.availability_status === '一季一次' && (state.totalUsage[m.id] || 0) >= 1) {
+        return false;
+    }
+
+    if (m.availability_status === '一季三次' && (state.totalUsage[m.id] || 0) >= 3) {
+        return false;
+    }
+
     if (!state.memberSkills[m.id].has(posId)) return false;
-    if (roleName === '執事輪值') { if ((state.roleUsage[m.id][posId] || 0) >= 4) return false; }
+
+    if (roleName === '執事輪值') {
+      if ((state.roleUsage[m.id][posId] || 0) >= 4) return false;
+    }
+
     if (roleName === '新朋友關懷') {
       const val = m.newcomer_rule;
       const isRule2or3 = (val === 2 || val === '2' || val === 3 || val === '3');
-      if (isRule2or3 && context.sunday.getDate() >= 8 && context.sunday.getDate() <= 14) return false;
+      if (isRule2or3 && context.sunday.getDate() >= 8 && context.sunday.getDate() <= 14) {
+        return false;
+      }
     }
 
     const dayShifts = state.draft.filter((d) => d.service_date === context.dateStr && d.member_id === m.id);
     const dayRoles = dayShifts.map(d => d._positionName);
 
-    // 最大班次限制：單日最多兩班 (無論是跨堂還是同堂兼任)
     if (dayShifts.length >= 2) return false; 
 
-    // 【執事絕對互斥機制】：已是執事不可接其他崗；已是其他崗不可接執事 (但可以排第二堂的執事)
-    if (roleName === '執事輪值') {
-        if (dayShifts.length > 0 && !dayRoles.includes('執事輪值')) return false; 
-        if (dayRoles.includes('執事輪值') && dayShifts[0].session === session) return false; 
-    } else {
-        if (dayRoles.includes('執事輪值')) return false; 
+    const dualPref = parseInt(m.dual_service_pref) || 0;
 
-        // 一般崗位的兼任與偏好檢查
+    if (roleName !== '執事輪值') {
         if (dayShifts.length === 1) {
             const firstShift = dayShifts[0];
-            const rawPref = m.dual_service_pref;
-            const dualPref = (rawPref === null || rawPref === undefined || rawPref === '') ? null : parseInt(rawPref);
-            
-            if (dualPref === 0) {
-                // 【關閉兼任】：同日同堂只排一個崗位 (也不允許跨堂)
-                return false; 
-            } else if (dualPref === 1) {
+            if (dualPref === 1) {
                 if (firstShift.session === session) return false; 
                 if (firstShift._positionName !== roleName) return false; 
             } else if (dualPref === 2) {
                 if (firstShift.session === session) return false; 
                 if (firstShift._positionName === roleName) return false; 
             } else {
-                // 【預設 (null)】：允許同日同堂兼任特定崗位
-                if (firstShift.session !== session) return false; // null 不允許跨堂
-                
-                // 嚴格檢驗是否符合「同日同堂可兼任崗位清單」
-                const concurrentRoles = ['接待', '收奉獻', '主餐', '新朋友關懷'];
-                if (!concurrentRoles.includes(roleName)) return false;
-                if (!concurrentRoles.includes(firstShift._positionName)) return false;
-                if (firstShift._positionName === roleName) return false; // 同堂不可排兩個相同崗位
+                if (firstShift.session !== session) return false; 
+                if (firstShift._positionName === roleName) return false; 
             }
         }
 
+        if (dualPref === 0) {
+            const leaderRoles = ['司會', 'PPT'];
+            if (leaderRoles.includes(roleName) && dayShifts.length > 0) return false;
+            if (dayRoles.some(r => leaderRoles.includes(r))) return false;
+        }
+
         if (dayShifts.length === 0) {
-            const rawPref = m.dual_service_pref;
-            const dualPref = (rawPref === null || rawPref === undefined || rawPref === '') ? null : parseInt(rawPref);
-            if ((dualPref === 0 || dualPref === null) && m.preferred_session && m.preferred_session !== '皆可') {
+            if (dualPref === 0 && m.preferred_session && m.preferred_session !== '皆可') {
                 const prefStr = String(m.preferred_session);
                 if (!prefStr.includes(session.replace('堂', ''))) return false;
             }
@@ -204,8 +229,13 @@ const ScheduleEngine = {
             
             if (assignedFamilyIds.length > 0) {
                 const familyRoles = new Set();
-                assignedFamilyIds.forEach(fid => context.dailyAssignments[fid].forEach(r => familyRoles.add(r)));
-                if (myGroupId.startsWith('FA')) { if (!familyRoles.has(roleName)) return false; } 
+                assignedFamilyIds.forEach(fid => {
+                    context.dailyAssignments[fid].forEach(r => familyRoles.add(r));
+                });
+                
+                if (myGroupId.startsWith('FA')) {
+                    if (!familyRoles.has(roleName)) return false;
+                } 
             }
         }
     }
@@ -215,6 +245,7 @@ const ScheduleEngine = {
 
   _getScore(m, slot, state, context, members) {
     let weight = 0;
+
     if (['執事輪值', '司會'].includes(slot.roleName)) {
        const currentUsage = state.roleUsage[m.id]?.[slot.posId] || 0;
        if (currentUsage === 0) weight -= 20000;
@@ -227,28 +258,50 @@ const ScheduleEngine = {
            const assignedFamilyIds = Object.keys(context.dailyAssignments).filter(
                assignedId => assignedId !== m.id && state.memberGroups[assignedId] === myGroupId
            );
+           
            if (assignedFamilyIds.length > 0) {
                const familyRoles = new Set();
                assignedFamilyIds.forEach(fid => context.dailyAssignments[fid].forEach(r => familyRoles.add(r)));
-               if (myGroupId.startsWith('FA') && familyRoles.has(slot.roleName)) weight -= 15000; 
-               else if (myGroupId.startsWith('FB')) weight -= 15000; 
+               
+               if (myGroupId.startsWith('FA') && familyRoles.has(slot.roleName)) {
+                   weight -= 15000; 
+               } else if (myGroupId.startsWith('FB')) {
+                   weight -= 15000; 
+               }
            }
        }
     }
 
     const dayRoles = context.dailyAssignments[m.id] || [];
     const comboRoles = ['接待', '收奉獻', '主餐', '新朋友關懷'];
-    if (dayRoles.length === 1 && comboRoles.includes(slot.roleName) && comboRoles.includes(dayRoles[0])) weight -= 5000;
-    if (state.lastServedWeek[m.id] === context.weekIndex - 1) weight += 1000;
-
-    const isFamily = myGroupId && (String(myGroupId).startsWith('FA') || String(myGroupId).startsWith('FB'));
-    if (!isFamily && state.memberSkills[m.id].size === 1) weight -= 800; 
-    if (isFamily && members) {
-        const skillAvg = this._getSkillAvgUsage(state, members, slot.posId);
-        if ((state.totalUsage[m.id] || 0) > skillAvg + 0.1) weight += 2000; 
+    if (dayRoles.length === 1 && comboRoles.includes(slot.roleName) && comboRoles.includes(dayRoles[0])) {
+       weight -= 5000;
     }
 
-    return [ weight, state.totalUsage[m.id] || 0, state.memberSkills[m.id].size, Math.random() ];
+    if (state.lastServedWeek[m.id] === context.weekIndex - 1) {
+       weight += 1000;
+    }
+
+    // 【終極防壟斷保護】：保護單一技能的一般人
+    const isFamily = myGroupId && (String(myGroupId).startsWith('FA') || String(myGroupId).startsWith('FB'));
+    if (!isFamily && state.memberSkills[m.id].size === 1) {
+        weight -= 800; // 單技能非家庭者，給予強力優先權，保證他們能搶到班
+    }
+
+    // 【終極防壟斷懲罰】：家庭成員若次數已高於該技能平均值，則大幅退讓
+    if (isFamily && members) {
+        const skillAvg = this._getSkillAvgUsage(state, members, slot.posId);
+        if ((state.totalUsage[m.id] || 0) > skillAvg + 0.1) {
+            weight += 2000; 
+        }
+    }
+
+    return [
+        weight, 
+        state.totalUsage[m.id] || 0, 
+        state.memberSkills[m.id].size, 
+        Math.random()
+    ];
   },
 
   _compareScore(scoreA, scoreB) {
@@ -267,7 +320,9 @@ const ScheduleEngine = {
     sessionsToSchedule.forEach((sess) => {
       roleOrder.forEach(roleName => {
         const slots = context.availableSlots.filter(s => s.session === sess && s.roleName === roleName && s.needed > 0);
-        slots.forEach(slot => this._fillSlot(slot, members, state, context, 0));
+        slots.forEach(slot => {
+             this._fillSlot(slot, members, state, context, 0);
+        });
       });
     });
 
@@ -277,7 +332,9 @@ const ScheduleEngine = {
     sessionsToSchedule.forEach((sess) => {
       roleOrder.forEach(roleName => {
         const slots = context.availableSlots.filter(s => s.session === sess && s.roleName === roleName && s.needed > 0);
-        slots.forEach(slot => this._fillSlot(slot, members, state, context, 1));
+        slots.forEach(slot => {
+            this._fillSlot(slot, members, state, context, 1);
+        });
       });
     });
 
@@ -286,14 +343,18 @@ const ScheduleEngine = {
 
   _assignDualService(state, context, members) {
       const activeMembers = members.filter(m => !['暫停服事', '安息季'].includes(m.availability_status));
-      const avgUsage = activeMembers.length > 0 ? activeMembers.reduce((sum, m) => sum + (state.totalUsage[m.id] || 0), 0) / activeMembers.length : 0;
+      const avgUsage = activeMembers.length > 0 
+          ? activeMembers.reduce((sum, m) => sum + (state.totalUsage[m.id] || 0), 0) / activeMembers.length 
+          : 0;
 
       const dualMembers = members.filter(m => {
-          const p = parseInt(m.dual_service_pref);
+          const p = parseInt(m.dual_service_pref) || 0;
           if (p !== 1 && p !== 2) return false;
           if ((context.dailyAssignments[m.id] || []).length > 0) return false;
+
           if (state.lastServedWeek[m.id] === context.weekIndex - 1) return false;
           if ((state.totalUsage[m.id] || 0) > avgUsage + 1.5) return false;
+
           return true;
       });
 
@@ -305,6 +366,8 @@ const ScheduleEngine = {
           
           for (let s1 of s1Slots) {
               if (!this._canAssign(m, s1, state, context, 0)) continue;
+              
+              // 【防壟斷修正】嚴格限制 + 0.1
               if ((state.totalUsage[m.id] || 0) > this._getSkillAvgUsage(state, members, s1.posId) + 0.1) continue;
               
               let s2 = null;
@@ -328,7 +391,9 @@ const ScheduleEngine = {
 
   _assignFamilyGroups(state, context, members) {
       const activeMembers = members.filter(m => !['暫停服事', '安息季'].includes(m.availability_status));
-      const avgUsage = activeMembers.length > 0 ? activeMembers.reduce((sum, m) => sum + (state.totalUsage[m.id] || 0), 0) / activeMembers.length : 0;
+      const avgUsage = activeMembers.length > 0 
+          ? activeMembers.reduce((sum, m) => sum + (state.totalUsage[m.id] || 0), 0) / activeMembers.length 
+          : 0;
 
       const groups = {};
       members.forEach(m => {
@@ -337,6 +402,7 @@ const ScheduleEngine = {
               if (state.lastServedWeek[m.id] === context.weekIndex - 1) return;
               if ((state.totalUsage[m.id] || 0) > avgUsage + 1.5) return;
               if ((context.dailyAssignments[m.id] || []).length > 0) return;
+
               if (this._isAvailableOnDate(m, context.dateStr)) {
                   if (!groups[gid]) groups[gid] = [];
                   groups[gid].push(m);
@@ -355,6 +421,7 @@ const ScheduleEngine = {
           if (gMembers.length < 2) continue;
 
           const isFA = gid.startsWith('FA');
+
           let placed = false;
           const m0 = gMembers[0];
           
@@ -362,6 +429,8 @@ const ScheduleEngine = {
               for (let role of roleOrder) {
                   const slot0 = context.availableSlots.find(s => s.session === sess && s.roleName === role && s.needed > 0);
                   if (!slot0 || !this._canAssign(m0, slot0, state, context, 0, members)) continue;
+
+                  // 【防壟斷修正】確保家庭不會因為優先進場而壟斷了單一崗位 (改為嚴格的 + 0.1)
                   if ((state.totalUsage[m0.id] || 0) > this._getSkillAvgUsage(state, members, slot0.posId) + 0.1) continue;
 
                   let allCanBePlaced = true;
@@ -376,13 +445,17 @@ const ScheduleEngine = {
                       for (let tSess of targetSessions) {
                           for (let tRole of roleOrder) {
                               if (isFA && !familyRoles.has(tRole)) continue; 
+
                               const slotN = context.availableSlots.find(s => s.session === tSess && s.roleName === tRole);
                               if (!slotN) continue;
+                              
                               const plannedCount = plannedSlots.filter(ps => ps.slot === slotN).length;
                               if (slotN.needed - plannedCount <= 0) continue;
 
                               if (this._canAssign(m, slotN, state, context, 0, true)) {
+                                  // 【防壟斷修正】其他家庭成員也需做防壟斷檢查 (改為嚴格的 + 0.1)
                                   if ((state.totalUsage[m.id] || 0) > this._getSkillAvgUsage(state, members, slotN.posId) + 0.1) continue;
+
                                   plannedSlots.push({ member: m, slot: slotN });
                                   familyRoles.add(tRole);
                                   foundSlotForM = true;
@@ -392,12 +465,19 @@ const ScheduleEngine = {
                           if (foundSlotForM) break;
                       }
 
-                      if (!foundSlotForM) { allCanBePlaced = false; break; }
+                      if (!foundSlotForM) {
+                          allCanBePlaced = false;
+                          break; 
+                      }
                   }
 
                   if (allCanBePlaced) {
-                      for (let plan of plannedSlots) this._assign(plan.member, plan.slot, state, context);
-                      for (let plan of plannedSlots) this._immediateFOFill(plan.member, state, context, members);
+                      for (let plan of plannedSlots) {
+                          this._assign(plan.member, plan.slot, state, context);
+                      }
+                      for (let plan of plannedSlots) {
+                          this._immediateFOFill(plan.member, state, context, members);
+                      }
                       placed = true;
                       break; 
                   }
@@ -413,6 +493,7 @@ const ScheduleEngine = {
       const eligible = members.filter((m) => this._canAssign(m, slot, state, context, strictLevel));
       if (eligible.length === 0) break;
 
+      // 傳入 members 供 _getScore 進行防壟斷計算
       const scored = eligible.map(m => ({ m, score: this._getScore(m, slot, state, context, members) }));
       scored.sort((a, b) => this._compareScore(a.score, b.score));
       
@@ -427,7 +508,7 @@ const ScheduleEngine = {
   },
 
   _immediateFOFill(baseMember, state, context, members) {
-      const pref = parseInt(baseMember.dual_service_pref);
+      const pref = parseInt(baseMember.dual_service_pref) || 0;
       if (pref !== 1 && pref !== 2) return;
 
       const dayShifts = state.draft.filter(d => d.service_date === context.dateStr && d.member_id === baseMember.id);
@@ -440,10 +521,15 @@ const ScheduleEngine = {
       const targetSlots = context.availableSlots.filter(s => s.session === targetSession && s.needed > 0);
 
       let targetSlot = null;
-      if (pref === 1) targetSlot = targetSlots.find(s => s.roleName === currentShift._positionName && this._canAssign(baseMember, s, state, context, 0, true));
-      else if (pref === 2) targetSlot = targetSlots.find(s => s.roleName !== currentShift._positionName && this._canAssign(baseMember, s, state, context, 0, true));
+      if (pref === 1) { 
+          targetSlot = targetSlots.find(s => s.roleName === currentShift._positionName && this._canAssign(baseMember, s, state, context, 0, true));
+      } else if (pref === 2) { 
+          targetSlot = targetSlots.find(s => s.roleName !== currentShift._positionName && this._canAssign(baseMember, s, state, context, 0, true));
+      }
 
-      if (targetSlot) this._assign(baseMember, targetSlot, state, context);
+      if (targetSlot) {
+          this._assign(baseMember, targetSlot, state, context);
+      }
   },
 
   _immediateFamilyFill(baseMember, state, context, members) {
@@ -451,9 +537,12 @@ const ScheduleEngine = {
       if (!groupId || (!groupId.startsWith('FA') && !groupId.startsWith('FB'))) return;
 
       const unassignedFamily = members.filter(m => 
-          m.id !== baseMember.id && state.memberGroups[m.id] === groupId && 
-          this._isAvailableOnDate(m, context.dateStr) && !(context.dailyAssignments[m.id] && context.dailyAssignments[m.id].length > 0)
+          m.id !== baseMember.id && 
+          state.memberGroups[m.id] === groupId && 
+          this._isAvailableOnDate(m, context.dateStr) &&
+          !(context.dailyAssignments[m.id] && context.dailyAssignments[m.id].length > 0)
       );
+
       if (unassignedFamily.length === 0) return;
 
       const baseShift = state.draft.find(d => d.service_date === context.dateStr && d.member_id === baseMember.id);
@@ -462,12 +551,14 @@ const ScheduleEngine = {
 
       unassignedFamily.forEach(famMember => {
           let assigned = false;
+          
           let availableSlots = context.availableSlots.filter(s => s.session === targetSession && s.needed > 0);
           for (let slot of availableSlots) {
               if (this._canAssign(famMember, slot, state, context, 0, true)) {
                   this._assign(famMember, slot, state, context);
                   this._immediateFOFill(famMember, state, context, members);
-                  assigned = true; break;
+                  assigned = true;
+                  break;
               }
           }
 
@@ -495,10 +586,13 @@ const ScheduleEngine = {
         const currentUsage = state.roleUsage[m.id]?.[deaconId] || 0;
         const neededSlots = slots.filter(s => s.needed > 0);
         if (currentUsage + neededSlots.length > 4) return false; 
+        
         return neededSlots.every(s => this._canAssign(m, s, state, context, 0, true));
       });
+      
       if (eligible.length === 0) break;
       
+      // 傳入 members 供 _getScore 進行防壟斷計算
       const scored = eligible.map(m => ({ m, score: this._getScore(m, slots[0], state, context, members) }));
       scored.sort((a, b) => this._compareScore(a.score, b.score));
       const best = scored[0].m;
@@ -527,10 +621,15 @@ const ScheduleEngine = {
        const targetSlots = context.availableSlots.filter(s => s.session === targetSession && s.needed > 0);
 
        let targetSlot = null;
-       if (pref === 1) targetSlot = targetSlots.find(s => s.roleName === currentShift._positionName && this._canAssign(m, s, state, context, 0, true));
-       else if (pref === 2) targetSlot = targetSlots.find(s => s.roleName !== currentShift._positionName && this._canAssign(m, s, state, context, 0, true));
+       if (pref === 1) { 
+         targetSlot = targetSlots.find(s => s.roleName === currentShift._positionName && this._canAssign(m, s, state, context, 0, true));
+       } else if (pref === 2) { 
+         targetSlot = targetSlots.find(s => s.roleName !== currentShift._positionName && this._canAssign(m, s, state, context, 0, true));
+       }
 
-       if (targetSlot) this._assign(m, targetSlot, state, context);
+       if (targetSlot) {
+         this._assign(m, targetSlot, state, context);
+       }
     });
   },
 
@@ -563,15 +662,18 @@ const ScheduleEngine = {
          if (!targetSession) return;
 
          unassignedMembers.sort((a, b) => (state.totalUsage[a.id] || 0) - (state.totalUsage[b.id] || 0));
+
          let currentAssignedCount = assignedMembers.length;
 
          unassignedMembers.forEach(unM => {
             let assigned = false;
+            
             const targetSlots = context.availableSlots.filter(s => s.session === targetSession && s.needed > 0);
             for (let s of targetSlots) {
                if (this._canAssign(unM, s, state, context, 0, true)) {
                   this._assign(unM, s, state, context);
-                  assigned = true; break;
+                  assigned = true;
+                  break;
                }
             }
 
@@ -580,15 +682,23 @@ const ScheduleEngine = {
                 for (let s of otherSlots) {
                    if (this._canAssign(unM, s, state, context, 0, true)) {
                       this._assign(unM, s, state, context);
-                      assigned = true; break;
+                      assigned = true;
+                      break;
                    }
                 }
             }
 
-            if (assigned) { currentAssignedCount++; }
+            if (assigned) {
+                currentAssignedCount++;
+            }
+
             if (!assigned) {
-                if (currentAssignedCount >= 2) return; 
-                else { this._forceSwapForFamily(unM, assignedMembers[0], state, context, members); currentAssignedCount++; }
+                if (currentAssignedCount >= 2) {
+                    return; 
+                } else {
+                    this._forceSwapForFamily(unM, assignedMembers[0], state, context, members);
+                    currentAssignedCount++; 
+                }
             }
          });
       }
@@ -597,19 +707,25 @@ const ScheduleEngine = {
 
   _forceSwapForFamily(unM, baseMember, state, context, members) {
       const todayShifts = state.draft.filter(d => 
-          d.service_date === context.dateStr && !d.is_empty && 
-          d.member_id !== unM.id && d.member_id !== baseMember.id
+          d.service_date === context.dateStr && 
+          !d.is_empty && 
+          d.member_id !== unM.id && 
+          d.member_id !== baseMember.id
       );
       
-      let bestSwap = null; let bestScore = -9999;
+      let bestSwap = null;
+      let bestScore = -9999;
 
       for (let shift of todayShifts) {
+          // 修復錯字，避免出錯
           if (shift._positionName === '執事輪值') continue;
+
           const mockSlot = { roleName: shift._positionName, session: shift.session, posId: shift.position_id };
           if (!this._canAssign(unM, mockSlot, state, context, 0, true)) continue;
 
           const victim = members.find(m => m.id === shift.member_id);
           if (!victim) continue;
+
           const victimGroupId = state.memberGroups[victim.id];
           if (victimGroupId && (victimGroupId.startsWith('FA') || victimGroupId.startsWith('FB'))) continue;
 
@@ -617,7 +733,10 @@ const ScheduleEngine = {
           const unMUsage = state.totalUsage[unM.id] || 0;
           const score = victimUsage - unMUsage;
 
-          if (score > bestScore) { bestScore = score; bestSwap = { shift, victim, mockSlot }; }
+          if (score > bestScore) {
+              bestScore = score;
+              bestSwap = { shift, victim, mockSlot };
+          }
       }
 
       if (bestSwap) {
@@ -630,7 +749,9 @@ const ScheduleEngine = {
       if (draftIdx === -1) return;
 
       state.totalUsage[oldMemberId] = Math.max(0, state.totalUsage[oldMemberId] - 1);
-      if (state.roleUsage[oldMemberId][slotInfo.posId]) state.roleUsage[oldMemberId][slotInfo.posId]--;
+      if (state.roleUsage[oldMemberId][slotInfo.posId]) {
+          state.roleUsage[oldMemberId][slotInfo.posId]--;
+      }
       const dailyIdx = context.dailyAssignments[oldMemberId].indexOf(slotInfo.roleName);
       if (dailyIdx > -1) context.dailyAssignments[oldMemberId].splice(dailyIdx, 1);
 
@@ -646,7 +767,9 @@ const ScheduleEngine = {
   },
 
   _assign(m, slot, state, context, isEmergency = 0) {
-    slot.assigned.push(m); slot.needed--; state.totalUsage[m.id]++;
+    slot.assigned.push(m);
+    slot.needed--;
+    state.totalUsage[m.id]++;
     state.roleUsage[m.id][slot.posId] = (state.roleUsage[m.id][slot.posId] || 0) + 1;
     state.lastServedWeek[m.id] = context.weekIndex;
     
@@ -655,8 +778,13 @@ const ScheduleEngine = {
 
     state.draft.push({
       temp_id: `T_${context.dateStr}_${slot.session}_${slot.posId}_${Math.random()}`,
-      service_date: context.dateStr, session: slot.session, member_id: m.id, position_id: slot.posId,
-      _memberName: m.name, _positionName: slot.roleName, is_emergency: isEmergency
+      service_date: context.dateStr, 
+      session: slot.session, 
+      member_id: m.id, 
+      position_id: slot.posId,
+      _memberName: m.name, 
+      _positionName: slot.roleName, 
+      is_emergency: isEmergency
     });
   },
 
@@ -665,8 +793,13 @@ const ScheduleEngine = {
       while (slot.needed > 0) {
         state.draft.push({
           temp_id: `EMPTY_${context.dateStr}_${slot.session}_${slot.posId}_${Math.random()}`,
-          service_date: context.dateStr, session: slot.session, member_id: 'EMPTY_SLOT', position_id: slot.posId,
-          _memberName: '⚠️ 需手動指派', _positionName: slot.roleName, is_empty: true
+          service_date: context.dateStr, 
+          session: slot.session, 
+          member_id: 'EMPTY_SLOT', 
+          position_id: slot.posId,
+          _memberName: '⚠️ 需手動指派', 
+          _positionName: slot.roleName, 
+          is_empty: true
         });
         slot.needed--;
       }
@@ -675,7 +808,9 @@ const ScheduleEngine = {
 
   _applyVisualFlags(draft, members) {
     const memberGroups = {};
-    members.forEach(m => { if (m.group_id) memberGroups[m.id] = String(m.group_id); });
+    members.forEach(m => {
+      if (m.group_id) memberGroups[m.id] = String(m.group_id);
+    });
 
     const shiftsByDate = {};
     draft.forEach(d => {
@@ -686,26 +821,37 @@ const ScheduleEngine = {
 
     Object.keys(shiftsByDate).forEach(dateStr => {
       const dayShifts = shiftsByDate[dateStr];
-      const freq = {}; const groupFreq = {}; const groupActiveMembersCount = {};
+      const freq = {};
+      const groupFreq = {};
+      const groupActiveMembersCount = {};
 
       dayShifts.forEach(d => {
         freq[d.member_id] = (freq[d.member_id] || 0) + 1;
+        
         const gid = memberGroups[d.member_id];
         if (gid && (gid.startsWith('FA') || gid.startsWith('FB'))) {
           if (!groupFreq[gid]) groupFreq[gid] = new Set();
           groupFreq[gid].add(d.member_id);
+          
           if (!groupActiveMembersCount[gid]) {
-              groupActiveMembersCount[gid] = members.filter(m => memberGroups[m.id] === gid && this._isAvailableOnDate(m, dateStr)).length;
+              groupActiveMembersCount[gid] = members.filter(m => 
+                  memberGroups[m.id] === gid && this._isAvailableOnDate(m, dateStr)
+              ).length;
           }
         }
       });
 
       dayShifts.forEach(d => {
-        if (freq[d.member_id] >= 2) d.is_duplicate = true;
+        if (freq[d.member_id] >= 2) {
+          d.is_duplicate = true;
+        }
+
         const gid = memberGroups[d.member_id];
         if (gid && groupFreq[gid]) {
             const activeCount = groupActiveMembersCount[gid] || 0;
-            if (activeCount > 1 && groupFreq[gid].size < 2) d.is_lonely_family = true;
+            if (activeCount > 1 && groupFreq[gid].size < 2) {
+                d.is_lonely_family = true;
+            }
         }
       });
     });
@@ -729,19 +875,28 @@ const ScheduleEngine = {
       if (a._positionName === '新朋友關懷') {
          const memA = members.find(m => m.id === a.member_id);
          const memB = members.find(m => m.id === b.member_id);
-         const ruleA = getRule(memA); const ruleB = getRule(memB);
+         
+         const ruleA = getRule(memA);
+         const ruleB = getRule(memB);
+         
          const prioA = (ruleA === 1 || ruleA === 3) ? 1 : 0;
          const prioB = (ruleB === 1 || ruleB === 3) ? 1 : 0;
+         
          if (prioA !== prioB) return prioB - prioA; 
 
          if (a.is_empty !== b.is_empty) return a.is_empty ? 1 : -1;
          if (!a.is_empty && !b.is_empty) return (a._memberName || '').localeCompare(b._memberName || '');
       }
+
       if (a.is_empty !== b.is_empty) return a.is_empty ? 1 : -1;
+
       return 0;
     });
   },
 };
 
-if (typeof window !== 'undefined') window.ScheduleEngine = ScheduleEngine;
-else if (typeof module !== 'undefined') module.exports = ScheduleEngine;
+if (typeof window !== 'undefined') {
+  window.ScheduleEngine = ScheduleEngine;
+} else if (typeof module !== 'undefined') {
+  module.exports = ScheduleEngine;
+}
