@@ -1,5 +1,5 @@
 /**
- * 教會季排班系統 - 核心引擎 (Scheduler Engine V17 + 終極 FA 全視角預查機制)
+ * 教會季排班系統 - 核心引擎 (Scheduler Engine V18 + 終極 FA 精準鎖定版)
  * 依據 Logic_Analysis.md 實作：
  * 1. L=2 新朋友禁排邏輯 (每月 8-14 號)
  * 2. 嚴格的分數排序演算法 ([權重分, 歷史次數, 技能數量, 隨機/索引])
@@ -8,7 +8,7 @@
  * 5. FA/FB 終極防落單替換機制 (依服事次數踢人)
  * 6. 完美平衡：配對預查機制 (Lookahead)，兼顧配對與次數平均。
  * 7. FA/FB 家庭優先進場機制，徹底解決 FB 在第二堂尾聲找不到異崗位而落單的問題。
- * 8. FA 嚴格共進退：名額、技能、請假、配額、禁排期與單日上限全面預查防護。
+ * 8. FA 嚴格共進退：名額(僅計算未上車家人)、技能、請假、配額、禁排期與單日上限全面預查防護。
  * 9. 一季三次排班限制
  * 10. 終極防壟斷機制：保護單技能一般人，強制家庭達平均次數即刻退讓。
  */
@@ -138,7 +138,6 @@ const ScheduleEngine = {
     
     sessionsToSchedule.forEach((sess) => {
       positions.forEach((p) => {
-        // 安全防護：轉型為字串
         const roleName = String(p.name || '').trim();
         if (!roleName) return;
 
@@ -225,53 +224,7 @@ const ScheduleEngine = {
         const myGroupId = state.memberGroups[m.id];
         if (myGroupId && (myGroupId.startsWith('FA') || myGroupId.startsWith('FB'))) {
             
-            // 【強化版】FA 絕對綁定崗位與共進退預查機制
-            if (myGroupId.startsWith('FA')) {
-                const comboRoles = ['接待', '收奉獻', '主餐', '新朋友關懷'];
-                
-                if (comboRoles.includes(roleName)) {
-                    // 找出所有同組的家人 ID
-                    const familyIds = Object.keys(state.memberGroups).filter(
-                        id => id !== m.id && state.memberGroups[id] === myGroupId
-                    );
-                    
-                    // 名額檢查：如果這個崗位的剩餘名額，不足以容納整個 FA 家族，則放棄
-                    if (slot.needed < (familyIds.length + 1)) {
-                        return false;
-                    }
-
-                    for (let fid of familyIds) {
-                        const famMember = state.membersList.find(mem => mem.id === fid);
-                        if (!famMember) continue;
-
-                        // 防護 1：家人請假或暫停服事
-                        if (!this._isAvailableOnDate(famMember, context.dateStr)) return false;
-
-                        // 防護 2：家人不會這個崗位
-                        if (!state.memberSkills[fid]?.has(posId)) return false; 
-
-                        // 防護 3：配額限制
-                        const famUsage = state.totalUsage[fid] || 0;
-                        if (famMember.availability_status === '一季一次' && famUsage >= 1) return false;
-                        if (famMember.availability_status === '一季三次' && famUsage >= 3) return false;
-
-                        // 防護 4：新朋友規則禁排期
-                        if (roleName === '新朋友關懷') {
-                            const val = famMember.newcomer_rule;
-                            const isRule2or3 = (val === 2 || val === '2' || val === 3 || val === '3');
-                            if (isRule2or3 && context.sunday.getDate() >= 8 && context.sunday.getDate() <= 14) {
-                                return false;
-                            }
-                        }
-
-                        // 防護 5：單日班數上限
-                        const famDayShifts = state.draft.filter((d) => d.service_date === context.dateStr && d.member_id === fid);
-                        if (famDayShifts.length >= 2) return false;
-                    }
-                }
-            }
-
-            // 【保留】原本的防護：如果家人已經先被排入某崗位，我必須跟他一樣
+            // 【強制綁定防護】: 確保跟著已經被排班的家人排一樣的崗位
             const assignedFamilyIds = Object.keys(context.dailyAssignments).filter(
                 id => id !== m.id && state.memberGroups[id] === myGroupId
             );
@@ -285,6 +238,48 @@ const ScheduleEngine = {
                 if (myGroupId.startsWith('FA')) {
                     if (!familyRoles.has(roleName)) return false;
                 } 
+            }
+
+            // 【強化版預查】: 只針對「尚未上車」的家人進行名額與狀態預查
+            if (myGroupId.startsWith('FA')) {
+                const comboRoles = ['接待', '收奉獻', '主餐', '新朋友關懷'];
+                
+                if (comboRoles.includes(roleName)) {
+                    // 找出「尚未被排入該崗位」的家人
+                    const unassignedFamilyIds = Object.keys(state.memberGroups).filter(
+                        fid => fid !== m.id && 
+                               state.memberGroups[fid] === myGroupId && 
+                               !(context.dailyAssignments[fid] && context.dailyAssignments[fid].includes(roleName))
+                    );
+                    
+                    // 【修復盲點 1】名額檢查：只檢查剩餘名額是否夠「還沒上車的家人」使用
+                    if (slot.needed < (unassignedFamilyIds.length + 1)) {
+                        return false;
+                    }
+
+                    for (let fid of unassignedFamilyIds) {
+                        const famMember = state.membersList.find(mem => mem.id === fid);
+                        if (!famMember) continue;
+
+                        if (!this._isAvailableOnDate(famMember, context.dateStr)) return false;
+                        if (!state.memberSkills[fid]?.has(posId)) return false; 
+
+                        const famUsage = state.totalUsage[fid] || 0;
+                        if (famMember.availability_status === '一季一次' && famUsage >= 1) return false;
+                        if (famMember.availability_status === '一季三次' && famUsage >= 3) return false;
+
+                        if (roleName === '新朋友關懷') {
+                            const val = famMember.newcomer_rule;
+                            const isRule2or3 = (val === 2 || val === '2' || val === 3 || val === '3');
+                            if (isRule2or3 && context.sunday.getDate() >= 8 && context.sunday.getDate() <= 14) {
+                                return false;
+                            }
+                        }
+
+                        const famDayShifts = state.draft.filter((d) => d.service_date === context.dateStr && d.member_id === fid);
+                        if (famDayShifts.length >= 2) return false;
+                    }
+                }
             }
         }
     }
@@ -593,13 +588,18 @@ const ScheduleEngine = {
       const baseShift = state.draft.find(d => d.service_date === context.dateStr && d.member_id === baseMember.id);
       if (!baseShift) return;
       const targetSession = baseShift.session;
+      const targetRole = baseShift._positionName;
 
       unassignedFamily.forEach(famMember => {
           let assigned = false;
           
           let availableSlots = context.availableSlots.filter(s => s.session === targetSession && s.needed > 0);
           for (let slot of availableSlots) {
-              if (this._canAssign(famMember, slot, state, context, 0, true)) {
+              // 【修復盲點 2】如果是 FA，鎖定只能挑選跟第一人一模一樣的崗位
+              if (groupId.startsWith('FA') && slot.roleName !== targetRole) continue;
+
+              // 【修復盲點 2】將 skipFamilyCheck 改回 false，強制啟動引擎的防護網
+              if (this._canAssign(famMember, slot, state, context, 0, false)) {
                   this._assign(famMember, slot, state, context);
                   this._immediateFOFill(famMember, state, context, members);
                   assigned = true;
@@ -610,7 +610,10 @@ const ScheduleEngine = {
           if (!assigned) {
               availableSlots = context.availableSlots.filter(s => s.session !== targetSession && s.needed > 0);
               for (let slot of availableSlots) {
-                  if (this._canAssign(famMember, slot, state, context, 0, true)) {
+                  // 【新增】跨堂備用邏輯同樣必須受到 FA 綁定限制
+                  if (groupId.startsWith('FA') && slot.roleName !== targetRole) continue;
+                  
+                  if (this._canAssign(famMember, slot, state, context, 0, false)) {
                       this._assign(famMember, slot, state, context);
                       this._immediateFOFill(famMember, state, context, members); 
                       break;
