@@ -1,5 +1,5 @@
 /**
- * 教會季排班系統 - 核心引擎 (Scheduler Engine V17)
+ * 教會季排班系統 - 核心引擎 (Scheduler Engine V18 - FA 獨立與共同技能分流版)
  * 依據 Logic_Analysis.md 實作：
  * 1. L=2 新朋友禁排邏輯 (每月 8-14 號)
  * 2. 嚴格的分數排序演算法 ([權重分, 歷史次數, 技能數量, 隨機/索引])
@@ -8,9 +8,11 @@
  * 5. FA/FB 終極防落單替換機制 (依服事次數踢人)
  * 6. 完美平衡：配對預查機制 (Lookahead)，兼顧配對與次數平均。
  * 7. FA/FB 家庭優先進場機制，徹底解決 FB 在第二堂尾聲找不到異崗位而落單的問題。
- * 8. 動態剔除無效家人：若家人請假或暫停服事，另一人不連坐，可獨立正常排班且不亮落單藍燈！
+ * 8. 動態剔除無效家人：若家人請假或暫停服事，另一人不連坐，可獨立正常排班且不亮落單藍燈。
  * 9. 一季三次排班限制
  * 10. 終極防壟斷機制：保護單技能一般人，強制家庭達平均次數即刻退讓。
+ * 11. 【V18 新增】FA 家庭技能交集與容量檢查，名額不足或無共同技能則不強排同崗位。
+ * 12. 【V18 新增】獨立技能單飛機制：當家人服事各自的「獨立技能」時，解除同崗位綁定與連坐補位。
  */
 
 const sessionsToSchedule = ['第一堂', '第二堂'];
@@ -58,7 +60,7 @@ const ScheduleEngine = {
 
     const currentQuarterStr = `${year}-Q${quarter}`;
 
-    // 【修正】深拷貝 members 避免修改原始 Props 導致 Vue/React 狀態崩潰
+    // 深拷貝 members 避免修改原始 Props 導致 Vue/React 狀態崩潰
     const clonedMembers = JSON.parse(JSON.stringify(effectiveMembers));
 
     clonedMembers.forEach(m => {
@@ -67,7 +69,6 @@ const ScheduleEngine = {
             if (qs) {
                 if (qs.newcomer_rule !== undefined && qs.newcomer_rule !== null) m.newcomer_rule = qs.newcomer_rule;
                 if (qs.dual_service_pref !== undefined && qs.dual_service_pref !== null) m.dual_service_pref = qs.dual_service_pref;
-                
                 if (qs.availability_status) m.availability_status = qs.availability_status;
             }
         }
@@ -88,6 +89,7 @@ const ScheduleEngine = {
       lastServedWeek: {},
       memberSkills: {},
       memberGroups: {}, 
+      uniqueSkills: {}, // 儲存獨立技能
     };
 
     this._prepareData(state, clonedMembers, effectiveMemberPositions);
@@ -129,6 +131,22 @@ const ScheduleEngine = {
           state.memberGroups[m.id] = String(m.group_id);
       }
     });
+
+    // 計算每個人的獨立技能 (Unique Skills)
+    members.forEach(m => {
+        state.uniqueSkills[m.id] = new Set();
+        const myGroupId = state.memberGroups[m.id];
+        
+        if (myGroupId && (myGroupId.startsWith('FA') || myGroupId.startsWith('FB'))) {
+            const familyMembers = members.filter(fam => fam.id !== m.id && state.memberGroups[fam.id] === myGroupId);
+            
+            state.memberSkills[m.id].forEach(posId => {
+                // 如果家人中「沒有任何人」會這個技能，它就是獨立技能
+                const isUnique = familyMembers.every(fam => !state.memberSkills[fam.id].has(posId));
+                if (isUnique) state.uniqueSkills[m.id].add(posId);
+            });
+        }
+    });
   },
 
   _createAvailableSlots(sunday, positions, roleSettings) {
@@ -137,7 +155,6 @@ const ScheduleEngine = {
     
     sessionsToSchedule.forEach((sess) => {
       positions.forEach((p) => {
-        // 安全防護：轉型為字串
         const roleName = String(p.name || '').trim();
         if (!roleName) return;
 
@@ -161,15 +178,8 @@ const ScheduleEngine = {
     const { roleName, session, posId } = slot;
     
     if (!this._isAvailableOnDate(m, context.dateStr)) return false;
-    
-    if (m.availability_status === '一季一次' && (state.totalUsage[m.id] || 0) >= 1) {
-        return false;
-    }
-
-    if (m.availability_status === '一季三次' && (state.totalUsage[m.id] || 0) >= 3) {
-        return false;
-    }
-
+    if (m.availability_status === '一季一次' && (state.totalUsage[m.id] || 0) >= 1) return false;
+    if (m.availability_status === '一季三次' && (state.totalUsage[m.id] || 0) >= 3) return false;
     if (!state.memberSkills[m.id].has(posId)) return false;
 
     if (roleName === '執事輪值') {
@@ -234,7 +244,9 @@ const ScheduleEngine = {
                 });
                 
                 if (myGroupId.startsWith('FA')) {
-                    if (!familyRoles.has(roleName)) return false;
+                    const isMyUniqueSkill = state.uniqueSkills[m.id]?.has(posId);
+                    // 只有在「不是獨立技能」的情況下，才強制受 FA 同崗位規則限制
+                    if (!isMyUniqueSkill && !familyRoles.has(roleName)) return false;
                 } 
             }
         }
@@ -282,13 +294,11 @@ const ScheduleEngine = {
        weight += 1000;
     }
 
-    // 【終極防壟斷保護】：保護單一技能的一般人
     const isFamily = myGroupId && (String(myGroupId).startsWith('FA') || String(myGroupId).startsWith('FB'));
     if (!isFamily && state.memberSkills[m.id].size === 1) {
-        weight -= 800; // 單技能非家庭者，給予強力優先權，保證他們能搶到班
+        weight -= 800; 
     }
 
-    // 【終極防壟斷懲罰】：家庭成員若次數已高於該技能平均值，則大幅退讓
     if (isFamily && members) {
         const skillAvg = this._getSkillAvgUsage(state, members, slot.posId);
         if ((state.totalUsage[m.id] || 0) > skillAvg + 0.1) {
@@ -351,10 +361,8 @@ const ScheduleEngine = {
           const p = parseInt(m.dual_service_pref) || 0;
           if (p !== 1 && p !== 2) return false;
           if ((context.dailyAssignments[m.id] || []).length > 0) return false;
-
           if (state.lastServedWeek[m.id] === context.weekIndex - 1) return false;
           if ((state.totalUsage[m.id] || 0) > avgUsage + 1.5) return false;
-
           return true;
       });
 
@@ -366,8 +374,6 @@ const ScheduleEngine = {
           
           for (let s1 of s1Slots) {
               if (!this._canAssign(m, s1, state, context, 0)) continue;
-              
-              // 【防壟斷修正】嚴格限制 + 0.1
               if ((state.totalUsage[m.id] || 0) > this._getSkillAvgUsage(state, members, s1.posId) + 0.1) continue;
               
               let s2 = null;
@@ -422,15 +428,28 @@ const ScheduleEngine = {
 
           const isFA = gid.startsWith('FA');
 
+          // 尋找家庭共同擁有的技能交集
+          const commonSkills = [...state.memberSkills[gMembers[0].id]].filter(posId => {
+              return gMembers.every(m => state.memberSkills[m.id].has(posId));
+          });
+
+          // 如果 FA 家庭沒有共同技能，直接跳過不排班 (讓他們在單獨排班階段以獨立技能上場)
+          if (isFA && commonSkills.length === 0) continue; 
+
           let placed = false;
           const m0 = gMembers[0];
           
           for (let sess of sessionsToSchedule) {
               for (let role of roleOrder) {
                   const slot0 = context.availableSlots.find(s => s.session === sess && s.roleName === role && s.needed > 0);
-                  if (!slot0 || !this._canAssign(m0, slot0, state, context, 0, members)) continue;
+                  
+                  if (!slot0) continue;
+                  
+                  // 若是 FA，必須排入共同技能，且該崗位剩餘名額需大於等於家庭人數
+                  if (isFA && !commonSkills.includes(slot0.posId)) continue; 
+                  if (isFA && slot0.needed < gMembers.length) continue;
 
-                  // 【防壟斷修正】確保家庭不會因為優先進場而壟斷了單一崗位 (改為嚴格的 + 0.1)
+                  if (!this._canAssign(m0, slot0, state, context, 0, members)) continue;
                   if ((state.totalUsage[m0.id] || 0) > this._getSkillAvgUsage(state, members, slot0.posId) + 0.1) continue;
 
                   let allCanBePlaced = true;
@@ -453,7 +472,6 @@ const ScheduleEngine = {
                               if (slotN.needed - plannedCount <= 0) continue;
 
                               if (this._canAssign(m, slotN, state, context, 0, true)) {
-                                  // 【防壟斷修正】其他家庭成員也需做防壟斷檢查 (改為嚴格的 + 0.1)
                                   if ((state.totalUsage[m.id] || 0) > this._getSkillAvgUsage(state, members, slotN.posId) + 0.1) continue;
 
                                   plannedSlots.push({ member: m, slot: slotN });
@@ -493,7 +511,6 @@ const ScheduleEngine = {
       const eligible = members.filter((m) => this._canAssign(m, slot, state, context, strictLevel));
       if (eligible.length === 0) break;
 
-      // 傳入 members 供 _getScore 進行防壟斷計算
       const scored = eligible.map(m => ({ m, score: this._getScore(m, slot, state, context, members) }));
       scored.sort((a, b) => this._compareScore(a.score, b.score));
       
@@ -536,6 +553,13 @@ const ScheduleEngine = {
       const groupId = state.memberGroups[baseMember.id];
       if (!groupId || (!groupId.startsWith('FA') && !groupId.startsWith('FB'))) return;
 
+      const baseShift = state.draft.find(d => d.service_date === context.dateStr && d.member_id === baseMember.id);
+      if (!baseShift) return;
+      
+      // 如果觸發排班的是該成員的獨立技能，阻斷強制連坐機制
+      const isServingUniqueSkill = state.uniqueSkills[baseMember.id]?.has(baseShift.position_id);
+      if (isServingUniqueSkill) return;
+
       const unassignedFamily = members.filter(m => 
           m.id !== baseMember.id && 
           state.memberGroups[m.id] === groupId && 
@@ -544,9 +568,6 @@ const ScheduleEngine = {
       );
 
       if (unassignedFamily.length === 0) return;
-
-      const baseShift = state.draft.find(d => d.service_date === context.dateStr && d.member_id === baseMember.id);
-      if (!baseShift) return;
       const targetSession = baseShift.session;
 
       unassignedFamily.forEach(famMember => {
@@ -592,7 +613,6 @@ const ScheduleEngine = {
       
       if (eligible.length === 0) break;
       
-      // 傳入 members 供 _getScore 進行防壟斷計算
       const scored = eligible.map(m => ({ m, score: this._getScore(m, slots[0], state, context, members) }));
       scored.sort((a, b) => this._compareScore(a.score, b.score));
       const best = scored[0].m;
@@ -658,6 +678,13 @@ const ScheduleEngine = {
       const unassignedMembers = gMembers.filter(m => !context.dailyAssignments[m.id]);
 
       if (assignedMembers.length > 0 && unassignedMembers.length > 0) {
+         // 如果已經排班的家人，全部都是在做他們的「獨立技能」，則視為單飛，不觸發強制補位連坐
+         const isAssignedServingUnique = assignedMembers.every(am => {
+             const shift = state.draft.find(d => d.service_date === context.dateStr && d.member_id === am.id);
+             return shift && state.uniqueSkills[am.id]?.has(shift.position_id);
+         });
+         if (isAssignedServingUnique) return;
+
          const targetSession = state.draft.find(d => d.service_date === context.dateStr && d.member_id === assignedMembers[0].id)?.session;
          if (!targetSession) return;
 
@@ -717,7 +744,6 @@ const ScheduleEngine = {
       let bestScore = -9999;
 
       for (let shift of todayShifts) {
-          // 修復錯字，避免出錯
           if (shift._positionName === '執事輪值') continue;
 
           const mockSlot = { roleName: shift._positionName, session: shift.session, posId: shift.position_id };
@@ -849,7 +875,12 @@ const ScheduleEngine = {
         const gid = memberGroups[d.member_id];
         if (gid && groupFreq[gid]) {
             const activeCount = groupActiveMembersCount[gid] || 0;
-            if (activeCount > 1 && groupFreq[gid].size < 2) {
+            
+            // 確認該班次是否為成員的獨立技能
+            const isUniqueSkill = state.uniqueSkills && state.uniqueSkills[d.member_id]?.has(d.position_id);
+            
+            // 若不是獨立技能且只有一人排班，才標記落單藍燈
+            if (activeCount > 1 && groupFreq[gid].size < 2 && !isUniqueSkill) {
                 d.is_lonely_family = true;
             }
         }
