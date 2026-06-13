@@ -1,5 +1,5 @@
 /**
- * 教會季排班系統 - 核心引擎 (Scheduler Engine V18 + 終極 FA 精準鎖定版)
+ * 教會季排班系統 - 核心引擎 (Scheduler Engine V19 + FA 核心崗位豁免機制)
  * 依據 Logic_Analysis.md 實作：
  * 1. L=2 新朋友禁排邏輯 (每月 8-14 號)
  * 2. 嚴格的分數排序演算法 ([權重分, 歷史次數, 技能數量, 隨機/索引])
@@ -9,8 +9,8 @@
  * 6. 完美平衡：配對預查機制 (Lookahead)，兼顧配對與次數平均。
  * 7. FA/FB 家庭優先進場機制，徹底解決 FB 在第二堂尾聲找不到異崗位而落單的問題。
  * 8. FA 嚴格共進退：名額(僅計算未上車家人)、技能、請假、配額、禁排期與單日上限全面預查防護。
- * 9. 一季三次排班限制
- * 10. 終極防壟斷機制：保護單技能一般人，強制家庭達平均次數即刻退讓。
+ * 9. FA 核心崗位豁免：當一人排入司會、PPT、執事輪值，另一人強制不排班，且不亮落單警報。
+ * 10. 一季三次排班限制與防壟斷退讓機制。
  */
 
 const sessionsToSchedule = ['第一堂', '第二堂'];
@@ -37,7 +37,6 @@ const ScheduleEngine = {
     return sundays;
   },
 
-  // 取得特定職位的所有成員之平均服事次數
   _getSkillAvgUsage(state, members, posId) {
     const skilledMembers = members.filter(m => state.memberSkills[m.id]?.has(posId));
     if (skilledMembers.length === 0) return 0;
@@ -58,7 +57,6 @@ const ScheduleEngine = {
 
     const currentQuarterStr = `${year}-Q${quarter}`;
 
-    // 深拷貝 members 避免修改原始 Props 導致狀態崩潰
     const clonedMembers = JSON.parse(JSON.stringify(effectiveMembers));
 
     clonedMembers.forEach(m => {
@@ -72,7 +70,6 @@ const ScheduleEngine = {
             }
         }
         
-        // 將一季三次的人強制轉為單堂，保留配額
         if (['一季三次', '一季一次'].includes(m.availability_status)) {
              m.dual_service_pref = 0; 
         }
@@ -118,7 +115,7 @@ const ScheduleEngine = {
   },
 
   _prepareData(state, members, memberPositions) {
-    state.membersList = members; // 快取成員清單，供 FA 預查機制查找
+    state.membersList = members; 
     members.forEach((m) => {
       state.totalUsage[m.id] = 0;
       state.roleUsage[m.id] = {};
@@ -224,7 +221,6 @@ const ScheduleEngine = {
         const myGroupId = state.memberGroups[m.id];
         if (myGroupId && (myGroupId.startsWith('FA') || myGroupId.startsWith('FB'))) {
             
-            // 【強制綁定防護】: 確保跟著已經被排班的家人排一樣的崗位
             const assignedFamilyIds = Object.keys(context.dailyAssignments).filter(
                 id => id !== m.id && state.memberGroups[id] === myGroupId
             );
@@ -240,19 +236,16 @@ const ScheduleEngine = {
                 } 
             }
 
-            // 【強化版預查】: 只針對「尚未上車」的家人進行名額與狀態預查
             if (myGroupId.startsWith('FA')) {
                 const comboRoles = ['接待', '收奉獻', '主餐', '新朋友關懷'];
                 
                 if (comboRoles.includes(roleName)) {
-                    // 找出「尚未被排入該崗位」的家人
                     const unassignedFamilyIds = Object.keys(state.memberGroups).filter(
                         fid => fid !== m.id && 
                                state.memberGroups[fid] === myGroupId && 
                                !(context.dailyAssignments[fid] && context.dailyAssignments[fid].includes(roleName))
                     );
                     
-                    // 【修復盲點 1】名額檢查：只檢查剩餘名額是否夠「還沒上車的家人」使用
                     if (slot.needed < (unassignedFamilyIds.length + 1)) {
                         return false;
                     }
@@ -326,13 +319,11 @@ const ScheduleEngine = {
        weight += 1000;
     }
 
-    // 防壟斷保護：單一技能非家庭者優先
     const isFamily = myGroupId && (String(myGroupId).startsWith('FA') || String(myGroupId).startsWith('FB'));
     if (!isFamily && state.memberSkills[m.id].size === 1) {
         weight -= 800; 
     }
 
-    // 防壟斷懲罰：次數高於平均值的家庭成員大幅退讓
     if (isFamily && members) {
         const skillAvg = this._getSkillAvgUsage(state, members, slot.posId);
         if ((state.totalUsage[m.id] || 0) > skillAvg + 0.1) {
@@ -359,7 +350,7 @@ const ScheduleEngine = {
   _runSchedulingPipeline(state, context, members, specialIds) {
     this._assignDeacons(state, context, members, specialIds.deacon);
     this._assignDualService(state, context, members);
-    this._assignFamilyGroups(state, context, members);
+    this._assignFamilyGroups(state, context, members, specialIds); // 傳入 specialIds 供排序
 
     sessionsToSchedule.forEach((sess) => {
       roleOrder.forEach(roleName => {
@@ -432,7 +423,7 @@ const ScheduleEngine = {
       }
   },
 
-  _assignFamilyGroups(state, context, members) {
+  _assignFamilyGroups(state, context, members, specialIds) {
       const activeMembers = members.filter(m => !['暫停服事', '安息季'].includes(m.availability_status));
       const avgUsage = activeMembers.length > 0 
           ? activeMembers.reduce((sum, m) => sum + (state.totalUsage[m.id] || 0), 0) / activeMembers.length 
@@ -463,6 +454,13 @@ const ScheduleEngine = {
           const gMembers = groups[gid];
           if (gMembers.length < 2) continue;
 
+          // 【新增】排序機制：優先將具備核心崗位技能的家人排在第一順位 (m0)
+          gMembers.sort((a, b) => {
+              const aCore = (specialIds && (state.memberSkills[a.id]?.has(specialIds.mc) || state.memberSkills[a.id]?.has(specialIds.ppt) || state.memberSkills[a.id]?.has(specialIds.deacon))) ? 1 : 0;
+              const bCore = (specialIds && (state.memberSkills[b.id]?.has(specialIds.mc) || state.memberSkills[b.id]?.has(specialIds.ppt) || state.memberSkills[b.id]?.has(specialIds.deacon))) ? 1 : 0;
+              return bCore - aCore;
+          });
+
           const isFA = gid.startsWith('FA');
 
           let placed = false;
@@ -474,6 +472,13 @@ const ScheduleEngine = {
                   if (!slot0 || !this._canAssign(m0, slot0, state, context, 0, members)) continue;
 
                   if ((state.totalUsage[m0.id] || 0) > this._getSkillAvgUsage(state, members, slot0.posId) + 0.1) continue;
+
+                  // 【新增】核心豁免機制：若 FA 家人首位取得核心崗位，則賦予豁免權，不用再幫家人找崗位
+                  if (isFA && ['司會', 'PPT', '執事輪值'].includes(role)) {
+                      this._assign(m0, slot0, state, context);
+                      placed = true;
+                      break; 
+                  }
 
                   let allCanBePlaced = true;
                   let plannedSlots = [{ member: m0, slot: slot0 }];
@@ -576,6 +581,16 @@ const ScheduleEngine = {
       const groupId = state.memberGroups[baseMember.id];
       if (!groupId || (!groupId.startsWith('FA') && !groupId.startsWith('FB'))) return;
 
+      const baseShift = state.draft.find(d => d.service_date === context.dateStr && d.member_id === baseMember.id);
+      if (!baseShift) return;
+      const targetSession = baseShift.session;
+      const targetRole = baseShift._positionName;
+
+      // 【新增】核心豁免機制：若剛剛排入的是核心崗位，截斷補位邏輯，不把家人扯進來
+      if (groupId.startsWith('FA') && ['司會', 'PPT', '執事輪值'].includes(targetRole)) {
+          return;
+      }
+
       const unassignedFamily = members.filter(m => 
           m.id !== baseMember.id && 
           state.memberGroups[m.id] === groupId && 
@@ -585,20 +600,13 @@ const ScheduleEngine = {
 
       if (unassignedFamily.length === 0) return;
 
-      const baseShift = state.draft.find(d => d.service_date === context.dateStr && d.member_id === baseMember.id);
-      if (!baseShift) return;
-      const targetSession = baseShift.session;
-      const targetRole = baseShift._positionName;
-
       unassignedFamily.forEach(famMember => {
           let assigned = false;
           
           let availableSlots = context.availableSlots.filter(s => s.session === targetSession && s.needed > 0);
           for (let slot of availableSlots) {
-              // 【修復盲點 2】如果是 FA，鎖定只能挑選跟第一人一模一樣的崗位
               if (groupId.startsWith('FA') && slot.roleName !== targetRole) continue;
 
-              // 【修復盲點 2】將 skipFamilyCheck 改回 false，強制啟動引擎的防護網
               if (this._canAssign(famMember, slot, state, context, 0, false)) {
                   this._assign(famMember, slot, state, context);
                   this._immediateFOFill(famMember, state, context, members);
@@ -610,7 +618,6 @@ const ScheduleEngine = {
           if (!assigned) {
               availableSlots = context.availableSlots.filter(s => s.session !== targetSession && s.needed > 0);
               for (let slot of availableSlots) {
-                  // 【新增】跨堂備用邏輯同樣必須受到 FA 綁定限制
                   if (groupId.startsWith('FA') && slot.roleName !== targetRole) continue;
                   
                   if (this._canAssign(famMember, slot, state, context, 0, false)) {
@@ -705,6 +712,13 @@ const ScheduleEngine = {
       const unassignedMembers = gMembers.filter(m => !context.dailyAssignments[m.id]);
 
       if (assignedMembers.length > 0 && unassignedMembers.length > 0) {
+         
+         // 【新增】核心豁免機制：檢查已排班的家人是否在核心崗位，若是，則不啟動防落單強制換位
+         const aRoles = context.dailyAssignments[assignedMembers[0].id] || [];
+         if (aRoles.some(r => ['司會', 'PPT', '執事輪值'].includes(r))) {
+             return; 
+         }
+
          const targetSession = state.draft.find(d => d.service_date === context.dateStr && d.member_id === assignedMembers[0].id)?.session;
          if (!targetSession) return;
 
@@ -896,7 +910,11 @@ const ScheduleEngine = {
         if (gid && groupFreq[gid]) {
             const activeCount = groupActiveMembersCount[gid] || 0;
             if (activeCount > 1 && groupFreq[gid].size < 2) {
-                d.is_lonely_family = true;
+                // 【新增】解除核心崗位的落單警報：這是一個合法的狀態
+                const coreRoles = ['司會', 'PPT', '執事輪值'];
+                if (!coreRoles.includes(d._positionName)) {
+                    d.is_lonely_family = true;
+                }
             }
         }
       });
