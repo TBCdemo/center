@@ -55,7 +55,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
     const [newHolidayName, setNewHolidayName] = useState('');
 
     const [editingMember, setEditingMember] = useState(null); 
-    const [formData, setFormData] = useState({ ...DEFAULT_MEMBER });
+    const [formData, setFormData] = useState({ ...DEFAULT_MEMBER, worship_weeks: [] });
     const [formPositions, setFormPositions] = useState({}); 
 
     const loadData = async () => {
@@ -193,7 +193,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                     member_id: s.member_id, preferred_session: s.preferred_session,
                     availability_status: s.availability_status === '安息季' ? '穩定服事' : s.availability_status,
                     dual_service_pref: s.dual_service_pref, newcomer_rule: s.newcomer_rule,
-                    unavailable_dates: [], quarter: targetQ
+                    unavailable_dates: [], worship_weeks: s.worship_weeks || [], quarter: targetQ
                 }));
                 const { error: insErr1 } = await supabase.from('member_quarter_settings').upsert(newSettings, { onConflict: 'member_id, quarter' });
                 if (insErr1) throw new Error("寫入設定失敗: " + insErr1.message);
@@ -270,7 +270,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
 
     const openAddModal = () => { 
         setEditingMember(null); 
-        setFormData({ ...DEFAULT_MEMBER, dual_service_pref: '' }); 
+        setFormData({ ...DEFAULT_MEMBER, dual_service_pref: '', worship_weeks: [] }); 
         setFormPositions({}); 
         setIsModalOpen(true); 
     };
@@ -325,6 +325,12 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             try { const parsed = JSON.parse(settings.unavailable_dates); safeDates = Array.isArray(parsed) ? parsed : [settings.unavailable_dates]; }
             catch(err) { safeDates = settings.unavailable_dates ? [settings.unavailable_dates] : []; }
         }
+
+        let safeWorship = [];
+        if (Array.isArray(settings.worship_weeks)) safeWorship = settings.worship_weeks;
+        else if (typeof settings.worship_weeks === 'string') {
+            try { const p = JSON.parse(settings.worship_weeks); safeWorship = Array.isArray(p) ? p : []; } catch(err) {}
+        }
         
         setEditingMember(member);
         setFormData({ 
@@ -337,6 +343,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             availability_status: settings.availability_status ?? '穩定服事', 
             dual_service_pref: settings.dual_service_pref ?? '',
             unavailable_dates: safeDates, 
+            worship_weeks: safeWorship,
             newcomer_rule: settings.newcomer_rule ?? ''
         });
 
@@ -346,7 +353,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
         setIsModalOpen(true);
     };
 
-    const closeModal = () => { setIsModalOpen(false); setEditingMember(null); setFormData({ ...DEFAULT_MEMBER }); };
+    const closeModal = () => { setIsModalOpen(false); setEditingMember(null); setFormData({ ...DEFAULT_MEMBER, worship_weeks: [] }); };
 
     const togglePosition = (posId) => {
         if (!isAdmin) return showMessage('error', '崗位變更請洽行政辦公室');
@@ -386,7 +393,8 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             await supabase.from('member_quarter_settings').upsert({
                 member_id: memberId, quarter: viewQuarter, preferred_session: formData.preferred_session,
                 availability_status: formData.availability_status, dual_service_pref: finalDualPref,
-                newcomer_rule: parsedNewcomerRule, unavailable_dates: formData.unavailable_dates
+                newcomer_rule: parsedNewcomerRule, unavailable_dates: formData.unavailable_dates,
+                worship_weeks: formData.worship_weeks || []
             }, { onConflict: 'member_id, quarter' });
 
             if (isAdmin && memberId) {
@@ -418,9 +426,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
         });
     };
 
-    // ==========================================
-    // 群組 ID 自動編號邏輯 (預設 FA, 只有 FA/FB)
-    // ==========================================
     const currentGroupID = formData.group_id || '';
     const groupPrefix = currentGroupID.replace(/[0-9]/g, '') || 'FA'; 
     const groupNumberStr = currentGroupID.replace(/[^0-9]/g, ''); 
@@ -449,7 +454,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
         const nextNum = existingNums.length === 0 ? 1 : Math.max(...existingNums) + 1;
         setFormData({ ...formData, group_id: groupPrefix + String(nextNum) });
     };
-    // ==========================================
 
     let displayMembers = members.filter(m => {
         if (m.name && m.name.startsWith('SYSTEM_')) return false;
@@ -841,6 +845,31 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                                     <option value="">預設(正常排班)</option><option value="1">主責</option><option value="2">禁排第二週</option><option value="3">主責 ＋ 禁排第二週</option>
                                                 </select>
                                             </div>
+
+                                            {/* 新增的敬拜團勾選區塊 */}
+                                            <div className="space-y-1.5 sm:col-span-2 pt-2">
+                                                <label className="text-xs font-medium text-slate-500 uppercase flex items-center gap-1.5">
+                                                    固定服事週次 (如敬拜團) <span className="text-slate-400 font-normal">(選填，將自動禁排該週)</span>
+                                                </label>
+                                                <div className="flex flex-wrap gap-4 mt-1 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                                    {[1, 2, 3, 4, 5].map(week => (
+                                                        <label key={week} className="flex items-center gap-2 cursor-pointer select-none">
+                                                            <input 
+                                                                type="checkbox" 
+                                                                className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 border-slate-300 transition-all"
+                                                                checked={(formData.worship_weeks || []).includes(week)}
+                                                                onChange={(e) => {
+                                                                    let newWeeks = [...(formData.worship_weeks || [])];
+                                                                    if (e.target.checked) newWeeks.push(week);
+                                                                    else newWeeks = newWeeks.filter(w => w !== week);
+                                                                    setFormData({ ...formData, worship_weeks: newWeeks.sort() });
+                                                                }}
+                                                            />
+                                                            <span className="text-sm font-medium text-slate-700">第 {week} 週</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </div>
                                         </>
                                     )}
                                 </div>
@@ -880,20 +909,64 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                             <CalendarX size={18} className="text-orange-500"/> 不可排班日 <span className="text-xs text-slate-400 font-normal ml-1">(點擊選取)</span>
                                         </label>
                                         <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+                                            {/* 動態聯集判斷的日曆迴圈 */}
                                             {getSundaysInQuarter(viewQuarter).map(date => {
-                                                const isChecked = Array.isArray(formData.unavailable_dates) && formData.unavailable_dates.includes(date);
+                                                const weekNum = Math.ceil(new Date(date).getDate() / 7);
+                                                
+                                                const isWorshipWeek = Array.isArray(formData.worship_weeks) && formData.worship_weeks.includes(weekNum);
+                                                const isNewcomerBlockWeek = (weekNum === 2) && (formData.newcomer_rule === 2 || formData.newcomer_rule === 3);
+                                                
+                                                // 【核心聯集邏輯】
+                                                const isSystemBlocked = isWorshipWeek || isNewcomerBlockWeek;
+                                                const isManuallyChecked = Array.isArray(formData.unavailable_dates) && formData.unavailable_dates.includes(date);
+                                                const isChecked = isSystemBlocked || isManuallyChecked;
+                                                
                                                 const holidayName = getHolidayName(date, customHolidays);
                                                 const shortDate = date.split('-').slice(1).join('/');
+
+                                                let containerClass = 'bg-white border-slate-200 hover:border-orange-200 hover:-translate-y-0.5';
+                                                let textClass = 'text-slate-600';
+                                                let checkColor = 'text-orange-500';
+
+                                                if (isSystemBlocked) {
+                                                    containerClass = 'bg-indigo-50 border-indigo-400 shadow-sm opacity-90';
+                                                    textClass = 'text-indigo-700';
+                                                    checkColor = 'text-indigo-500';
+                                                } else if (isManuallyChecked) {
+                                                    containerClass = 'bg-orange-50 border-orange-500 shadow-sm';
+                                                    textClass = 'text-orange-600';
+                                                }
+
                                                 return (
-                                                    <label key={date} className={`relative flex flex-col items-center justify-center p-3 sm:p-2 rounded-xl border-2 transition-all duration-200 cursor-pointer select-none active:scale-[0.97] ${isChecked ? 'bg-orange-50 border-orange-500 shadow-sm' : 'bg-white border-slate-200 hover:border-orange-200 hover:-translate-y-0.5'}`}>
-                                                        <input type="checkbox" className="sr-only" checked={isChecked} onChange={(e) => {
-                                                            let newDates = Array.isArray(formData.unavailable_dates) ? [...formData.unavailable_dates] : [];
-                                                            if (e.target.checked) { if (!newDates.includes(date)) newDates.push(date); } else { newDates = newDates.filter(d => d !== date); }
-                                                            setFormData({ ...formData, unavailable_dates: newDates.sort() });
-                                                        }} />
-                                                        {isChecked && <Check className="absolute top-1 right-1 text-orange-500" size={14} strokeWidth={3} />}
-                                                        <span className={`text-base sm:text-sm font-medium ${isChecked ? 'text-orange-600' : 'text-slate-600'}`}>{shortDate}</span>
-                                                        {holidayName && <span className={`text-xs font-normal mt-1 text-center leading-tight ${isChecked ? 'text-orange-500' : 'text-slate-400'}`}>{holidayName}</span>}
+                                                    <label key={date} className={`relative flex flex-col items-center justify-center p-3 sm:p-2 rounded-xl border-2 transition-all duration-200 cursor-pointer select-none active:scale-[0.97] ${containerClass}`}>
+                                                        <input 
+                                                            type="checkbox" 
+                                                            className="sr-only" 
+                                                            checked={isChecked} 
+                                                            onChange={(e) => {
+                                                                if (isSystemBlocked) return; // 鎖定系統禁排，禁止手動取消
+
+                                                                let newDates = Array.isArray(formData.unavailable_dates) ? [...formData.unavailable_dates] : [];
+                                                                if (e.target.checked) { 
+                                                                    if (!newDates.includes(date)) newDates.push(date); 
+                                                                } else { 
+                                                                    newDates = newDates.filter(d => d !== date); 
+                                                                }
+                                                                setFormData({ ...formData, unavailable_dates: newDates.sort() });
+                                                            }} 
+                                                        />
+                                                        {isChecked && <Check className={`absolute top-1 right-1 ${checkColor}`} size={14} strokeWidth={3} />}
+                                                        <span className={`text-base sm:text-sm font-bold ${textClass}`}>{shortDate}</span>
+                                                        
+                                                        {/* 並存提示 */}
+                                                        {isSystemBlocked ? (
+                                                            <div className="flex flex-col gap-0.5 mt-1 items-center w-full">
+                                                                {isWorshipWeek && <span className="text-[9px] font-bold bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded scale-90">敬拜團</span>}
+                                                                {isNewcomerBlockWeek && <span className="text-[9px] font-bold bg-violet-100 text-violet-600 px-1.5 py-0.5 rounded scale-90">新朋友</span>}
+                                                            </div>
+                                                        ) : holidayName ? (
+                                                            <span className={`text-xs font-normal mt-1 text-center leading-tight ${isChecked ? 'text-orange-500' : 'text-slate-400'}`}>{holidayName}</span>
+                                                        ) : null}
                                                     </label>
                                                 );
                                             })}
