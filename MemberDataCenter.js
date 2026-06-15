@@ -765,7 +765,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                                             return (
                                                                 <span key={d} className={`${isLargeFont ? 'text-base px-4 py-1.5' : 'text-sm px-3 py-1'} font-medium bg-white rounded-md border shadow-sm ${isSystemBlocked ? 'text-indigo-600 border-indigo-200' : 'text-orange-600 border-orange-200'}`}>
                                                                     {d.split('-').slice(1).join('/')}
-                                                                    {isSystemBlocked && <span className={`${isLargeFont ? 'text-xs' : 'text-[10px]'} ml-1 text-indigo-400`}>(跨團隊)</span>}
                                                                 </span>
                                                             );
                                                         })}
