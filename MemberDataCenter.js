@@ -55,7 +55,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
     const [newHolidayName, setNewHolidayName] = useState('');
 
     const [editingMember, setEditingMember] = useState(null); 
-    const [formData, setFormData] = useState({ ...DEFAULT_MEMBER, worship_weeks: [] });
+    const [formData, setFormData] = useState({ ...DEFAULT_MEMBER, unavailable_weeks: [] });
     const [formPositions, setFormPositions] = useState({}); 
 
     const loadData = async () => {
@@ -193,7 +193,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                     member_id: s.member_id, preferred_session: s.preferred_session,
                     availability_status: s.availability_status === '安息季' ? '穩定服事' : s.availability_status,
                     dual_service_pref: s.dual_service_pref, newcomer_rule: s.newcomer_rule,
-                    unavailable_dates: [], worship_weeks: s.worship_weeks || [], quarter: targetQ
+                    unavailable_dates: [], unavailable_weeks: s.unavailable_weeks || [], quarter: targetQ
                 }));
                 const { error: insErr1 } = await supabase.from('member_quarter_settings').upsert(newSettings, { onConflict: 'member_id, quarter' });
                 if (insErr1) throw new Error("寫入設定失敗: " + insErr1.message);
@@ -270,7 +270,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
 
     const openAddModal = () => { 
         setEditingMember(null); 
-        setFormData({ ...DEFAULT_MEMBER, dual_service_pref: '', worship_weeks: [] }); 
+        setFormData({ ...DEFAULT_MEMBER, dual_service_pref: '', unavailable_weeks: [] }); 
         setFormPositions({}); 
         setIsModalOpen(true); 
     };
@@ -326,10 +326,10 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             catch(err) { safeDates = settings.unavailable_dates ? [settings.unavailable_dates] : []; }
         }
 
-        let safeWorship = [];
-        if (Array.isArray(settings.worship_weeks)) safeWorship = settings.worship_weeks;
-        else if (typeof settings.worship_weeks === 'string') {
-            try { const p = JSON.parse(settings.worship_weeks); safeWorship = Array.isArray(p) ? p : []; } catch(err) {}
+        let safeUnavailableWeeks = [];
+        if (Array.isArray(settings.unavailable_weeks)) safeUnavailableWeeks = settings.unavailable_weeks;
+        else if (typeof settings.unavailable_weeks === 'string') {
+            try { const p = JSON.parse(settings.unavailable_weeks); safeUnavailableWeeks = Array.isArray(p) ? p : []; } catch(err) {}
         }
         
         setEditingMember(member);
@@ -343,7 +343,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             availability_status: settings.availability_status ?? '穩定服事', 
             dual_service_pref: settings.dual_service_pref ?? '',
             unavailable_dates: safeDates, 
-            worship_weeks: safeWorship,
+            unavailable_weeks: safeUnavailableWeeks,
             newcomer_rule: settings.newcomer_rule ?? ''
         });
 
@@ -353,7 +353,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
         setIsModalOpen(true);
     };
 
-    const closeModal = () => { setIsModalOpen(false); setEditingMember(null); setFormData({ ...DEFAULT_MEMBER, worship_weeks: [] }); };
+    const closeModal = () => { setIsModalOpen(false); setEditingMember(null); setFormData({ ...DEFAULT_MEMBER, unavailable_weeks: [] }); };
 
     const togglePosition = (posId) => {
         if (!isAdmin) return showMessage('error', '崗位變更請洽行政辦公室');
@@ -394,7 +394,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                 member_id: memberId, quarter: viewQuarter, preferred_session: formData.preferred_session,
                 availability_status: formData.availability_status, dual_service_pref: finalDualPref,
                 newcomer_rule: parsedNewcomerRule, unavailable_dates: formData.unavailable_dates,
-                worship_weeks: formData.worship_weeks || []
+                unavailable_weeks: formData.unavailable_weeks || []
             }, { onConflict: 'member_id, quarter' });
 
             if (isAdmin && memberId) {
@@ -499,8 +499,8 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
         if (groupA !== groupB) return groupA.localeCompare(groupB);
         const setA = quarterSettings.find(s => s.member_id === a.id) || {};
         const setB = quarterSettings.find(s => s.member_id === b.id) || {};
-        const isTopA = (setA.newcomer_rule === 1 || setA.newcomer_rule === 3) ? -1 : 1;
-        const isTopB = (setB.newcomer_rule === 1 || setB.newcomer_rule === 3) ? -1 : 1;
+        const isTopA = (setA.newcomer_rule === 1) ? -1 : 1;
+        const isTopB = (setB.newcomer_rule === 1) ? -1 : 1;
         if (isTopA !== isTopB) return isTopA - isTopB;
         return a.name.localeCompare(b.name);
     });
@@ -722,9 +722,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                                             {p.name} 
                                                             {isAdmin && !p.isActive && <span className={`${isLargeFont ? 'text-xs px-1.5' : 'text-[10px] px-1'} bg-slate-200 text-slate-500 rounded`}>暫停</span>}
                                                             {isAdmin && (p.name.includes('新朋友') && settings.newcomer_rule > 0) && (
-                                                                <span className={`${isLargeFont ? 'text-xs' : 'text-[10px]'} text-indigo-500 ml-0.5`}>
-                                                                    {settings.newcomer_rule === 1 ? "(主責)" : settings.newcomer_rule === 2 ? "(禁排)" : "(主責+禁排)"}
-                                                                </span>
+                                                                <span className={`${isLargeFont ? 'text-xs' : 'text-[10px]'} text-indigo-500 ml-0.5`}>(主責)</span>
                                                             )}
                                                         </span>
                                                     )) : <span className={`${isLargeFont ? 'text-sm' : 'text-slate-400'} text-xs`}>尚未設定</span>}
@@ -842,14 +840,13 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                             <div className="space-y-1.5">
                                                 <label className="text-xs font-medium text-slate-500 uppercase">新朋友關懷設定 <span className="text-slate-400 font-normal">(選填)</span></label>
                                                 <select value={formData.newcomer_rule ?? ''} onChange={e => setFormData({...formData, newcomer_rule: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 transition-all">
-                                                    <option value="">預設(正常排班)</option><option value="1">主責</option><option value="2">禁排第二週</option><option value="3">主責 ＋ 禁排第二週</option>
+                                                    <option value="">預設(正常排班)</option><option value="1">主責</option>
                                                 </select>
                                             </div>
 
-                                            {/* 新增的敬拜團勾選區塊 */}
                                             <div className="space-y-1.5 sm:col-span-2 pt-2">
                                                 <label className="text-xs font-medium text-slate-500 uppercase flex items-center gap-1.5">
-                                                    固定服事週次 (如敬拜團) <span className="text-slate-400 font-normal">(選填，將自動禁排該週)</span>
+                                                    不可排班周 <span className="text-slate-400 font-normal">(選填)</span>
                                                 </label>
                                                 <div className="flex flex-wrap gap-4 mt-1 bg-slate-50 p-3 rounded-lg border border-slate-200">
                                                     {[1, 2, 3, 4, 5].map(week => (
@@ -857,12 +854,12 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                                             <input 
                                                                 type="checkbox" 
                                                                 className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 border-slate-300 transition-all"
-                                                                checked={(formData.worship_weeks || []).includes(week)}
+                                                                checked={(formData.unavailable_weeks || []).includes(week)}
                                                                 onChange={(e) => {
-                                                                    let newWeeks = [...(formData.worship_weeks || [])];
+                                                                    let newWeeks = [...(formData.unavailable_weeks || [])];
                                                                     if (e.target.checked) newWeeks.push(week);
                                                                     else newWeeks = newWeeks.filter(w => w !== week);
-                                                                    setFormData({ ...formData, worship_weeks: newWeeks.sort() });
+                                                                    setFormData({ ...formData, unavailable_weeks: newWeeks.sort() });
                                                                 }}
                                                             />
                                                             <span className="text-sm font-medium text-slate-700">第 {week} 週</span>
@@ -909,15 +906,10 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                             <CalendarX size={18} className="text-orange-500"/> 不可排班日 <span className="text-xs text-slate-400 font-normal ml-1">(點擊選取)</span>
                                         </label>
                                         <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
-                                            {/* 動態聯集判斷的日曆迴圈 */}
                                             {getSundaysInQuarter(viewQuarter).map(date => {
                                                 const weekNum = Math.ceil(new Date(date).getDate() / 7);
                                                 
-                                                const isWorshipWeek = Array.isArray(formData.worship_weeks) && formData.worship_weeks.includes(weekNum);
-                                                const isNewcomerBlockWeek = (weekNum === 2) && (formData.newcomer_rule === 2 || formData.newcomer_rule === 3);
-                                                
-                                                // 【核心聯集邏輯】
-                                                const isSystemBlocked = isWorshipWeek || isNewcomerBlockWeek;
+                                                const isSystemBlocked = Array.isArray(formData.unavailable_weeks) && formData.unavailable_weeks.includes(weekNum);
                                                 const isManuallyChecked = Array.isArray(formData.unavailable_dates) && formData.unavailable_dates.includes(date);
                                                 const isChecked = isSystemBlocked || isManuallyChecked;
                                                 
@@ -944,7 +936,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                                             className="sr-only" 
                                                             checked={isChecked} 
                                                             onChange={(e) => {
-                                                                if (isSystemBlocked) return; // 鎖定系統禁排，禁止手動取消
+                                                                if (isSystemBlocked) return; 
 
                                                                 let newDates = Array.isArray(formData.unavailable_dates) ? [...formData.unavailable_dates] : [];
                                                                 if (e.target.checked) { 
@@ -958,12 +950,8 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                                         {isChecked && <Check className={`absolute top-1 right-1 ${checkColor}`} size={14} strokeWidth={3} />}
                                                         <span className={`text-base sm:text-sm font-bold ${textClass}`}>{shortDate}</span>
                                                         
-                                                        {/* 並存提示 */}
                                                         {isSystemBlocked ? (
-                                                            <div className="flex flex-col gap-0.5 mt-1 items-center w-full">
-                                                                {isWorshipWeek && <span className="text-[9px] font-bold bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded scale-90">敬拜團</span>}
-                                                                {isNewcomerBlockWeek && <span className="text-[9px] font-bold bg-violet-100 text-violet-600 px-1.5 py-0.5 rounded scale-90">新朋友</span>}
-                                                            </div>
+                                                            <span className="text-[10px] font-bold mt-1 text-center bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded leading-tight">不可排班</span>
                                                         ) : holidayName ? (
                                                             <span className={`text-xs font-normal mt-1 text-center leading-tight ${isChecked ? 'text-orange-500' : 'text-slate-400'}`}>{holidayName}</span>
                                                         ) : null}
