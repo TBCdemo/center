@@ -90,20 +90,37 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
 
     const currentQuarterStr = `${year}-Q${quarter}`;
 
+    // 【核心修正 1】：在推薦與分析用的名單中，將 unavailable_weeks 動態轉換為日期並寫入 unavailable_dates
     const effectiveMembers = useMemo(() => {
+        const sundays = getSundaysInQuarter(year, quarter);
+
         return dbData.members
             .filter(m => m.name && !m.name.startsWith('SYSTEM_'))
             .map(m => {
                 const qs = dbData.memberQuarterSettings.find(s => s.member_id === m.id && s.quarter === currentQuarterStr);
+                let unDates = qs?.unavailable_dates ? safeParseJSON(qs.unavailable_dates, []) : (m.unavailable_dates || []);
+                
+                const unavailableWeeks = qs?.unavailable_weeks ? safeParseJSON(qs.unavailable_weeks, []) : [];
+                if (Array.isArray(unavailableWeeks) && unavailableWeeks.length > 0) {
+                    sundays.forEach(sunday => {
+                        const weekNum = Math.ceil(sunday.getDate() / 7);
+                        const dStr = `${sunday.getFullYear()}-${String(sunday.getMonth()+1).padStart(2,'0')}-${String(sunday.getDate()).padStart(2,'0')}`;
+                        
+                        if (unavailableWeeks.includes(weekNum) && !unDates.includes(dStr)) {
+                            unDates.push(dStr);
+                        }
+                    });
+                }
+
                 return {
                     ...m,
                     availability_status: qs?.availability_status || m.availability_status || '可排班',
                     preferred_session: qs?.preferred_session || m.preferred_session || '皆可',
                     dual_service_pref: qs?.dual_service_pref ?? m.dual_service_pref ?? null,
-                    unavailable_dates: qs?.unavailable_dates ? safeParseJSON(qs.unavailable_dates, []) : (m.unavailable_dates || [])
+                    unavailable_dates: unDates.sort()
                 };
             });
-    }, [dbData.members, dbData.memberQuarterSettings, currentQuarterStr]);
+    }, [dbData.members, dbData.memberQuarterSettings, currentQuarterStr, year, quarter, getSundaysInQuarter]);
 
     const effectiveMemberPositions = useMemo(() => {
         return dbData.memberPositions.filter(mp => (mp.quarter === currentQuarterStr || !mp.quarter) && mp.is_active !== false);
@@ -313,6 +330,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
         });
     };
 
+    // 【核心修正 2】：雙向防撞檢查，排除請求者的不可排班日（含跨團隊週次）
     const recommendations = useMemo(() => {
         if (!activeSlot) return [];
         const { service_date, session, position_id, member_id } = activeSlot;
@@ -320,11 +338,17 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
         const requesterPositions = effectiveMemberPositions.filter(mp => mp.member_id === member_id).map(mp => mp.position_id);
         const todayStr = window.ScheduleEngine ? window.ScheduleEngine.formatDate(new Date()) : new Date().toISOString().split('T')[0];
 
+        // 取得請求換班者(原本排在該班次的人)的完整不可排班日（包含跨團隊週）
+        const requester = effectiveMembers.find(rm => rm.id === member_id);
+        const requesterUnDates = requester?.unavailable_dates || [];
+
         let filtered = effectiveMembers.filter(m => {
             if (m.id === member_id) return false;
             if (!eligibleIds.includes(m.id)) return false;
             const status = (m.availability_status || '').trim();
             if (status === '暫停服事' || status === '安息季') return false;
+            
+            // 檢查候選人在這個班次日期是否可以排班
             if (m.unavailable_dates && m.unavailable_dates.includes(service_date)) return false;
             
             const mShiftsToday = generatedDraft.filter(d => d.service_date === service_date && d.member_id === m.id);
@@ -365,9 +389,14 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
             const candidateShifts = generatedDraft.filter(d => d.member_id === m.id);
             let swapOptions = [];
             const processedDeaconDates = new Set();
+            
             candidateShifts.forEach(shift => {
                 if (!requesterPositions.includes(shift.position_id)) return; 
                 if (shift.service_date < todayStr) return;
+                
+                // 【關鍵防撞邏輯】：如果候補人的班次日期，落在「請求換班者」的不可排班日，則不提供此換班選項
+                if (requesterUnDates.includes(shift.service_date)) return;
+
                 if (shift._positionName === '執事輪值') {
                     if (processedDeaconDates.has(shift.service_date)) return;
                     processedDeaconDates.add(shift.service_date);
@@ -688,29 +717,20 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                     <div className="absolute top-[-20%] right-[-10%] w-40 h-40 rounded-full bg-violet-600/30 blur-3xl pointer-events-none"></div>
                     <button onClick={() => { setActiveSlot(null); setSearchTerm(''); }} className="absolute right-4 top-4 z-50 p-1.5 rounded-lg text-slate-300 transition-colors duration-75 hover:bg-white/20 hover:text-white cursor-pointer active:scale-95"><X size={18}/></button>
                     
-                    {/* 修改：整個左側間距微調，從 gap-3 縮小為 gap-2.5 以適應更小的字體 */}
                     <div className="flex items-center gap-2.5 relative z-10 pr-6">
-                        
-                        {/* 修改：Icon 外框縮小為 p-2，Calendar 尺寸縮小為 18 */}
                         <div className={`p-2 rounded-lg shrink-0 ${activeSlot.is_empty ? 'bg-rose-500/20 text-rose-300' : 'bg-white/10 text-indigo-300'}`}>
                             <Calendar size={22} />
                         </div>
-                        
                         <div className="flex flex-col gap-1 w-full">
-                            
-                            {/* 修改：日期與姓名標籤，統一使用 text-[15px]，間距改為 gap-2 */}
                             <div className="flex flex-wrap items-center gap-2">
                                 <p className="text-[18px] font-bold text-white leading-none">{activeSlot.service_date}</p>
                                 <span className={`px-3 py-1 rounded-md text-[15px] font-semibold tracking-wide leading-none ${activeSlot.is_empty ? 'bg-rose-500 text-white animate-pulse shadow-[0_0_10px_rgba(244,63,94,0.5)]' : 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white'}`}>{activeSlot._memberName}</span>
                             </div>
-                            
-                            {/* 下方資訊列維持 text-[13px]，但稍微調小上距為 mt-1 讓排版更緊湊 */}
                             <div className="flex items-center gap-1.5 text-[13px] font-normal text-slate-400 flex-wrap mt-1">
                                 <span className="bg-white/10 px-1.5 py-0.5 rounded text-slate-300">{activeSlot._positionName}</span>
                                 {activeSlot._positionName !== '執事輪值' && <><span>•</span><span>{activeSlot.session}</span></>}
                                 {!activeSlot.is_empty && (<><span>•</span><span>本季服事 {currentUsageCount[activeSlot.member_id] || 0} 次</span></>)}
                             </div>
-                            
                         </div>
                     </div>
                 </div>
