@@ -1,7 +1,7 @@
 /**
- * 教會季排班系統 - 核心引擎 (Scheduler Engine V20 + 暫停服事獨立解綁)
+ * 教會季排班系統 - 核心引擎 (Scheduler Engine V20 + 暫停服事獨立解綁 + 動態聯集防呆)
  * 依據 Logic_Analysis.md 實作：
- * 1. L=2 新朋友禁排邏輯 (每月 8-14 號)
+ * 1. 支援不可排班周 (unavailable_weeks) 動態寫入 unavailable_dates
  * 2. 嚴格的分數排序演算法 ([權重分, 歷史次數, 技能數量, 隨機/索引])
  * 3. 執行流程：執事 -> 跨堂預排 -> 家庭預排 -> 單堂填充 -> 補位 -> 最終 Refill
  * 4. FA 絕對同日同崗位，FB 同日即可
@@ -10,7 +10,7 @@
  * 7. FA/FB 家庭優先進場機制，徹底解決 FB 在第二堂尾聲找不到異崗位而落單的問題。
  * 8. FA 嚴格共進退：名額、技能、配額、禁排期與單日上限全面預查防護。
  * 9. FA 核心崗位豁免：當一人排入司會、PPT、執事輪值，另一人強制不排班，且不亮落單警報。
- * 10. 【新增】暫停服事解綁：若 FA/FB 一人「暫停服事/安息季」，另一人直接視為獨立排班，不受同進退連坐影響。(單日請假仍維持連坐避開)
+ * 10. 暫停服事解綁：若 FA/FB 一人「暫停服事/安息季」，另一人直接視為獨立排班，不受同進退連坐影響。
  */
 
 const sessionsToSchedule = ['第一堂', '第二堂'];
@@ -60,16 +60,40 @@ const ScheduleEngine = {
     const clonedMembers = JSON.parse(JSON.stringify(effectiveMembers));
 
     clonedMembers.forEach(m => {
+        let unDates = Array.isArray(m.unavailable_dates) ? [...m.unavailable_dates] : [];
+
         if (dbData.memberQuarterSettings && Array.isArray(dbData.memberQuarterSettings)) {
             const qs = dbData.memberQuarterSettings.find(s => s.member_id === m.id && s.quarter === currentQuarterStr);
             if (qs) {
                 if (qs.newcomer_rule !== undefined && qs.newcomer_rule !== null) m.newcomer_rule = qs.newcomer_rule;
                 if (qs.dual_service_pref !== undefined && qs.dual_service_pref !== null) m.dual_service_pref = qs.dual_service_pref;
-                
                 if (qs.availability_status) m.availability_status = qs.availability_status;
+
+                if (qs.unavailable_dates) {
+                    const parsedQsDates = typeof qs.unavailable_dates === 'string' ? JSON.parse(qs.unavailable_dates) : qs.unavailable_dates;
+                    if (Array.isArray(parsedQsDates)) {
+                        parsedQsDates.forEach(d => { if (!unDates.includes(d)) unDates.push(d); });
+                    }
+                }
+
+                // 【系統禁排動態聯集：不可排班周】
+                const unavailableWeeks = qs.unavailable_weeks ? (typeof qs.unavailable_weeks === 'string' ? JSON.parse(qs.unavailable_weeks) : qs.unavailable_weeks) : [];
+
+                if (Array.isArray(unavailableWeeks) && unavailableWeeks.length > 0) {
+                    const sundays = this.getSundaysInQuarter(year, quarter);
+                    sundays.forEach(sunday => {
+                        const weekNum = Math.ceil(sunday.getDate() / 7);
+                        const dateStr = this.formatDate(sunday);
+
+                        if (unavailableWeeks.includes(weekNum) && !unDates.includes(dateStr)) {
+                            unDates.push(dateStr);
+                        }
+                    });
+                }
             }
         }
-        
+        m.unavailable_dates = unDates.sort();
+
         if (['一季三次', '一季一次'].includes(m.availability_status)) {
              m.dual_service_pref = 0; 
         }
@@ -173,14 +197,6 @@ const ScheduleEngine = {
       if ((state.roleUsage[m.id][posId] || 0) >= 4) return false;
     }
 
-    if (roleName === '新朋友關懷') {
-      const val = m.newcomer_rule;
-      const isRule2or3 = (val === 2 || val === '2' || val === 3 || val === '3');
-      if (isRule2or3 && context.sunday.getDate() >= 8 && context.sunday.getDate() <= 14) {
-        return false;
-      }
-    }
-
     const dayShifts = state.draft.filter((d) => d.service_date === context.dateStr && d.member_id === m.id);
     const dayRoles = dayShifts.map(d => d._positionName);
 
@@ -240,14 +256,11 @@ const ScheduleEngine = {
                 const comboRoles = ['接待', '收奉獻', '主餐', '新朋友關懷'];
                 
                 if (comboRoles.includes(roleName)) {
-                    // 找出「尚未被排入該崗位」的家人
                     const unassignedFamilyIds = Object.keys(state.memberGroups).filter(
                         fid => {
                             if (fid === m.id || state.memberGroups[fid] !== myGroupId) return false;
                             if (context.dailyAssignments[fid] && context.dailyAssignments[fid].includes(roleName)) return false;
                             
-                            // 【關鍵修改：暫停服事解綁】
-                            // 若家人已經「暫停服事」或「安息季」，直接無視該家人，不再為他保留位子或受他拖累
                             const famMember = state.membersList.find(mem => mem.id === fid);
                             if (famMember && ['暫停服事', '安息季'].includes(famMember.availability_status)) {
                                 return false; 
@@ -264,22 +277,12 @@ const ScheduleEngine = {
                         const famMember = state.membersList.find(mem => mem.id === fid);
                         if (!famMember) continue;
 
-                        // 若非「暫停服事」，而是單純單日請假 (unavailable_dates)，則這裡會觸發 false
-                        // 維持 FA「單日請假則跟著避開」的連坐規則
                         if (!this._isAvailableOnDate(famMember, context.dateStr)) return false;
                         if (!state.memberSkills[fid]?.has(posId)) return false; 
 
                         const famUsage = state.totalUsage[fid] || 0;
                         if (famMember.availability_status === '一季一次' && famUsage >= 1) return false;
                         if (famMember.availability_status === '一季三次' && famUsage >= 3) return false;
-
-                        if (roleName === '新朋友關懷') {
-                            const val = famMember.newcomer_rule;
-                            const isRule2or3 = (val === 2 || val === '2' || val === 3 || val === '3');
-                            if (isRule2or3 && context.sunday.getDate() >= 8 && context.sunday.getDate() <= 14) {
-                                return false;
-                            }
-                        }
 
                         const famDayShifts = state.draft.filter((d) => d.service_date === context.dateStr && d.member_id === fid);
                         if (famDayShifts.length >= 2) return false;
@@ -464,7 +467,7 @@ const ScheduleEngine = {
 
       for (let gid of sortedGroupIds) {
           const gMembers = groups[gid];
-          if (gMembers.length < 2) continue; // 若一人暫停服事，這裡長度只剩 1，會自動跳過家族預排機制
+          if (gMembers.length < 2) continue; 
 
           gMembers.sort((a, b) => {
               const aCore = (specialIds && (state.memberSkills[a.id]?.has(specialIds.mc) || state.memberSkills[a.id]?.has(specialIds.ppt) || state.memberSkills[a.id]?.has(specialIds.deacon))) ? 1 : 0;
@@ -715,7 +718,7 @@ const ScheduleEngine = {
 
     sortedGroupIds.forEach(gid => {
       const gMembers = groups[gid];
-      if (gMembers.length < 2) return; // 若其中一人暫停服事，這裡人數不足2人，自然解除同進退警報
+      if (gMembers.length < 2) return; 
 
       const assignedMembers = gMembers.filter(m => context.dailyAssignments[m.id]);
       const unassignedMembers = gMembers.filter(m => !context.dailyAssignments[m.id]);
@@ -933,8 +936,6 @@ const ScheduleEngine = {
         if (!m || m.newcomer_rule == null) return 0;
         const val = m.newcomer_rule;
         if (val === 1 || val === '1') return 1;
-        if (val === 2 || val === '2') return 2;
-        if (val === 3 || val === '3') return 3;
         return 0;
     };
 
@@ -950,8 +951,8 @@ const ScheduleEngine = {
          const ruleA = getRule(memA);
          const ruleB = getRule(memB);
          
-         const prioA = (ruleA === 1 || ruleA === 3) ? 1 : 0;
-         const prioB = (ruleB === 1 || ruleB === 3) ? 1 : 0;
+         const prioA = (ruleA === 1) ? 1 : 0;
+         const prioB = (ruleB === 1) ? 1 : 0;
          
          if (prioA !== prioB) return prioB - prioA; 
 
