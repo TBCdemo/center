@@ -90,24 +90,29 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
 
     const currentQuarterStr = `${year}-Q${quarter}`;
 
-    // 【核心修正 1】：在推薦與分析用的名單中，將 unavailable_weeks 動態轉換為日期並寫入 unavailable_dates
+    // 【修復白畫面】：修正日期讀取與轉換邏輯
     const effectiveMembers = useMemo(() => {
-        const sundays = getSundaysInQuarter(year, quarter);
+        // utils.getSundaysInQuarter 必須傳入字串 (如 "2026-Q3")，回傳的是字串陣列 (如 ["2026-07-05"])
+        const sundays = getSundaysInQuarter(currentQuarterStr) || [];
 
         return dbData.members
             .filter(m => m.name && !m.name.startsWith('SYSTEM_'))
             .map(m => {
                 const qs = dbData.memberQuarterSettings.find(s => s.member_id === m.id && s.quarter === currentQuarterStr);
-                let unDates = qs?.unavailable_dates ? safeParseJSON(qs.unavailable_dates, []) : (m.unavailable_dates || []);
+                
+                // 【深拷貝保護】：避免 React Read-only State 被直接 Push 變更
+                let unDatesRaw = qs?.unavailable_dates ? safeParseJSON(qs.unavailable_dates, []) : (m.unavailable_dates || []);
+                let unDates = Array.isArray(unDatesRaw) ? [...unDatesRaw] : [];
                 
                 const unavailableWeeks = qs?.unavailable_weeks ? safeParseJSON(qs.unavailable_weeks, []) : [];
                 if (Array.isArray(unavailableWeeks) && unavailableWeeks.length > 0) {
-                    sundays.forEach(sunday => {
-                        const weekNum = Math.ceil(sunday.getDate() / 7);
-                        const dStr = `${sunday.getFullYear()}-${String(sunday.getMonth()+1).padStart(2,'0')}-${String(sunday.getDate()).padStart(2,'0')}`;
+                    sundays.forEach(sundayStr => {
+                        // sundayStr 是字串，必須先 new Date 才能計算週次
+                        const d = new Date(sundayStr);
+                        const weekNum = Math.ceil(d.getDate() / 7);
                         
-                        if (unavailableWeeks.includes(weekNum) && !unDates.includes(dStr)) {
-                            unDates.push(dStr);
+                        if (unavailableWeeks.includes(weekNum) && !unDates.includes(sundayStr)) {
+                            unDates.push(sundayStr);
                         }
                     });
                 }
@@ -120,7 +125,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                     unavailable_dates: unDates.sort()
                 };
             });
-    }, [dbData.members, dbData.memberQuarterSettings, currentQuarterStr, year, quarter, getSundaysInQuarter]);
+    }, [dbData.members, dbData.memberQuarterSettings, currentQuarterStr, getSundaysInQuarter]);
 
     const effectiveMemberPositions = useMemo(() => {
         return dbData.memberPositions.filter(mp => (mp.quarter === currentQuarterStr || !mp.quarter) && mp.is_active !== false);
@@ -330,7 +335,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
         });
     };
 
-    // 【核心修正 2】：雙向防撞檢查，排除請求者的不可排班日（含跨團隊週次）
     const recommendations = useMemo(() => {
         if (!activeSlot) return [];
         const { service_date, session, position_id, member_id } = activeSlot;
@@ -338,7 +342,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
         const requesterPositions = effectiveMemberPositions.filter(mp => mp.member_id === member_id).map(mp => mp.position_id);
         const todayStr = window.ScheduleEngine ? window.ScheduleEngine.formatDate(new Date()) : new Date().toISOString().split('T')[0];
 
-        // 取得請求換班者(原本排在該班次的人)的完整不可排班日（包含跨團隊週）
         const requester = effectiveMembers.find(rm => rm.id === member_id);
         const requesterUnDates = requester?.unavailable_dates || [];
 
@@ -348,7 +351,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
             const status = (m.availability_status || '').trim();
             if (status === '暫停服事' || status === '安息季') return false;
             
-            // 檢查候選人在這個班次日期是否可以排班
             if (m.unavailable_dates && m.unavailable_dates.includes(service_date)) return false;
             
             const mShiftsToday = generatedDraft.filter(d => d.service_date === service_date && d.member_id === m.id);
@@ -394,7 +396,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                 if (!requesterPositions.includes(shift.position_id)) return; 
                 if (shift.service_date < todayStr) return;
                 
-                // 【關鍵防撞邏輯】：如果候補人的班次日期，落在「請求換班者」的不可排班日，則不提供此換班選項
                 if (requesterUnDates.includes(shift.service_date)) return;
 
                 if (shift._positionName === '執事輪值') {
