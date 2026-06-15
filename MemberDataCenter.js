@@ -689,6 +689,34 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                     return p ? { name: p.name, isActive: mp.is_active !== false } : null;
                                 }).filter(Boolean);
 
+                                // --- 計算卡片顯示的「不可排班日」(包含手動請假與跨團隊週次) ---
+                                let safeDates = [];
+                                if (Array.isArray(settings.unavailable_dates)) safeDates = [...settings.unavailable_dates];
+                                else if (typeof settings.unavailable_dates === 'string') {
+                                    try { const parsed = JSON.parse(settings.unavailable_dates); safeDates = Array.isArray(parsed) ? parsed : [settings.unavailable_dates]; }
+                                    catch(err) { safeDates = settings.unavailable_dates ? [settings.unavailable_dates] : []; }
+                                }
+
+                                let safeUnavailableWeeks = [];
+                                if (Array.isArray(settings.unavailable_weeks)) safeUnavailableWeeks = settings.unavailable_weeks;
+                                else if (typeof settings.unavailable_weeks === 'string') {
+                                    try { const p = JSON.parse(settings.unavailable_weeks); safeUnavailableWeeks = Array.isArray(p) ? p : []; } catch(err) {}
+                                }
+                                
+                                const systemBlockedDates = [];
+                                if (safeUnavailableWeeks.length > 0) {
+                                    const sundays = getSundaysInQuarter(viewQuarter);
+                                    sundays.forEach(sunday => {
+                                        const weekNum = Math.ceil(new Date(sunday).getDate() / 7);
+                                        if (safeUnavailableWeeks.includes(weekNum)) {
+                                            systemBlockedDates.push(sunday);
+                                            if (!safeDates.includes(sunday)) safeDates.push(sunday);
+                                        }
+                                    });
+                                }
+                                safeDates.sort();
+                                // -----------------------------------------------------------
+
                                 return (
                                     <div key={member.id} className="bg-white rounded-xl p-4 sm:p-6 shadow-soft border border-slate-100 hover:shadow-hover-soft hover:-translate-y-1 transition-all duration-200 relative group">
                                         <div className="flex justify-between items-start mb-3">
@@ -728,13 +756,19 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                                     )) : <span className={`${isLargeFont ? 'text-sm' : 'text-slate-400'} text-xs`}>尚未設定</span>}
                                                 </div>
                                             </div>
-                                            {(settings.unavailable_dates && settings.unavailable_dates.length > 0) && (
+                                            {(safeDates && safeDates.length > 0) && (
                                                 <div className="bg-orange-50/60 p-3 rounded-lg border border-orange-100">
-                                                    <p className={`${isLargeFont ? 'text-base' : 'text-sm'} font-medium text-orange-500 mb-2 flex items-center gap-1.5`}><CalendarX size={isLargeFont ? 16 : 12}/> 不可排班日 ({settings.unavailable_dates.length})</p>
+                                                    <p className={`${isLargeFont ? 'text-base' : 'text-sm'} font-medium text-orange-500 mb-2 flex items-center gap-1.5`}><CalendarX size={isLargeFont ? 16 : 12}/> 不可排班日 ({safeDates.length})</p>
                                                     <div className="flex flex-wrap gap-2">
-                                                        {settings.unavailable_dates.map(d => (
-                                                            <span key={d} className={`${isLargeFont ? 'text-base px-4 py-1.5' : 'text-sm px-3 py-1'} font-medium bg-white text-orange-600 rounded-md border border-orange-200 shadow-sm`}>{d.split('-').slice(1).join('/')}</span>
-                                                        ))}
+                                                        {safeDates.map(d => {
+                                                            const isSystemBlocked = systemBlockedDates.includes(d);
+                                                            return (
+                                                                <span key={d} className={`${isLargeFont ? 'text-base px-4 py-1.5' : 'text-sm px-3 py-1'} font-medium bg-white rounded-md border shadow-sm ${isSystemBlocked ? 'text-indigo-600 border-indigo-200' : 'text-orange-600 border-orange-200'}`}>
+                                                                    {d.split('-').slice(1).join('/')}
+                                                                    {isSystemBlocked && <span className={`${isLargeFont ? 'text-xs' : 'text-[10px]'} ml-1 text-indigo-400`}>(跨團隊)</span>}
+                                                                </span>
+                                                            );
+                                                        })}
                                                     </div>
                                                 </div>
                                             )}
@@ -951,7 +985,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                                         <span className={`text-base sm:text-sm font-bold ${textClass}`}>{shortDate}</span>
                                                         
                                                         {isSystemBlocked ? (
-                                                            <span className="text-[10px] font-bold mt-1 text-center bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded leading-tight">不可排班</span>
+                                                            <span className="text-xs font-normal mt-1 text-center leading-tight text-indigo-500">跨團隊服事</span>
                                                         ) : holidayName ? (
                                                             <span className={`text-xs font-normal mt-1 text-center leading-tight ${isChecked ? 'text-orange-500' : 'text-slate-400'}`}>{holidayName}</span>
                                                         ) : null}
