@@ -485,7 +485,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
 
                 if (hasChanges) {
                     setTimeout(() => {
-                        setErrorMsg('⚠️ 注意：因資格或狀態變更，部分班次已自動轉為「人工指派」，請記得補上人選！');
+                        setErrorMsg('⚠️「人工指派」空缺未填補');
                         setTimeout(() => setErrorMsg(''), 5000); // 5秒後自動清除錯誤訊息
                     }, 500);
                 }
@@ -596,7 +596,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
 
     const handlePublishClick = () => {
         const hasEmpty = generatedDraft.some(d => d.is_empty);
-        if (hasEmpty) { setErrorMsg('還有「⚠️ 人工指派」的空缺未填補，完成後再發布。'); return; }
+        if (hasEmpty) { setErrorMsg('⚠️「人工指派」空缺未填補，完成後再發布'); return; }
         setPublishConfirmOpen(true);
     };
 
