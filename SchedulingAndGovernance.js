@@ -389,6 +389,19 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
         });
     };
 
+    // --- 快速編輯專用的自動編號函式 ---
+    const quickEditAutoFillNextNumber = () => {
+        if (!quickEditData) return;
+        const existingNums = dbData.members
+            .map(m => m.group_id || '')
+            .filter(id => id.startsWith(quickEditData.groupPrefix))
+            .map(id => parseInt(id.replace(quickEditData.groupPrefix, ''), 10))
+            .filter(n => !isNaN(n));
+        
+        const nextNum = existingNums.length === 0 ? 1 : Math.max(...existingNums) + 1;
+        setQuickEditData({ ...quickEditData, groupNumber: String(nextNum) });
+    };
+
     const handleQuickEditSave = async () => {
         setIsQuickEditSaving(true);
         try {
@@ -413,13 +426,13 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
             };
             await supabase.from('member_quarter_settings').upsert(qsPayload, { onConflict: 'member_id, quarter' });
     
-            // 3. 更新 member_positions 表
+            // 3. 更新 member_positions 表 (移除 parseInt，保留原始字串以支援 UUID)
             await supabase.from('member_positions').delete().eq('member_id', quickEditData.id).eq('quarter', currentQuarterStr);
             const posKeys = Object.keys(quickEditData.positions);
             if (posKeys.length > 0) {
                 const insertPosPayload = posKeys.map(pid => ({ 
                     member_id: quickEditData.id, 
-                    position_id: parseInt(pid), 
+                    position_id: pid, 
                     quarter: currentQuarterStr, 
                     is_active: quickEditData.positions[pid] === 'active'
                 }));
@@ -440,17 +453,17 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                 memberQuarterSettings: quarterSettings || prev.memberQuarterSettings
             }));
 
-            // 5. 掃描草稿，自動退班機制
+            // 5. 掃描草稿，自動退班機制 (移除 .map(Number))
             const activePositionIds = Object.keys(quickEditData.positions)
-                .filter(pid => quickEditData.positions[pid] === 'active')
-                .map(Number); 
+                .filter(pid => quickEditData.positions[pid] === 'active'); 
 
             setGeneratedDraft(prevDraft => {
                 let hasChanges = false;
                 const newDraft = prevDraft.map(shift => {
                     if (shift.member_id !== quickEditData.id || shift.is_empty) return shift;
 
-                    const hasQualification = activePositionIds.includes(shift.position_id);
+                    // 使用 String() 安全比對
+                    const hasQualification = activePositionIds.some(pid => String(pid) === String(shift.position_id));
                     const isUnavailableDate = quickEditData.unavailable_dates.includes(shift.service_date);
                     const weekNum = Math.ceil(new Date(shift.service_date).getDate() / 7);
                     const isUnavailableWeek = (quickEditData.unavailable_weeks || []).includes(weekNum);
@@ -471,7 +484,10 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                 });
 
                 if (hasChanges) {
-                    setTimeout(() => setErrorMsg('⚠️ 注意：因資格或狀態變更，部分班次已自動轉為「人工指派」，請記得補上人選！'), 500);
+                    setTimeout(() => {
+                        setErrorMsg('⚠️ 注意：因資格或狀態變更，部分班次已自動轉為「人工指派」，請記得補上人選！');
+                        setTimeout(() => setErrorMsg(''), 5000); // 5秒後自動清除錯誤訊息
+                    }, 500);
                 }
 
                 return newDraft;
@@ -502,7 +518,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
             if (m.id === member_id) return false;
             if (!eligibleIds.includes(m.id)) return false;
             const status = (m.availability_status || '').trim();
-            if (status === '暫停服事' || status === '安息季' || status === '一季一次' || status === '一季三次') return false; 
+            if (status === '暫停服事' || status === '安息季') return false;
             
             if (m.unavailable_dates && m.unavailable_dates.includes(service_date)) return false;
             
@@ -1150,7 +1166,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                 </div>
 
                 {errorMsg && <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 bg-red-50 text-red-600 px-6 py-3 rounded-lg flex items-center gap-3 font-medium border border-red-100 shadow-xl animate-bounce"><AlertCircle size={20} /> {errorMsg}</div>}
-                {showSuccessToast && <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[200] bg-emerald-50 text-emerald-600 px-8 py-5 rounded-2xl flex items-center gap-4 font-bold text-xl border-2 border-emerald-200 shadow-glow animate-pop"><CheckCircle2 size={32} className="text-emerald-500" /> 儲存成功</div>}
+                {showSuccessToast && <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[200] bg-emerald-50 text-emerald-600 px-8 py-5 rounded-2xl flex items-center gap-4 font-bold text-xl border-2 border-emerald-200 shadow-glow animate-pop"><CheckCircle2 size={32} className="text-emerald-500" /> 發布成功</div>}
                 
                 {confirmDialog.isOpen && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in">
@@ -1184,197 +1200,216 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                     </div>
                 )}
 
+                {/* --- 快速編輯 Modal (比照圖片重新排版的雙欄佈局) --- */}
                 {quickEditData && (
                     <div className="fixed inset-0 z-[250] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in">
                         <div className="bg-white rounded-2xl w-full max-w-2xl shadow-hover-soft animate-pop border border-slate-100 flex flex-col max-h-[90vh]">
                             <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl shrink-0">
                                 <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                                     <Edit2 size={20} className="text-indigo-600"/> 
-                                    編輯當季排班設定：{quickEditData.name}
+                                    編輯同工資料
                                 </h3>
                                 <button onClick={() => setQuickEditData(null)} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"><X size={20}/></button>
                             </div>
                             
-                            <div className="p-6 overflow-y-auto custom-scrollbar space-y-5 flex-1">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div className="space-y-1.5">
-                                        <label className="text-xs font-medium text-slate-500 uppercase">姓名</label>
-                                        <input 
-                                            type="text" 
-                                            value={quickEditData.name} 
-                                            onChange={e => setQuickEditData({...quickEditData, name: e.target.value})} 
-                                            className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-medium text-slate-900 transition-all" 
-                                        />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <label className="text-xs font-medium text-slate-500 uppercase">群組 ID <span className="text-slate-400 font-normal">(選填)</span></label>
-                                        <div className="flex gap-2">
-                                            <select 
-                                                value={quickEditData.groupPrefix} 
-                                                onChange={e => setQuickEditData({...quickEditData, groupPrefix: e.target.value})} 
-                                                className="w-24 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 outline-none focus:border-indigo-500 text-sm"
-                                            >
-                                                <option value="FA">FA</option>
-                                                <option value="FB">FB</option>
-                                            </select>
+                            <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+                                <div className="space-y-4">
+                                    {/* 第一排：姓名、服事意願 */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-medium text-slate-500 uppercase">姓名 <span className="text-red-500">*</span></label>
                                             <input 
-                                                type="number" 
-                                                value={quickEditData.groupNumber} 
-                                                onChange={e => setQuickEditData({...quickEditData, groupNumber: e.target.value})} 
-                                                className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:border-indigo-500 text-sm" 
-                                                placeholder="號碼" 
-                                                min="1"
+                                                type="text" 
+                                                value={quickEditData.name} 
+                                                onChange={e => setQuickEditData({...quickEditData, name: e.target.value})} 
+                                                className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-medium text-slate-900 transition-all" 
                                             />
                                         </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-medium text-slate-500 uppercase">服事意願</label>
+                                            <select 
+                                                value={quickEditData.availability_status} 
+                                                onChange={e => setQuickEditData({...quickEditData, availability_status: e.target.value})} 
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-sm font-normal text-slate-900"
+                                            >
+                                                <option value="穩定服事">穩定服事</option>
+                                                <option value="暫停服事">暫停服事</option>
+                                                <option value="安息季">安息季</option>
+                                                <option value="一季一次">一季一次</option>
+                                                <option value="一季三次">一季三次</option>
+                                            </select>
+                                        </div>
                                     </div>
-                                </div>
 
-                                <div className="pt-2 border-t border-slate-100">
-                                    <label className="text-sm font-medium text-slate-700 flex items-center gap-1.5 mb-3">
-                                        <ShieldCheck size={18} className="text-indigo-500"/> 服事崗位
-                                    </label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {dbData.positions.map(pos => {
-                                            const status = quickEditData.positions[pos.id];
-                                            const isBtnActive = status === 'active';
-                                            const isBtnInactive = status === 'inactive';
-                                            return (
-                                                <button 
-                                                    key={pos.id} 
-                                                    type="button" 
-                                                    onClick={() => toggleQuickEditPosition(pos.id)} 
-                                                    className={`px-4 py-2 rounded-lg text-sm font-medium border-2 transition-all duration-200 flex items-center gap-1.5 hover:-translate-y-0.5 active:scale-95 ${isBtnActive ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : isBtnInactive ? 'bg-white border-slate-300 text-slate-500 border-dashed' : 'bg-slate-50 border-slate-100 text-slate-400'}`}
+                                    {/* 第二排：堂別、群組 ID */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-medium text-slate-500 uppercase">堂別</label>
+                                            <select 
+                                                value={quickEditData.preferred_session} 
+                                                onChange={e => setQuickEditData({...quickEditData, preferred_session: e.target.value})} 
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-sm font-normal text-slate-900"
+                                            >
+                                                <option value="皆可">皆可</option>
+                                                <option value="第一堂">第一堂</option>
+                                                <option value="第二堂">第二堂</option>
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-medium text-slate-500 uppercase">群組 ID <span className="text-slate-400 font-normal">(選填)</span></label>
+                                            <div className="flex gap-2 items-stretch">
+                                                <select 
+                                                    value={quickEditData.groupPrefix} 
+                                                    onChange={e => setQuickEditData({...quickEditData, groupPrefix: e.target.value})} 
+                                                    className="w-1/3 sm:w-1/4 bg-slate-50 border border-slate-200 rounded-lg px-2 sm:px-4 py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-sm"
                                                 >
-                                                    {pos.name}
-                                                    {isBtnActive && <span className="w-2 h-2 rounded-full bg-indigo-500 ml-1"></span>}
-                                                    {isBtnInactive && <span className="text-[10px] ml-1 opacity-60">暫停</span>}
-                                                </button>
-                                            );
-                                        })}
+                                                    <option value="FA">FA</option>
+                                                    <option value="FB">FB</option>
+                                                </select>
+                                                <div className="flex-1 relative">
+                                                    <input 
+                                                        type="number" 
+                                                        value={quickEditData.groupNumber} 
+                                                        onChange={e => setQuickEditData({...quickEditData, groupNumber: e.target.value})} 
+                                                        className="w-full h-full bg-slate-50 border border-slate-200 rounded-lg pl-4 pr-[4.5rem] py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-sm" 
+                                                        placeholder="號碼" 
+                                                        min="1"
+                                                    />
+                                                    <button 
+                                                        type="button"
+                                                        onClick={quickEditAutoFillNextNumber}
+                                                        className="absolute right-1.5 top-1/2 -translate-y-1/2 px-2 py-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-md text-[10px] sm:text-xs font-medium transition-colors border border-indigo-100 flex items-center gap-1 whitespace-nowrap"
+                                                        title="自動帶入下一號"
+                                                    >
+                                                        自動編號
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-slate-100">
+                                    {/* 第三排：崗位兼任、新朋友關懷設定 */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-medium text-slate-500 uppercase">崗位兼任 <span className="text-slate-400 font-normal">(選填)</span></label>
+                                            <select 
+                                                value={quickEditData.dual_service_pref ?? ''} 
+                                                onChange={e => setQuickEditData({...quickEditData, dual_service_pref: e.target.value})} 
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-sm font-normal text-slate-900"
+                                            >
+                                                <option value="">預設 (開啟兼任)</option>
+                                                <option value="0">關閉兼任</option>
+                                                <option value="1">二堂同崗</option>
+                                                <option value="2">二堂異崗</option>
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-medium text-slate-500 uppercase">新朋友關懷設定 <span className="text-slate-400 font-normal">(選填)</span></label>
+                                            <select 
+                                                value={quickEditData.newcomer_rule ?? ''} 
+                                                onChange={e => setQuickEditData({...quickEditData, newcomer_rule: e.target.value})} 
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-sm font-normal text-slate-900"
+                                            >
+                                                <option value="">預設 (正常排班)</option>
+                                                <option value="1">主責</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {/* 第四排：不可排班周 */}
                                     <div className="space-y-1.5">
-                                        <label className="text-xs font-medium text-slate-500 uppercase">服事意願</label>
-                                        <select 
-                                            value={quickEditData.availability_status} 
-                                            onChange={e => setQuickEditData({...quickEditData, availability_status: e.target.value})} 
-                                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-sm font-normal text-slate-900"
-                                        >
-                                            <option value="穩定服事">穩定服事</option>
-                                            <option value="暫停服事">暫停服事</option>
-                                            <option value="安息季">安息季</option>
-                                            <option value="一季一次">一季一次</option>
-                                            <option value="一季三次">一季三次</option>
-                                        </select>
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <label className="text-xs font-medium text-slate-500 uppercase">堂別</label>
-                                        <select 
-                                            value={quickEditData.preferred_session} 
-                                            onChange={e => setQuickEditData({...quickEditData, preferred_session: e.target.value})} 
-                                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-sm font-normal text-slate-900"
-                                        >
-                                            <option value="皆可">皆可</option>
-                                            <option value="第一堂">第一堂</option>
-                                            <option value="第二堂">第二堂</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                                    <div className="space-y-1.5">
-                                        <label className="text-xs font-medium text-slate-500 uppercase">崗位兼任 <span className="text-slate-400 font-normal">(選填)</span></label>
-                                        <select 
-                                            value={quickEditData.dual_service_pref ?? ''} 
-                                            onChange={e => setQuickEditData({...quickEditData, dual_service_pref: e.target.value})} 
-                                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-sm font-normal text-slate-900"
-                                        >
-                                            <option value="">預設 (開啟兼任)</option>
-                                            <option value="0">關閉兼任</option>
-                                            <option value="1">二堂同崗</option>
-                                            <option value="2">二堂異崗</option>
-                                        </select>
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <label className="text-xs font-medium text-slate-500 uppercase">新朋友關懷設定 <span className="text-slate-400 font-normal">(選填)</span></label>
-                                        <select 
-                                            value={quickEditData.newcomer_rule ?? ''} 
-                                            onChange={e => setQuickEditData({...quickEditData, newcomer_rule: e.target.value})} 
-                                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-sm font-normal text-slate-900"
-                                        >
-                                            <option value="">預設 (正常排班)</option>
-                                            <option value="1">主責</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-1.5 pt-2 border-t border-slate-100">
-                                    <label className="text-xs font-medium text-slate-500 uppercase flex items-center gap-1.5">不可排班週 <span className="text-slate-400 font-normal">(選填)</span></label>
-                                    <div className="flex flex-wrap gap-4 mt-1 bg-slate-50 p-3 rounded-lg border border-slate-200">
-                                        {[1, 2, 3, 4, 5].map(week => (
-                                            <label key={week} className="flex items-center gap-2 cursor-pointer select-none">
-                                                <input 
-                                                    type="checkbox" 
-                                                    className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 border-slate-300 transition-all"
-                                                    checked={(quickEditData.unavailable_weeks || []).includes(week)}
-                                                    onChange={(e) => {
-                                                        let newWeeks = [...(quickEditData.unavailable_weeks || [])];
-                                                        if (e.target.checked) newWeeks.push(week);
-                                                        else newWeeks = newWeeks.filter(w => w !== week);
-                                                        setQuickEditData({ ...quickEditData, unavailable_weeks: newWeeks.sort() });
-                                                    }}
-                                                />
-                                                <span className="text-sm font-medium text-slate-700">第 {week} 週</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="space-y-1.5 pt-2 border-t border-slate-100">
-                                    <label className="text-xs font-medium text-slate-500 uppercase">請假日期 (點選切換)</label>
-                                    <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2 mt-2">
-                                        {utils.getSundaysInQuarter(currentQuarterStr).map(date => {
-                                            const weekNum = Math.ceil(new Date(date).getDate() / 7);
-                                            const isSystemBlocked = (quickEditData.unavailable_weeks || []).includes(weekNum);
-                                            const isManuallyChecked = quickEditData.unavailable_dates.includes(date);
-                                            const isChecked = isSystemBlocked || isManuallyChecked;
-                                            const shortDate = date.split('-').slice(1).join('/');
-
-                                            let containerClass = 'bg-white border-slate-200 hover:border-orange-200 text-slate-600';
-                                            let checkColor = 'text-orange-500';
-
-                                            if (isSystemBlocked) {
-                                                containerClass = 'bg-indigo-50 border-indigo-400 shadow-sm opacity-90 text-indigo-700 cursor-not-allowed';
-                                                checkColor = 'text-indigo-500';
-                                            } else if (isManuallyChecked) {
-                                                containerClass = 'bg-orange-50 border-orange-500 shadow-sm text-orange-600';
-                                            }
-
-                                            return (
-                                                <label key={date} className={`relative flex flex-col items-center justify-center py-2.5 rounded-lg border transition-all select-none ${isSystemBlocked ? '' : 'cursor-pointer active:scale-95'} ${containerClass}`}>
+                                        <label className="text-xs font-medium text-slate-500 uppercase flex items-center gap-1.5">不可排班周 <span className="text-slate-400 font-normal">(選填)</span></label>
+                                        <div className="flex flex-wrap gap-4 mt-1 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                            {[1, 2, 3, 4, 5].map(week => (
+                                                <label key={week} className="flex items-center gap-2 cursor-pointer select-none">
                                                     <input 
                                                         type="checkbox" 
-                                                        className="sr-only" 
-                                                        checked={isChecked} 
+                                                        className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 border-slate-300 transition-all"
+                                                        checked={(quickEditData.unavailable_weeks || []).includes(week)}
                                                         onChange={(e) => {
-                                                            if (isSystemBlocked) return;
-                                                            let newDates = [...quickEditData.unavailable_dates];
-                                                            if (e.target.checked) {
-                                                                if (!newDates.includes(date)) newDates.push(date);
-                                                            } else {
-                                                                newDates = newDates.filter(d => d !== date);
-                                                            }
-                                                            setQuickEditData({ ...quickEditData, unavailable_dates: newDates.sort() });
-                                                        }} 
+                                                            let newWeeks = [...(quickEditData.unavailable_weeks || [])];
+                                                            if (e.target.checked) newWeeks.push(week);
+                                                            else newWeeks = newWeeks.filter(w => w !== week);
+                                                            setQuickEditData({ ...quickEditData, unavailable_weeks: newWeeks.sort() });
+                                                        }}
                                                     />
-                                                    {isChecked && <Check className={`absolute top-1 right-1 ${checkColor}`} size={14} strokeWidth={3} />}
-                                                    <span className="text-sm font-bold">{shortDate}</span>
-                                                    {isSystemBlocked && <span className="text-[10px] text-indigo-500 mt-0.5 leading-none">跨團隊</span>}
+                                                    <span className="text-sm font-medium text-slate-700">第 {week} 週</span>
                                                 </label>
-                                            );
-                                        })}
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* 服事崗位 (往下移) */}
+                                    <div className="pt-2 border-t border-slate-100">
+                                        <label className="text-sm font-medium text-slate-700 flex items-center gap-1.5 mb-3">
+                                            <ShieldCheck size={18} className="text-indigo-500"/> 服事崗位
+                                        </label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {dbData.positions.map(pos => {
+                                                const status = quickEditData.positions[pos.id];
+                                                const isBtnActive = status === 'active';
+                                                const isBtnInactive = status === 'inactive';
+                                                return (
+                                                    <button 
+                                                        key={pos.id} 
+                                                        type="button" 
+                                                        onClick={() => toggleQuickEditPosition(pos.id)} 
+                                                        className={`px-4 py-2 rounded-lg text-sm font-medium border-2 transition-all duration-200 flex items-center gap-1.5 hover:-translate-y-0.5 active:scale-95 ${isBtnActive ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : isBtnInactive ? 'bg-white border-slate-300 text-slate-500 border-dashed' : 'bg-slate-50 border-slate-100 text-slate-400'}`}
+                                                    >
+                                                        {pos.name}
+                                                        {isBtnActive && <span className="w-2 h-2 rounded-full bg-indigo-500 ml-1"></span>}
+                                                        {isBtnInactive && <span className="text-[10px] ml-1 opacity-60">暫停</span>}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    {/* 請假日期 (置底) */}
+                                    <div className="pt-2 border-t border-slate-100">
+                                        <label className="text-xs font-medium text-slate-500 uppercase">請假日期 (點選切換)</label>
+                                        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2 mt-2">
+                                            {utils.getSundaysInQuarter(currentQuarterStr).map(date => {
+                                                const weekNum = Math.ceil(new Date(date).getDate() / 7);
+                                                const isSystemBlocked = (quickEditData.unavailable_weeks || []).includes(weekNum);
+                                                const isManuallyChecked = quickEditData.unavailable_dates.includes(date);
+                                                const isChecked = isSystemBlocked || isManuallyChecked;
+                                                const shortDate = date.split('-').slice(1).join('/');
+
+                                                let containerClass = 'bg-white border-slate-200 hover:border-orange-200 text-slate-600';
+                                                let checkColor = 'text-orange-500';
+
+                                                if (isSystemBlocked) {
+                                                    containerClass = 'bg-indigo-50 border-indigo-400 shadow-sm opacity-90 text-indigo-700 cursor-not-allowed';
+                                                    checkColor = 'text-indigo-500';
+                                                } else if (isManuallyChecked) {
+                                                    containerClass = 'bg-orange-50 border-orange-500 shadow-sm text-orange-600';
+                                                }
+
+                                                return (
+                                                    <label key={date} className={`relative flex flex-col items-center justify-center py-2.5 rounded-lg border transition-all select-none ${isSystemBlocked ? '' : 'cursor-pointer active:scale-95'} ${containerClass}`}>
+                                                        <input 
+                                                            type="checkbox" 
+                                                            className="sr-only" 
+                                                            checked={isChecked} 
+                                                            onChange={(e) => {
+                                                                if (isSystemBlocked) return;
+                                                                let newDates = [...quickEditData.unavailable_dates];
+                                                                if (e.target.checked) {
+                                                                    if (!newDates.includes(date)) newDates.push(date);
+                                                                } else {
+                                                                    newDates = newDates.filter(d => d !== date);
+                                                                }
+                                                                setQuickEditData({ ...quickEditData, unavailable_dates: newDates.sort() });
+                                                            }} 
+                                                        />
+                                                        {isChecked && <Check className={`absolute top-1 right-1 ${checkColor}`} size={14} strokeWidth={3} />}
+                                                        <span className="text-sm font-bold">{shortDate}</span>
+                                                        {isSystemBlocked && <span className="text-[10px] text-indigo-500 mt-0.5 leading-none">跨團隊</span>}
+                                                    </label>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
