@@ -596,7 +596,11 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
 
     const handlePublishClick = () => {
         const hasEmpty = generatedDraft.some(d => d.is_empty);
-        if (hasEmpty) { setErrorMsg('⚠️「人工指派」空缺未填補，完成後再發布'); return; }
+        if (hasEmpty) { 
+            setErrorMsg('⚠️「人工指派」空缺未填補，完成後再發布'); 
+            setTimeout(() => setErrorMsg(''), 5000); // 5秒後自動清除錯誤訊息
+            return; 
+        }
         setPublishConfirmOpen(true);
     };
 
@@ -631,7 +635,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
             const key = `${d.service_date}_${d.session}`;
             if (!tableData[key]) tableData[key] = { date: d.service_date, session: d.session, positions: {} };
             if (!tableData[key].positions[d._positionName]) tableData[key].positions[d._positionName] = [];
-            tableData[key].positions[d._positionName].push(d.is_empty ? '⚠️空缺' : (d._memberName || '未知'));
+            tableData[key].positions[d._positionName].push(d.is_empty ? '⚠️ 人工指派' : (d._memberName || '未知'));
         });
         
         const sortedRows = Object.values(tableData).sort((a, b) => {
