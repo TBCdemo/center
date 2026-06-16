@@ -6,7 +6,7 @@ import {
     ArrowLeftRight, Users, TrendingUp, CalendarDays, GitBranch, 
     Lightbulb, UserCheck, UserX, LayoutList, 
     ArrowUpDown, X, Database, AlertTriangle,
-    Home, LogOut, Edit2, Check
+    Home, LogOut, Edit2, Check, ShieldCheck, Undo2, Redo2
 } from 'lucide-react';
 
 const safeParseJSON = (data, fallback) => {
@@ -52,9 +52,13 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
     const [selectedPersonalStats, setSelectedPersonalStats] = useState(null);
     const [hasQuerySchedule, setHasQuerySchedule] = useState(true); 
 
-    // 新增：快速編輯 Modal 狀態
+    // 快速編輯 Modal 狀態
     const [quickEditData, setQuickEditData] = useState(null);
     const [isQuickEditSaving, setIsQuickEditSaving] = useState(false);
+
+    // Undo / Redo 雙堆疊狀態
+    const [undoStack, setUndoStack] = useState([]);
+    const [redoStack, setRedoStack] = useState([]);
 
     useEffect(() => { 
         const fetchInitialData = async () => {
@@ -143,6 +147,8 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                     const params = { year, quarter, effectiveMembers, effectiveMemberPositions, dbData };
                     const draft = window.ScheduleEngine.generate(params);
                     setGeneratedDraft(draft);
+                    setUndoStack([]); // 重新生成時清空歷史
+                    setRedoStack([]);
                 }
                 setErrorMsg('');
                 if (schedulingPhase === 'setup') setActiveSessionTab('第一堂');
@@ -218,6 +224,8 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
             });
 
             setGeneratedDraft(reconstructed); setErrorMsg('');
+            setUndoStack([]); // 載入班表時清空歷史
+            setRedoStack([]);
             if (schedulingPhase === 'setup') setActiveSessionTab('第一堂');
             setSchedulingPhase('editor');
         } catch (error) { setErrorMsg('查詢班表失敗：' + error.message); } finally { setIsLoading(false); }
@@ -260,12 +268,41 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
         return { conflictIds: conflicts, orphanIds: orphans };
     }, [generatedDraft, memberGroups]);
 
+    // Undo / Redo 操作 Helper
+    const saveDraftSnapshot = () => {
+        setUndoStack(prev => {
+            const newStack = [...prev, generatedDraft];
+            return newStack.length > 20 ? newStack.slice(newStack.length - 20) : newStack;
+        });
+        setRedoStack([]); 
+    };
+
+    const handleUndo = () => {
+        if (undoStack.length === 0) return;
+        const previousDraft = undoStack[undoStack.length - 1];
+        setRedoStack(prev => [...prev, generatedDraft]);
+        setGeneratedDraft(previousDraft);
+        setUndoStack(prev => prev.slice(0, -1));
+    };
+
+    const handleRedo = () => {
+        if (redoStack.length === 0) return;
+        const nextDraft = redoStack[redoStack.length - 1];
+        setUndoStack(prev => [...prev, generatedDraft]);
+        setGeneratedDraft(nextDraft);
+        setRedoStack(prev => prev.slice(0, -1));
+    };
+
     const handleDragStart = useCallback((e, item) => { setDraggedItem(item); e.currentTarget.classList.add('dragging'); }, []);
     const handleDragEnd = useCallback((e) => { e.currentTarget.classList.remove('dragging'); setDraggedItem(null); }, []);
+    
     const handleDrop = useCallback((e, targetDate, targetSession, targetPosName, targetIdx) => {
         e.preventDefault();
         if (!draggedItem) return;
         if (draggedItem.service_date !== targetDate || draggedItem.session !== targetSession || draggedItem._positionName !== targetPosName) return;
+        
+        saveDraftSnapshot(); // 儲存快照
+
         setGeneratedDraft(prev => {
             const newDraft = [...prev];
             const group = newDraft.filter(d => d.service_date === targetDate && d.session === targetSession && d._positionName === targetPosName);
@@ -279,6 +316,9 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
 
     const handleSubstitute = (newMember) => {
         if (!activeSlot || !newMember) return;
+        
+        saveDraftSnapshot(); // 儲存快照
+
         setGeneratedDraft(prev => prev.map(d => {
             if (activeSlot._positionName === '執事輪值' && d.service_date === activeSlot.service_date && d._positionName === '執事輪值' && d.member_id === activeSlot.member_id) {
                 return { ...d, member_id: newMember.id, _memberName: newMember.name, is_empty: false, is_emergency: 0 };
@@ -291,6 +331,9 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
 
     const handleSwap = (newMember, targetShift) => {
         if (!activeSlot || !newMember || !targetShift) return;
+        
+        saveDraftSnapshot(); // 儲存快照
+
         setGeneratedDraft(prev => prev.map(d => {
             if (activeSlot._positionName === '執事輪值') {
                 if (d.service_date === activeSlot.service_date && d._positionName === '執事輪值' && d.member_id === activeSlot.member_id) {
@@ -335,11 +378,30 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
         });
     };
 
-    // 新增：處理快速編輯儲存邏輯
+    const toggleQuickEditPosition = (posId) => {
+        setQuickEditData(prev => {
+            const currentStatus = prev.positions[posId];
+            let newPositions = { ...prev.positions };
+            if (!currentStatus) newPositions[posId] = 'active';
+            else if (currentStatus === 'active') newPositions[posId] = 'inactive';
+            else delete newPositions[posId];
+            return { ...prev, positions: newPositions };
+        });
+    };
+
     const handleQuickEditSave = async () => {
         setIsQuickEditSaving(true);
         try {
-            const payload = {
+            const finalGroupId = quickEditData.groupNumber ? `${quickEditData.groupPrefix}${quickEditData.groupNumber}` : null;
+            
+            // 1. 更新 members 表
+            await supabase.from('members').update({ 
+                name: quickEditData.name.trim(),
+                group_id: finalGroupId
+            }).eq('id', quickEditData.id);
+    
+            // 2. 更新 member_quarter_settings 表
+            const qsPayload = {
                 member_id: quickEditData.id,
                 quarter: currentQuarterStr,
                 preferred_session: quickEditData.preferred_session,
@@ -349,29 +411,76 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                 unavailable_dates: quickEditData.unavailable_dates,
                 unavailable_weeks: quickEditData.unavailable_weeks || []
             };
+            await supabase.from('member_quarter_settings').upsert(qsPayload, { onConflict: 'member_id, quarter' });
+    
+            // 3. 更新 member_positions 表
+            await supabase.from('member_positions').delete().eq('member_id', quickEditData.id).eq('quarter', currentQuarterStr);
+            const posKeys = Object.keys(quickEditData.positions);
+            if (posKeys.length > 0) {
+                const insertPosPayload = posKeys.map(pid => ({ 
+                    member_id: quickEditData.id, 
+                    position_id: parseInt(pid), 
+                    quarter: currentQuarterStr, 
+                    is_active: quickEditData.positions[pid] === 'active'
+                }));
+                await supabase.from('member_positions').insert(insertPosPayload);
+            }
+    
+            // 4. 重抓資料庫更新本地 DB State
+            const [{ data: members }, { data: memberPositions }, { data: quarterSettings }] = await Promise.all([
+                fetchAllData(() => supabase.from('members').select('*')),
+                fetchAllData(() => supabase.from('member_positions').select('*').eq('quarter', currentQuarterStr)),
+                fetchAllData(() => supabase.from('member_quarter_settings').select('*').eq('quarter', currentQuarterStr))
+            ]);
+    
+            setDbData(prev => ({
+                ...prev,
+                members: members || prev.members,
+                memberPositions: memberPositions || prev.memberPositions,
+                memberQuarterSettings: quarterSettings || prev.memberQuarterSettings
+            }));
 
-            const { error } = await supabase.from('member_quarter_settings').upsert(
-                payload, 
-                { onConflict: 'member_id, quarter' }
-            );
-            
-            if (error) throw error;
+            // 5. 掃描草稿，自動退班機制
+            const activePositionIds = Object.keys(quickEditData.positions)
+                .filter(pid => quickEditData.positions[pid] === 'active')
+                .map(Number); 
 
-            setDbData(prev => {
-                const newQs = [...prev.memberQuarterSettings];
-                const idx = newQs.findIndex(s => s.member_id === quickEditData.id && s.quarter === currentQuarterStr);
-                if (idx >= 0) {
-                    newQs[idx] = { ...newQs[idx], ...payload };
-                } else {
-                    newQs.push(payload);
+            setGeneratedDraft(prevDraft => {
+                let hasChanges = false;
+                const newDraft = prevDraft.map(shift => {
+                    if (shift.member_id !== quickEditData.id || shift.is_empty) return shift;
+
+                    const hasQualification = activePositionIds.includes(shift.position_id);
+                    const isUnavailableDate = quickEditData.unavailable_dates.includes(shift.service_date);
+                    const weekNum = Math.ceil(new Date(shift.service_date).getDate() / 7);
+                    const isUnavailableWeek = (quickEditData.unavailable_weeks || []).includes(weekNum);
+                    const isStatusSuspended = ['暫停服事', '安息季', '一季一次', '一季三次'].includes(quickEditData.availability_status);
+
+                    if (!hasQualification || isUnavailableDate || isUnavailableWeek || isStatusSuspended) {
+                        hasChanges = true;
+                        return {
+                            ...shift,
+                            member_id: 'EMPTY_SLOT',
+                            _memberName: '⚠️ 人工指派',
+                            is_empty: true,
+                            is_emergency: 0,
+                            temp_id: `EMPTY_${shift.service_date}_${shift.session}_${shift.position_id}_${Math.random()}`
+                        };
+                    }
+                    return shift;
+                });
+
+                if (hasChanges) {
+                    setTimeout(() => setErrorMsg('⚠️ 注意：因資格或狀態變更，部分班次已自動轉為「人工指派」，請記得補上人選！'), 500);
                 }
-                return { ...prev, memberQuarterSettings: newQs };
-            });
 
+                return newDraft;
+            });
+    
             setQuickEditData(null);
             setShowSuccessToast(true); 
             setTimeout(() => setShowSuccessToast(false), 2000);
-
+    
         } catch (err) {
             setErrorMsg('儲存同工資料失敗：' + err.message);
         } finally {
@@ -393,7 +502,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
             if (m.id === member_id) return false;
             if (!eligibleIds.includes(m.id)) return false;
             const status = (m.availability_status || '').trim();
-            if (status === '暫停服事' || status === '安息季' || status === '一季一次' || status === '一季三次') return false; // 加入其它自定義狀態攔截
+            if (status === '暫停服事' || status === '安息季' || status === '一季一次' || status === '一季三次') return false; 
             
             if (m.unavailable_dates && m.unavailable_dates.includes(service_date)) return false;
             
@@ -781,26 +890,29 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                                                 const qs = dbData.memberQuarterSettings.find(s => s.member_id === activeSlot.member_id && s.quarter === currentQuarterStr) || {};
                                                 const member = dbData.members.find(m => m.id === activeSlot.member_id);
                                                 
-                                                let safeDates = [];
-                                                if (Array.isArray(qs.unavailable_dates)) safeDates = qs.unavailable_dates;
-                                                else if (typeof qs.unavailable_dates === 'string') {
-                                                    try { safeDates = JSON.parse(qs.unavailable_dates); } catch(e) {}
-                                                }
+                                                let safeDates = Array.isArray(qs.unavailable_dates) ? qs.unavailable_dates : (typeof qs.unavailable_dates === 'string' ? safeParseJSON(qs.unavailable_dates, []) : []);
+                                                let safeUnavailableWeeks = Array.isArray(qs.unavailable_weeks) ? qs.unavailable_weeks : (typeof qs.unavailable_weeks === 'string' ? safeParseJSON(qs.unavailable_weeks, []) : []);
                                                 
-                                                let safeUnavailableWeeks = [];
-                                                if (Array.isArray(qs.unavailable_weeks)) safeUnavailableWeeks = qs.unavailable_weeks;
-                                                else if (typeof qs.unavailable_weeks === 'string') {
-                                                    try { const p = JSON.parse(qs.unavailable_weeks); safeUnavailableWeeks = Array.isArray(p) ? p : []; } catch(err) {}
-                                                }
-                                                
+                                                const currentGroupID = member.group_id || '';
+                                                const groupPrefix = currentGroupID.replace(/[0-9]/g, '') || 'FA'; 
+                                                const groupNumberStr = currentGroupID.replace(/[^0-9]/g, ''); 
+                                            
+                                                const posMap = {};
+                                                dbData.memberPositions.filter(mp => mp.member_id === member.id && mp.quarter === currentQuarterStr).forEach(mp => { 
+                                                    posMap[mp.position_id] = mp.is_active !== false ? 'active' : 'inactive'; 
+                                                });
+                                            
                                                 setQuickEditData({
                                                     id: member.id,
-                                                    name: member.name,
+                                                    name: member.name || '',
+                                                    groupPrefix: groupPrefix,
+                                                    groupNumber: groupNumberStr,
+                                                    positions: posMap,
                                                     preferred_session: qs.preferred_session || member.preferred_session || '第一堂',
                                                     availability_status: qs.availability_status || member.availability_status || '穩定服事',
                                                     dual_service_pref: qs.dual_service_pref ?? member.dual_service_pref ?? '',
                                                     newcomer_rule: qs.newcomer_rule ?? '', 
-                                                    unavailable_dates: Array.isArray(safeDates) ? safeDates : [],
+                                                    unavailable_dates: safeDates,
                                                     unavailable_weeks: safeUnavailableWeeks 
                                                 });
                                             }}
@@ -975,6 +1087,23 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                                     )}
                                 </div>
                                 <div className="flex bg-slate-50 p-1.5 rounded-lg w-full md:w-auto overflow-x-auto custom-scrollbar border border-slate-200">
+                                    <button 
+                                        onClick={handleUndo} 
+                                        disabled={undoStack.length === 0} 
+                                        className="p-2 rounded-md transition-all duration-200 text-slate-600 hover:bg-white hover:shadow-sm hover:text-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:shadow-none disabled:hover:text-slate-600"
+                                        title="復原 (Ctrl+Z)"
+                                    >
+                                        <Undo2 size={18} />
+                                    </button>
+                                    <button 
+                                        onClick={handleRedo} 
+                                        disabled={redoStack.length === 0} 
+                                        className="p-2 rounded-md transition-all duration-200 text-slate-600 hover:bg-white hover:shadow-sm hover:text-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:shadow-none disabled:hover:text-slate-600"
+                                        title="取消復原 (Ctrl+Y)"
+                                    >
+                                        <Redo2 size={18} />
+                                    </button>
+                                    <div className="w-px h-6 bg-slate-200 mx-2 self-center"></div>
                                     <button onClick={exportToCSV} className="px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap text-emerald-600 hover:bg-white hover:shadow-sm flex items-center gap-1.5"><Download size={16} /> 匯出 CSV</button>
                                     <button onClick={handlePublishClick} disabled={isSaving} className="px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-button hover:-translate-y-0.5 flex items-center gap-1.5 disabled:from-indigo-400 disabled:to-violet-400">{isSaving ? <RefreshCw className="animate-spin" size={16} /> : <><Save size={16}/> 發布班表</>}</button>
                                 </div>
@@ -1055,7 +1184,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                     </div>
                 )}
 
-                {/* --- 新增：快速編輯 Modal 完整版 --- */}
                 {quickEditData && (
                     <div className="fixed inset-0 z-[250] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in">
                         <div className="bg-white rounded-2xl w-full max-w-2xl shadow-hover-soft animate-pop border border-slate-100 flex flex-col max-h-[90vh]">
@@ -1069,6 +1197,64 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                             
                             <div className="p-6 overflow-y-auto custom-scrollbar space-y-5 flex-1">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-medium text-slate-500 uppercase">姓名</label>
+                                        <input 
+                                            type="text" 
+                                            value={quickEditData.name} 
+                                            onChange={e => setQuickEditData({...quickEditData, name: e.target.value})} 
+                                            className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-medium text-slate-900 transition-all" 
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-medium text-slate-500 uppercase">群組 ID <span className="text-slate-400 font-normal">(選填)</span></label>
+                                        <div className="flex gap-2">
+                                            <select 
+                                                value={quickEditData.groupPrefix} 
+                                                onChange={e => setQuickEditData({...quickEditData, groupPrefix: e.target.value})} 
+                                                className="w-24 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 outline-none focus:border-indigo-500 text-sm"
+                                            >
+                                                <option value="FA">FA</option>
+                                                <option value="FB">FB</option>
+                                            </select>
+                                            <input 
+                                                type="number" 
+                                                value={quickEditData.groupNumber} 
+                                                onChange={e => setQuickEditData({...quickEditData, groupNumber: e.target.value})} 
+                                                className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:border-indigo-500 text-sm" 
+                                                placeholder="號碼" 
+                                                min="1"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="pt-2 border-t border-slate-100">
+                                    <label className="text-sm font-medium text-slate-700 flex items-center gap-1.5 mb-3">
+                                        <ShieldCheck size={18} className="text-indigo-500"/> 服事崗位
+                                    </label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {dbData.positions.map(pos => {
+                                            const status = quickEditData.positions[pos.id];
+                                            const isBtnActive = status === 'active';
+                                            const isBtnInactive = status === 'inactive';
+                                            return (
+                                                <button 
+                                                    key={pos.id} 
+                                                    type="button" 
+                                                    onClick={() => toggleQuickEditPosition(pos.id)} 
+                                                    className={`px-4 py-2 rounded-lg text-sm font-medium border-2 transition-all duration-200 flex items-center gap-1.5 hover:-translate-y-0.5 active:scale-95 ${isBtnActive ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : isBtnInactive ? 'bg-white border-slate-300 text-slate-500 border-dashed' : 'bg-slate-50 border-slate-100 text-slate-400'}`}
+                                                >
+                                                    {pos.name}
+                                                    {isBtnActive && <span className="w-2 h-2 rounded-full bg-indigo-500 ml-1"></span>}
+                                                    {isBtnInactive && <span className="text-[10px] ml-1 opacity-60">暫停</span>}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-slate-100">
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-medium text-slate-500 uppercase">服事意願</label>
                                         <select 
