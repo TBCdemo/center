@@ -462,36 +462,42 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             const memberEmail = m.email ? m.email.trim() : '';
             if (memberEmail !== currentUserAccount && memberEmail !== currentUserEmail) return false;
         }
-        const term = searchTerm.toLowerCase();
+
+        const rawSearchTerm = searchTerm.trim();
+        if (!rawSearchTerm) return true;
         
-        if (m.name.toLowerCase().includes(term)) return true;
-        if (m.group_id && m.group_id.toLowerCase().includes(term)) return true;
+        const searchTerms = rawSearchTerm.toLowerCase().split(/\s+/);
         
-        const hasMatchingPosition = memberPositions.filter(mp => mp.member_id === m.id).some(mp => {
-            const p = positions.find(pos => pos.id === mp.position_id);
-            return p && p.name.toLowerCase().includes(term);
+        return searchTerms.some(term => {
+            if (m.name.toLowerCase().includes(term)) return true;
+            if (m.group_id && m.group_id.toLowerCase().includes(term)) return true;
+            
+            const hasMatchingPosition = memberPositions.filter(mp => mp.member_id === m.id).some(mp => {
+                const p = positions.find(pos => pos.id === mp.position_id);
+                return p && p.name.toLowerCase().includes(term);
+            });
+            if (hasMatchingPosition) return true;
+            
+            const settings = quarterSettings.find(s => s.member_id === m.id);
+            if (settings) {
+                if (settings.preferred_session && settings.preferred_session.toLowerCase().includes(term)) return true;
+                if (settings.availability_status && settings.availability_status.toLowerCase().includes(term)) return true;
+                
+                let dualPrefText = '預設兼任 開啟兼任'; 
+                if (settings.dual_service_pref === 0) dualPrefText = '關閉兼任';
+                if (settings.dual_service_pref === 1) dualPrefText = '二堂同崗';
+                if (settings.dual_service_pref === 2) dualPrefText = '二堂異崗';
+                
+                if (dualPrefText.includes(term)) return true;
+            }
+            
+            if (term.includes('暫停')) {
+                const hasSuspendedPosition = memberPositions.filter(mp => mp.member_id === m.id).some(mp => mp.is_active === false);
+                if (hasSuspendedPosition) return true;
+            }
+            
+            return false;
         });
-        if (hasMatchingPosition) return true;
-        
-        const settings = quarterSettings.find(s => s.member_id === m.id);
-        if (settings) {
-            if (settings.preferred_session && settings.preferred_session.toLowerCase().includes(term)) return true;
-            if (settings.availability_status && settings.availability_status.toLowerCase().includes(term)) return true;
-            
-            let dualPrefText = '預設兼任 開啟兼任'; 
-            if (settings.dual_service_pref === 0) dualPrefText = '關閉兼任';
-            if (settings.dual_service_pref === 1) dualPrefText = '二堂同崗';
-            if (settings.dual_service_pref === 2) dualPrefText = '二堂異崗';
-            
-            if (dualPrefText.includes(term)) return true;
-        }
-        
-        if (term.includes('暫停')) {
-            const hasSuspendedPosition = memberPositions.filter(mp => mp.member_id === m.id).some(mp => mp.is_active === false);
-            if (hasSuspendedPosition) return true;
-        }
-        
-        return false;
     });
 
     displayMembers.sort((a, b) => {
