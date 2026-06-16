@@ -868,7 +868,7 @@ const ScheduleEngine = {
           session: slot.session, 
           member_id: 'EMPTY_SLOT', 
           position_id: slot.posId,
-          _memberName: '⚠️ 需手動指派', 
+          _memberName: '⚠️ 人工指派', 
           _positionName: slot.roleName, 
           is_empty: true
         });
