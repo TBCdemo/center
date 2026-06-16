@@ -468,7 +468,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
         
         const searchTerms = rawSearchTerm.toLowerCase().split(/\s+/);
         
-        return searchTerms.some(term => {
+        return searchTerms.every(term => {
             if (m.name.toLowerCase().includes(term)) return true;
             if (m.group_id && m.group_id.toLowerCase().includes(term)) return true;
             
