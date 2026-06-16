@@ -456,8 +456,10 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
     };
 
     let displayMembers = members.filter(m => {
+        // 排除系統帳號
         if (m.name && m.name.startsWith('SYSTEM_')) return false;
     
+        // 權限過濾
         if (!isAdmin) {
             const memberEmail = m.email ? m.email.trim() : '';
             if (memberEmail !== currentUserAccount && memberEmail !== currentUserEmail) return false;
@@ -468,7 +470,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
         
         const searchTerms = rawSearchTerm.toLowerCase().split(/\s+/);
         
-        return searchTerms.every(term => {
+        return searchTerms.some(term => {
             if (m.name.toLowerCase().includes(term)) return true;
             if (m.group_id && m.group_id.toLowerCase().includes(term)) return true;
             
@@ -481,7 +483,17 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
             const settings = quarterSettings.find(s => s.member_id === m.id);
             if (settings) {
                 if (settings.preferred_session && settings.preferred_session.toLowerCase().includes(term)) return true;
-                if (settings.availability_status && settings.availability_status.toLowerCase().includes(term)) return true;
+                
+                // 【修改點】區分「暫停服事」與「暫停(單一崗位)」
+                if (settings.availability_status) {
+                    const statusStr = settings.availability_status.toLowerCase();
+                    // 若精準輸入「暫停」，不讓它模糊匹配到「暫停服事」的整體狀態
+                    if (term === '暫停' && statusStr === '暫停服事') {
+                        // 略過，交給下方的崗位檢查
+                    } else if (statusStr.includes(term)) {
+                        return true;
+                    }
+                }
                 
                 let dualPrefText = '預設兼任 開啟兼任'; 
                 if (settings.dual_service_pref === 0) dualPrefText = '關閉兼任';
@@ -491,7 +503,8 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                 if (dualPrefText.includes(term)) return true;
             }
             
-            if (term.includes('暫停')) {
+            // 【修改點】只有輸入「暫停」時，才專門去檢查是否有被設為暫停 (is_active: false) 的崗位
+            if (term === '暫停') {
                 const hasSuspendedPosition = memberPositions.filter(mp => mp.member_id === m.id).some(mp => mp.is_active === false);
                 if (hasSuspendedPosition) return true;
             }
