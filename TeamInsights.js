@@ -1,20 +1,82 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
     Home, Users, Calendar, LogOut, BarChart3, ChevronLeft, 
-    UserCheck, UserMinus, LayoutList, CheckCircle2 
+    UserCheck, UserMinus, LayoutList, CheckCircle2, TrendingDown,
+    CalendarDays, Activity
 } from 'lucide-react';
 
+// 共用的 SVG 漸層面積折線圖元件
+const AreaLineChart = ({ data, yKey, colorClass, gradientFrom, gradientTo }) => {
+    if (!data || data.length === 0) return <div className="h-full flex items-center justify-center text-slate-400 text-sm">暫無排班數據</div>;
+
+    const maxVal = Math.max(...data.map(d => d[yKey]), 1);
+    const minVal = 0;
+    
+    // 計算 SVG 路徑點
+    const points = data.map((d, i) => {
+        const x = data.length > 1 ? (i / (data.length - 1)) * 100 : 50;
+        const y = 100 - ((d[yKey] - minVal) / (maxVal - minVal)) * 90; // 留 10% 頂部空間
+        return `${x},${y}`;
+    }).join(' ');
+
+    const areaPath = `M 0,100 L ${points.split(' ').map(p => p.replace(',', ',')).join(' L ')} L 100,100 Z`;
+
+    return (
+        <div className="w-full h-full relative group">
+            {/* 浮動提示框 (Tooltip) 僅作展示，以 Tailwind hover 模擬 */}
+            <div className="absolute inset-0 flex justify-between items-end z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="bg-slate-800 text-white text-[10px] px-2 py-1 rounded shadow-lg -ml-4 mb-2">最高: {maxVal}</div>
+                <div className="bg-slate-800 text-white text-[10px] px-2 py-1 rounded shadow-lg -mr-4 mb-2">最低: {data[data.length-1][yKey]}</div>
+            </div>
+            
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
+                <defs>
+                    <linearGradient id={`gradient-${yKey}`} x1="0" x2="0" y1="0" y2="1">
+                        <stop offset="0%" stopColor={gradientFrom} stopOpacity="0.4" />
+                        <stop offset="100%" stopColor={gradientTo} stopOpacity="0.0" />
+                    </linearGradient>
+                </defs>
+                {/* 面積填色 */}
+                <path d={areaPath} fill={`url(#gradient-${yKey})`} />
+                {/* 折線 */}
+                <polyline points={points} fill="none" stroke={gradientFrom} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-md" />
+                
+                {/* X軸底線 */}
+                <line x1="0" y1="100" x2="100" y2="100" stroke="#e2e8f0" strokeWidth="1" />
+            </svg>
+        </div>
+    );
+};
+
 const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, utils, StatCard }) => {
-    const { fetchAllData } = utils;
+    const { fetchAllData, getCurrentQuarter, getNextQuarter } = utils;
     
     const [isLoading, setIsLoading] = useState(true);
+    const [viewQuarter, setViewQuarter] = useState('BASE');
+    const [availableQuarters, setAvailableQuarters] = useState(['BASE']);
     const [dbData, setDbData] = useState({ members: [], positions: [], memberPositions: [], quarterSettings: [] });
 
+    // 取得所有可用季度
     useEffect(() => {
-        const loadBaseData = async () => {
+        const fetchQuarters = async () => {
+            try {
+                const { data } = await supabase.from('member_quarter_settings').select('quarter');
+                if (data) {
+                    const qs = [...new Set(data.map(d => d.quarter))].filter(q => q !== 'SYSTEM' && q !== 'BASE').sort().reverse();
+                    setAvailableQuarters(['BASE', ...qs]);
+                    // 預設選擇最新的一季，如果沒有則選 BASE
+                    if (qs.length > 0) setViewQuarter(qs[0]);
+                }
+            } catch (err) { console.error('抓取季度失敗', err); }
+        };
+        fetchQuarters();
+    }, []);
+
+    // 依據選擇的季度載入資料
+    useEffect(() => {
+        const loadQuarterData = async () => {
             setIsLoading(true);
             try {
-                // 專注抓取基礎版 (BASE) 數據
                 const [
                     { data: mData }, 
                     { data: pData }, 
@@ -23,8 +85,8 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                 ] = await Promise.all([
                     fetchAllData(() => supabase.from('members').select('*').order('name')),
                     fetchAllData(() => supabase.from('positions').select('*').order('id')),
-                    fetchAllData(() => supabase.from('member_positions').select('*').eq('quarter', 'BASE')),
-                    fetchAllData(() => supabase.from('member_quarter_settings').select('*').eq('quarter', 'BASE'))
+                    fetchAllData(() => supabase.from('member_positions').select('*').eq('quarter', viewQuarter)),
+                    fetchAllData(() => supabase.from('member_quarter_settings').select('*').in('quarter', [viewQuarter, 'SYSTEM']))
                 ]);
 
                 setDbData({
@@ -39,8 +101,8 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                 setIsLoading(false);
             }
         };
-        loadBaseData();
-    }, []);
+        loadQuarterData();
+    }, [viewQuarter]);
 
     const insights = useMemo(() => {
         const { members, positions, memberPositions, quarterSettings } = dbData;
@@ -49,35 +111,41 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
         const realMembers = members.filter(m => !m.name.startsWith('SYSTEM_'));
         const totalMembersCount = realMembers.length;
 
-        // 建立 settings mapping 以加速查找
+        // 建立 settings mapping
         const qsMap = {};
-        quarterSettings.forEach(qs => qsMap[qs.member_id] = qs);
+        quarterSettings.forEach(qs => { if(qs.quarter === viewQuarter) qsMap[qs.member_id] = qs; });
 
-        // 2. 計算狀態人數
+        // 解析排班資料 (尋找 SYSTEM_SCHEDULE_ARCHIVE)
+        let activeSchedules = [];
+        const archiveMem = members.find(m => m.name === 'SYSTEM_SCHEDULE_ARCHIVE');
+        if (archiveMem) {
+            const archiveQs = quarterSettings.find(q => q.member_id === archiveMem.id && q.quarter === viewQuarter);
+            if (archiveQs && archiveQs.unavailable_dates) {
+                try {
+                    activeSchedules = typeof archiveQs.unavailable_dates === 'string' 
+                        ? JSON.parse(archiveQs.unavailable_dates) 
+                        : archiveQs.unavailable_dates;
+                } catch(e) { console.error('解析班表失敗', e); }
+            }
+        }
+
+        // 2. 計算狀態人數 (只計算嚴格的'暫停服事')
         let suspendedCount = 0;
-        let activeCount = 0;
-
         const activeMemberIds = new Set();
 
         realMembers.forEach(m => {
             const status = qsMap[m.id]?.availability_status || '穩定服事';
-            if (['暫停服事', '安息季'].includes(status)) {
-                suspendedCount++;
-            } else {
-                activeCount++;
-                activeMemberIds.add(m.id);
-            }
+            if (status === '暫停服事') suspendedCount++;
+            else activeMemberIds.add(m.id);
         });
+
+        const activeCount = totalMembersCount - suspendedCount;
 
         // 3. 崗位人力分布
         const positionDistribution = positions.map(pos => {
-            let session1 = 0;
-            let session2 = 0;
-            let both = 0;
-
+            let session1 = 0, session2 = 0, both = 0;
             realMembers.forEach(m => {
-                if (!activeMemberIds.has(m.id)) return; // 僅計算上線服事的同工
-
+                if (!activeMemberIds.has(m.id)) return;
                 const hasPos = memberPositions.some(mp => mp.member_id === m.id && mp.position_id === pos.id && mp.is_active !== false);
                 if (hasPos) {
                     const pref = qsMap[m.id]?.preferred_session || '第一堂';
@@ -86,54 +154,57 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                     else both++;
                 }
             });
-
-            return {
-                id: pos.id,
-                name: pos.name,
-                session1,
-                session2,
-                both,
-                total: session1 + session2 + both
-            };
+            return { id: pos.id, name: pos.name, session1, session2, both, total: session1 + session2 + both };
         });
 
-        // 4. 崗位兼任分析 (X軸=崗位數，Y軸=人數)
+        // 4. 崗位兼任分析 (長條圖)
         const concurrencyMap = {};
         realMembers.forEach(m => {
             if (!activeMemberIds.has(m.id)) return;
-
             const posCount = memberPositions.filter(mp => mp.member_id === m.id && mp.is_active !== false).length;
             concurrencyMap[posCount] = (concurrencyMap[posCount] || 0) + 1;
         });
 
-        const concurrencyData = Object.keys(concurrencyMap)
-            .map(Number)
-            .sort((a, b) => a - b)
-            .map(count => ({
-                roles: count,
-                people: concurrencyMap[count]
-            }));
-            
+        const concurrencyData = Object.keys(concurrencyMap).map(Number).sort((a, b) => a - b).map(count => ({
+            roles: count, people: concurrencyMap[count]
+        }));
         const maxConcurrencyPeople = Math.max(0, ...concurrencyData.map(d => d.people));
 
-        return {
-            totalMembersCount,
-            suspendedCount,
-            activeCount,
-            positionDistribution,
-            concurrencyData,
-            maxConcurrencyPeople
-        };
+        // 5. 服事天數與次數分布 (折線面積圖數據)
+        let scheduleStats = [];
+        if (activeSchedules.length > 0) {
+            scheduleStats = realMembers.map(m => {
+                const memShifts = activeSchedules.filter(s => s.m === m.id);
+                const uniqueDays = new Set(memShifts.map(s => s.d)).size;
+                return {
+                    id: m.id,
+                    name: m.name,
+                    times: memShifts.length,
+                    days: uniqueDays
+                };
+            }).filter(s => s.times > 0); // 只顯示有排班的人，呈現曲線
+        }
 
-    }, [dbData]);
+        // 降序排列以產生「負擔遞減曲線」
+        const timesDistribution = [...scheduleStats].sort((a, b) => b.times - a.times);
+        const daysDistribution = [...scheduleStats].sort((a, b) => b.days - a.days);
+
+        return {
+            totalMembersCount, suspendedCount, activeCount,
+            positionDistribution, concurrencyData, maxConcurrencyPeople,
+            timesDistribution, daysDistribution,
+            hasSchedule: activeSchedules.length > 0
+        };
+    }, [dbData, viewQuarter]);
 
     return (
         <div className="flex h-screen w-full bg-slate-50 overflow-hidden relative">
             {/* 左側導覽列 */}
             <div className="hidden md:flex inset-y-0 left-0 w-64 bg-slate-900 flex-col justify-between shrink-0 border-r border-slate-800 z-30 h-full">
                 <div className="flex flex-col">
-                    <div className="p-6 border-b border-slate-800 flex items-center justify-between gap-3">
-                        <span className="text-white font-bold text-base tracking-wider">TBC Serve Manager</span>
+                    <div className="p-6 border-b border-slate-800 flex items-center justify-between gap-3 relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-indigo-500/10 to-transparent pointer-events-none"></div>
+                        <span className="text-white font-bold text-base tracking-wider relative z-10">TBC Serve Manager</span>
                     </div>
                     <nav className="p-4 space-y-1.5">
                         <button onClick={goBack} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
@@ -145,7 +216,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                         <button onClick={goToSchedule} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
                             <Calendar size={18} className="text-slate-400 group-hover:text-violet-400 transition-colors" /><span>排班作業中心</span>
                         </button>
-                        <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-sky-500 to-blue-600 shadow-button text-white rounded-xl font-medium text-sm">
+                        <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl font-medium text-sm shadow-button">
                             <BarChart3 size={18} /><span>人力洞察中心</span>
                         </div>
                     </nav>
@@ -159,17 +230,29 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
 
             {/* 主要內容區 */}
             <div className="flex-1 flex flex-col relative bg-slate-50 overflow-hidden animate-fade-in">
-                <div className="bg-white px-6 py-4 border-b border-slate-100 flex items-center gap-3 shrink-0 shadow-sm z-20">
-                    <button onClick={goBack} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors hidden md:block" title="返回首頁">
-                        <ChevronLeft size={24} />
-                    </button>
-                    <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 flex items-center gap-2 tracking-tight">
-                        <BarChart3 className="text-sky-500" size={28}/> 
-                        人力洞察中心 <span className="text-sm text-slate-400 font-medium ml-2">基於 BASE (基礎版) 分析</span>
-                    </h2>
+                <div className="bg-white px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0 shadow-sm z-20">
+                    <div className="flex items-center gap-3">
+                        <button onClick={goBack} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors hidden md:block" title="返回首頁">
+                            <ChevronLeft size={24} />
+                        </button>
+                        <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 flex items-center gap-2 tracking-tight">
+                            <BarChart3 className="text-indigo-600" size={28}/> 人力洞察中心
+                        </h2>
+                    </div>
+                    {/* 季度切換器 */}
+                    <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-lg border border-slate-200 shadow-sm">
+                        <span className="text-sm font-bold text-slate-500 pl-2">分析季度:</span>
+                        <select 
+                            value={viewQuarter} 
+                            onChange={e => setViewQuarter(e.target.value)} 
+                            className="bg-white border border-slate-200 rounded-md px-3 py-1 font-bold text-indigo-600 text-sm outline-none cursor-pointer focus:ring-2 focus:ring-indigo-500/20 shadow-sm transition-all"
+                        >
+                            {availableQuarters.map(q => <option key={q} value={q}>{q === 'BASE' ? 'BASE 基礎設定' : q.replace('-', '')}</option>)}
+                        </select>
+                    </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-6 lg:p-8 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto p-6 lg:p-8 custom-scrollbar pb-24">
                     {isLoading ? (
                         <div className="h-full flex items-center justify-center text-slate-400 font-medium animate-pulse">計算數據中...</div>
                     ) : (
@@ -178,7 +261,78 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <StatCard icon={Users} title="同工總人數" value={insights.totalMembersCount} unit="人" iconBgClass="bg-slate-100" iconTextClass="text-slate-600" />
                                 <StatCard icon={CheckCircle2} title="上線服事人數" value={insights.activeCount} unit="人" iconBgClass="bg-emerald-50" iconTextClass="text-emerald-600" />
-                                <StatCard icon={UserMinus} title="暫停 / 安息人數" value={insights.suspendedCount} unit="人" iconBgClass="bg-orange-50" iconTextClass="text-orange-600" />
+                                <StatCard icon={UserMinus} title="暫停服事人數" value={insights.suspendedCount} unit="人" iconBgClass="bg-orange-50" iconTextClass="text-orange-600" />
+                            </div>
+
+                            {/* 折線圖區域 (僅在非 BASE 或有排班資料時顯示) */}
+                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                                {/* 服事天數分布圖 */}
+                                <div className="bg-white rounded-xl shadow-soft border border-slate-100 overflow-hidden flex flex-col">
+                                    <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                            <CalendarDays className="text-sky-500" size={20} />
+                                            <h3 className="text-lg font-bold text-slate-800">服事天數分布圖</h3>
+                                        </div>
+                                        <span className="text-[10px] bg-sky-100 text-sky-600 px-2 py-1 rounded font-bold uppercase tracking-wider">{viewQuarter === 'BASE' ? '無排班數據' : '按人數遞減'}</span>
+                                    </div>
+                                    <div className="p-6 flex-1 flex flex-col min-h-[280px]">
+                                        {!insights.hasSchedule ? (
+                                            <div className="flex-1 flex flex-col items-center justify-center text-slate-400 text-sm bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                                                <Activity size={32} className="mb-2 opacity-50"/> 該季度尚無排班發布資料
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div className="flex-1 relative pl-2 pb-2">
+                                                    <AreaLineChart 
+                                                        data={insights.daysDistribution} 
+                                                        yKey="days" 
+                                                        gradientFrom="#0ea5e9" // sky-500
+                                                        gradientTo="#e0f2fe"   // sky-100
+                                                    />
+                                                </div>
+                                                <div className="flex justify-between items-center text-xs font-bold text-slate-400 mt-3 pt-2 border-t border-slate-100">
+                                                    <span>高頻服事 (天數多)</span>
+                                                    <span>X 軸：上線同工人數 (共 {insights.daysDistribution.length} 人)</span>
+                                                    <span>低頻服事 (天數少)</span>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* 服事次數分布圖 */}
+                                <div className="bg-white rounded-xl shadow-soft border border-slate-100 overflow-hidden flex flex-col">
+                                    <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                            <TrendingDown className="text-emerald-500" size={20} />
+                                            <h3 className="text-lg font-bold text-slate-800">服事次數分布圖</h3>
+                                        </div>
+                                        <span className="text-[10px] bg-emerald-100 text-emerald-600 px-2 py-1 rounded font-bold uppercase tracking-wider">{viewQuarter === 'BASE' ? '無排班數據' : '按人數遞減'}</span>
+                                    </div>
+                                    <div className="p-6 flex-1 flex flex-col min-h-[280px]">
+                                        {!insights.hasSchedule ? (
+                                            <div className="flex-1 flex flex-col items-center justify-center text-slate-400 text-sm bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                                                <Activity size={32} className="mb-2 opacity-50"/> 該季度尚無排班發布資料
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div className="flex-1 relative pl-2 pb-2">
+                                                    <AreaLineChart 
+                                                        data={insights.timesDistribution} 
+                                                        yKey="times" 
+                                                        gradientFrom="#10b981" // emerald-500
+                                                        gradientTo="#d1fae5"   // emerald-100
+                                                    />
+                                                </div>
+                                                <div className="flex justify-between items-center text-xs font-bold text-slate-400 mt-3 pt-2 border-t border-slate-100">
+                                                    <span>高量服事 (次數多)</span>
+                                                    <span>X 軸：上線同工人數 (共 {insights.timesDistribution.length} 人)</span>
+                                                    <span>低量服事 (次數少)</span>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -186,7 +340,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                 <div className="bg-white rounded-xl shadow-soft border border-slate-100 overflow-hidden flex flex-col">
                                     <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
                                         <LayoutList className="text-indigo-500" size={20} />
-                                        <h3 className="text-lg font-bold text-slate-800">崗位人力分布現況</h3>
+                                        <h3 className="text-lg font-bold text-slate-800">崗位人力分布</h3>
                                     </div>
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-left border-collapse">
@@ -217,7 +371,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                 {/* 右側：崗位兼任分析長條圖 */}
                                 <div className="bg-white rounded-xl shadow-soft border border-slate-100 overflow-hidden flex flex-col">
                                     <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
-                                        <UserCheck className="text-sky-500" size={20} />
+                                        <UserCheck className="text-violet-500" size={20} />
                                         <h3 className="text-lg font-bold text-slate-800">崗位兼任分析 <span className="text-sm text-slate-400 font-normal ml-1">(上線同工)</span></h3>
                                     </div>
                                     <div className="p-6 flex-1 flex flex-col justify-center min-h-[300px]">
@@ -235,19 +389,16 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                     ? (data.people / insights.maxConcurrencyPeople) * 100 
                                                     : 0;
                                                 return (
-                                                    <div key={idx} className="flex-1 flex flex-col items-center gap-2 group relative z-10">
-                                                        {/* 柱狀圖上方的數字 */}
+                                                    <div key={idx} className="flex-1 h-full flex flex-col items-center justify-end gap-2 group relative z-10">
                                                         <span className="text-sm font-bold text-slate-600 transition-transform group-hover:-translate-y-1">{data.people} 人</span>
-                                                        {/* 柱狀體 */}
                                                         <div 
-                                                            className="w-full max-w-[60px] bg-sky-500 rounded-t-md transition-all duration-500 hover:bg-sky-400 shadow-sm"
+                                                            className="w-full max-w-[60px] bg-violet-500 rounded-t-md transition-all duration-500 hover:bg-violet-400 shadow-sm"
                                                             style={{ height: `${heightPct}%`, minHeight: data.people > 0 ? '4px' : '0' }}
                                                         ></div>
                                                     </div>
                                                 );
                                             })}
                                         </div>
-                                        {/* X 軸標籤 */}
                                         <div className="flex gap-4 mt-3">
                                             {insights.concurrencyData.map((data, idx) => (
                                                 <div key={idx} className="flex-1 text-center text-sm font-medium text-slate-500">
