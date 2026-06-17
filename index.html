@@ -79,7 +79,7 @@
 
     <script type="text/babel" data-type="module" src="./MemberDataCenter.js"></script>
     <script type="text/babel" data-type="module" src="./SchedulingAndGovernance.js"></script>
-
+<script type="text/babel" data-type="module" src="./TeamInsights.js"></script>
     <script type="text/babel" data-type="module">
         import React, { useState, useEffect } from 'react';
         import { createRoot } from 'react-dom/client';
@@ -409,6 +409,7 @@
             const currentUserAccount = extractAccountFromEmail(currentUserEmail);
             const isAdmin = currentUserAccount === constants.ADMIN_ACCOUNT || currentUserEmail === constants.ADMIN_ACCOUNT;
 
+            // 路由狀態加入 'insights'
             const [currentApp, setCurrentApp] = useState(isAdmin ? 'home' : 'members'); 
 
             const handleLogout = async () => { await supabase.auth.signOut(); window.location.reload(); };
@@ -429,7 +430,7 @@
                             <div className="flex items-center gap-3"><Activity className="text-indigo-600" size={28} /><h1 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">TBC Serve Manager</h1></div>
                             <button onClick={handleLogout} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-normal px-3 sm:px-4 py-2 rounded-lg hover:bg-slate-100 transition-colors"><LogOut size={18} /> <span className="hidden sm:inline">Sign Out</span></button>
                         </header>
-                        <main className="flex-1 w-full max-w-5xl mx-auto px-6 py-10 sm:py-16 animate-fade-in flex flex-col justify-center relative z-10">
+                        <main className="flex-1 w-full max-w-6xl mx-auto px-6 py-10 sm:py-16 animate-fade-in flex flex-col justify-center relative z-10">
                             <div className="mb-10 sm:mb-14 text-center sm:text-left">
                                 <h2 className="text-3xl sm:text-5xl font-extrabold mb-3 tracking-tight text-slate-900">
                                     Welcome <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600">back</span>
@@ -437,7 +438,8 @@
                                 <p className="text-slate-500 font-normal text-sm sm:text-base">Select a workspace to continue your management tasks.</p>
                             </div>
                             
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 perspective-[2000px]">
+                            {/* 將卡片改為 md:grid-cols-3，一列並排 */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 perspective-[2000px]">
                                 <div onClick={() => setCurrentApp('members')} className="bg-white p-8 rounded-xl border border-slate-100 shadow-soft hover:shadow-hover-soft hover:-translate-y-1 transition-all duration-300 cursor-pointer group relative overflow-hidden transform hover:rotate-x-[2deg] hover:rotate-y-[-4deg]">
                                     <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-bl from-indigo-50 to-transparent rounded-bl-full -z-10 transition-transform duration-500 group-hover:scale-110"></div>
                                     <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center mb-8"><Users size={32} /></div>
@@ -450,11 +452,72 @@
                                     <h3 className="text-2xl font-extrabold text-slate-900 mb-10 tracking-tight">排班作業中心</h3>
                                     <div className="flex items-center gap-2 text-violet-600 font-medium text-sm group-hover:translate-x-1 transition-transform duration-200">Enter Workspace <ArrowRight size={16} /></div>
                                 </div>
+                                {/* 新增的人力洞察中心卡片 */}
+                                <div onClick={() => setCurrentApp('insights')} className="bg-white p-8 rounded-xl border border-slate-100 shadow-soft hover:shadow-hover-soft hover:-translate-y-1 transition-all duration-300 cursor-pointer group relative overflow-hidden transform hover:rotate-x-[2deg] hover:rotate-y-[4deg]">
+                                    <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-bl from-sky-50 to-transparent rounded-bl-full -z-10 transition-transform duration-500 group-hover:scale-110"></div>
+                                    <div className="w-16 h-16 bg-sky-50 text-sky-600 rounded-xl flex items-center justify-center mb-8"><Activity size={32} /></div>
+                                    <h3 className="text-2xl font-extrabold text-slate-900 mb-10 tracking-tight">人力洞察中心</h3>
+                                    <div className="flex items-center gap-2 text-sky-600 font-medium text-sm group-hover:translate-x-1 transition-transform duration-200">Enter Workspace <ArrowRight size={16} /></div>
+                                </div>
                             </div>
                         </main>
                     </div>
                 );
             }
+
+            const MemberDataCenterComp = window.MemberDataCenter;
+            const SchedulingAndGovernanceComp = window.SchedulingAndGovernance;
+            const TeamInsightsComp = window.TeamInsights; // 綁定元件
+
+            return (
+                <div className="flex h-screen w-full bg-slate-50 overflow-hidden relative">
+                    <main className="flex-1 flex flex-col h-full overflow-hidden relative z-10">
+                        {currentApp === 'members' && (
+                            MemberDataCenterComp 
+                                ? <MemberDataCenterComp 
+                                    session={session} 
+                                    goBack={isAdmin ? () => setCurrentApp('home') : handleLogout} 
+                                    goToSchedule={() => setCurrentApp('scheduling')} 
+                                    goToInsights={() => setCurrentApp('insights')} // 新增 Prop
+                                    supabase={supabase} 
+                                    utils={utils} 
+                                    constants={constants} 
+                                  />
+                                : <div className="flex-1 flex items-center justify-center font-medium text-slate-500 animate-pulse">Loading...</div>
+                        )}
+                        {currentApp === 'scheduling' && isAdmin && (
+                            SchedulingAndGovernanceComp 
+                                ? <SchedulingAndGovernanceComp 
+                                    session={session} 
+                                    goBack={() => setCurrentApp('home')} 
+                                    goToMembers={() => setCurrentApp('members')} 
+                                    goToInsights={() => setCurrentApp('insights')} // 新增 Prop
+                                    supabase={supabase} 
+                                    utils={utils} 
+                                    constants={constants} 
+                                    StatCard={StatCard} 
+                                  />
+                                : <div className="flex-1 flex items-center justify-center font-medium text-slate-500 animate-pulse">Loading...</div>
+                        )}
+                        {/* 處理 Insights 路由 */}
+                        {currentApp === 'insights' && isAdmin && (
+                            TeamInsightsComp 
+                                ? <TeamInsightsComp 
+                                    session={session} 
+                                    goBack={() => setCurrentApp('home')} 
+                                    goToMembers={() => setCurrentApp('members')} 
+                                    goToSchedule={() => setCurrentApp('scheduling')} 
+                                    supabase={supabase} 
+                                    utils={utils} 
+                                    constants={constants} 
+                                    StatCard={StatCard} 
+                                  />
+                                : <div className="flex-1 flex items-center justify-center font-medium text-slate-500 animate-pulse">Loading...</div>
+                        )}
+                    </main>
+                </div>
+            );
+        }
 
             const MemberDataCenterComp = window.MemberDataCenter;
             const SchedulingAndGovernanceComp = window.SchedulingAndGovernance;
