@@ -7,10 +7,7 @@ import {
     Lightbulb, UserCheck, UserX, LayoutList, 
     ArrowUpDown, X, Database, AlertTriangle,
     Home, LogOut, Edit2, Check, ShieldCheck, Undo2, Redo2
-} from 'lucide-react'; // 確認有 BarChart3
-
-const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, supabase, utils, constants, StatCard }) => {
-// 加入 goToInsights
+} from 'lucide-react';
 
 const safeParseJSON = (data, fallback) => {
     if (!data) return fallback;
@@ -18,7 +15,7 @@ const safeParseJSON = (data, fallback) => {
     try { return JSON.parse(data); } catch (e) { return fallback; }
 };
 
-const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils, constants, StatCard }) => {
+const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, supabase, utils, constants, StatCard }) => {
     const { fetchAllData, getSundaysInQuarter, getQuarterDateRange } = utils;
     const { sessionsToSchedule } = constants;
 
@@ -55,11 +52,9 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
     const [selectedPersonalStats, setSelectedPersonalStats] = useState(null);
     const [hasQuerySchedule, setHasQuerySchedule] = useState(true); 
 
-    // 快速編輯 Modal 狀態
     const [quickEditData, setQuickEditData] = useState(null);
     const [isQuickEditSaving, setIsQuickEditSaving] = useState(false);
 
-    // Undo / Redo 雙堆疊狀態
     const [undoStack, setUndoStack] = useState([]);
     const [redoStack, setRedoStack] = useState([]);
 
@@ -150,7 +145,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                     const params = { year, quarter, effectiveMembers, effectiveMemberPositions, dbData };
                     const draft = window.ScheduleEngine.generate(params);
                     setGeneratedDraft(draft);
-                    setUndoStack([]); // 重新生成時清空歷史
+                    setUndoStack([]); 
                     setRedoStack([]);
                 }
                 setErrorMsg('');
@@ -227,7 +222,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
             });
 
             setGeneratedDraft(reconstructed); setErrorMsg('');
-            setUndoStack([]); // 載入班表時清空歷史
+            setUndoStack([]); 
             setRedoStack([]);
             if (schedulingPhase === 'setup') setActiveSessionTab('第一堂');
             setSchedulingPhase('editor');
@@ -271,7 +266,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
         return { conflictIds: conflicts, orphanIds: orphans };
     }, [generatedDraft, memberGroups]);
 
-    // Undo / Redo 操作 Helper
     const saveDraftSnapshot = () => {
         setUndoStack(prev => {
             const newStack = [...prev, generatedDraft];
@@ -304,7 +298,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
         if (!draggedItem) return;
         if (draggedItem.service_date !== targetDate || draggedItem.session !== targetSession || draggedItem._positionName !== targetPosName) return;
         
-        saveDraftSnapshot(); // 儲存快照
+        saveDraftSnapshot(); 
 
         setGeneratedDraft(prev => {
             const newDraft = [...prev];
@@ -320,7 +314,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
     const handleSubstitute = (newMember) => {
         if (!activeSlot || !newMember) return;
         
-        saveDraftSnapshot(); // 儲存快照
+        saveDraftSnapshot(); 
 
         setGeneratedDraft(prev => prev.map(d => {
             if (activeSlot._positionName === '執事輪值' && d.service_date === activeSlot.service_date && d._positionName === '執事輪值' && d.member_id === activeSlot.member_id) {
@@ -335,7 +329,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
     const handleSwap = (newMember, targetShift) => {
         if (!activeSlot || !newMember || !targetShift) return;
         
-        saveDraftSnapshot(); // 儲存快照
+        saveDraftSnapshot(); 
 
         setGeneratedDraft(prev => prev.map(d => {
             if (activeSlot._positionName === '執事輪值') {
@@ -392,7 +386,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
         });
     };
 
-    // --- 快速編輯專用的自動編號函式 ---
     const quickEditAutoFillNextNumber = () => {
         if (!quickEditData) return;
         const existingNums = dbData.members
@@ -410,13 +403,11 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
         try {
             const finalGroupId = quickEditData.groupNumber ? `${quickEditData.groupPrefix}${quickEditData.groupNumber}` : null;
             
-            // 1. 更新 members 表
             await supabase.from('members').update({ 
                 name: quickEditData.name.trim(),
                 group_id: finalGroupId
             }).eq('id', quickEditData.id);
     
-            // 2. 更新 member_quarter_settings 表
             const qsPayload = {
                 member_id: quickEditData.id,
                 quarter: currentQuarterStr,
@@ -429,7 +420,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
             };
             await supabase.from('member_quarter_settings').upsert(qsPayload, { onConflict: 'member_id, quarter' });
     
-            // 3. 更新 member_positions 表 (移除 parseInt，保留原始字串以支援 UUID)
             await supabase.from('member_positions').delete().eq('member_id', quickEditData.id).eq('quarter', currentQuarterStr);
             const posKeys = Object.keys(quickEditData.positions);
             if (posKeys.length > 0) {
@@ -442,7 +432,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                 await supabase.from('member_positions').insert(insertPosPayload);
             }
     
-            // 4. 重抓資料庫更新本地 DB State
             const [{ data: members }, { data: memberPositions }, { data: quarterSettings }] = await Promise.all([
                 fetchAllData(() => supabase.from('members').select('*')),
                 fetchAllData(() => supabase.from('member_positions').select('*').eq('quarter', currentQuarterStr)),
@@ -456,7 +445,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                 memberQuarterSettings: quarterSettings || prev.memberQuarterSettings
             }));
 
-            // 5. 掃描草稿，自動退班機制 (移除 .map(Number))
             const activePositionIds = Object.keys(quickEditData.positions)
                 .filter(pid => quickEditData.positions[pid] === 'active'); 
 
@@ -465,7 +453,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                 const newDraft = prevDraft.map(shift => {
                     if (shift.member_id !== quickEditData.id || shift.is_empty) return shift;
 
-                    // 使用 String() 安全比對
                     const hasQualification = activePositionIds.some(pid => String(pid) === String(shift.position_id));
                     const isUnavailableDate = quickEditData.unavailable_dates.includes(shift.service_date);
                     const weekNum = Math.ceil(new Date(shift.service_date).getDate() / 7);
@@ -489,7 +476,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                 if (hasChanges) {
                     setTimeout(() => {
                         setErrorMsg('⚠️「人工指派」空缺未填補');
-                        setTimeout(() => setErrorMsg(''), 5000); // 5秒後自動清除錯誤訊息
+                        setTimeout(() => setErrorMsg(''), 5000); 
                     }, 500);
                 }
 
@@ -601,7 +588,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
         const hasEmpty = generatedDraft.some(d => d.is_empty);
         if (hasEmpty) { 
             setErrorMsg('⚠️「人工指派」空缺未填補，完成後再發布'); 
-            setTimeout(() => setErrorMsg(''), 5000); // 5秒後自動清除錯誤訊息
+            setTimeout(() => setErrorMsg(''), 5000); 
             return; 
         }
         setPublishConfirmOpen(true);
@@ -1074,7 +1061,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                         <button onClick={goBack} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group"><Home size={18} className="text-slate-400 group-hover:text-indigo-400 transition-colors" /><span>Home</span></button>
                         <button onClick={goToMembers} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group"><Users size={18} className="text-slate-400 group-hover:text-violet-400 transition-colors" /><span>同工資料中心</span></button>
                         <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl font-medium text-sm shadow-button"><Calendar size={18} /><span>排班作業中心</span></div>
-        <button onClick={goToInsights} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
+                        <button onClick={goToInsights} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
                             <BarChart3 size={18} className="text-slate-400 group-hover:text-sky-400 transition-colors" />
                             <span>人力洞察中心</span>
                         </button>
@@ -1211,7 +1198,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                     </div>
                 )}
 
-                {/* --- 快速編輯 Modal (比照圖片重新排版的雙欄佈局) --- */}
                 {quickEditData && (
                     <div className="fixed inset-0 z-[250] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in">
                         <div className="bg-white rounded-2xl w-full max-w-2xl shadow-hover-soft animate-pop border border-slate-100 flex flex-col max-h-[90vh]">
@@ -1225,7 +1211,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                             
                             <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
                                 <div className="space-y-4">
-                                    {/* 第一排：姓名、服事意願 */}
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div className="space-y-1.5">
                                             <label className="text-xs font-medium text-slate-500 uppercase">姓名 <span className="text-red-500">*</span></label>
@@ -1252,7 +1237,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                                         </div>
                                     </div>
 
-                                    {/* 第二排：堂別、群組 ID */}
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div className="space-y-1.5">
                                             <label className="text-xs font-medium text-slate-500 uppercase">堂別</label>
@@ -1299,7 +1283,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                                         </div>
                                     </div>
 
-                                    {/* 第三排：崗位兼任、新朋友關懷設定 */}
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div className="space-y-1.5">
                                             <label className="text-xs font-medium text-slate-500 uppercase">崗位兼任 <span className="text-slate-400 font-normal">(選填)</span></label>
@@ -1327,7 +1310,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                                         </div>
                                     </div>
 
-                                    {/* 第四排：不可排班周 */}
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-medium text-slate-500 uppercase flex items-center gap-1.5">不可排班周 <span className="text-slate-400 font-normal">(選填)</span></label>
                                         <div className="flex flex-wrap gap-4 mt-1 bg-slate-50 p-3 rounded-lg border border-slate-200">
@@ -1350,7 +1332,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                                         </div>
                                     </div>
 
-                                    {/* 服事崗位 (往下移) */}
                                     <div className="pt-2 border-t border-slate-100">
                                         <label className="text-sm font-medium text-slate-700 flex items-center gap-1.5 mb-3">
                                             <ShieldCheck size={18} className="text-indigo-500"/> 服事崗位
@@ -1376,7 +1357,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                                         </div>
                                     </div>
 
-                                    {/* 請假日期 (置底) */}
                                     <div className="pt-2 border-t border-slate-100">
                                         <label className="text-xs font-medium text-slate-500 uppercase">請假日期 (點選切換)</label>
                                         <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2 mt-2">
