@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { 
     Users, Copy, Trash2, CalendarX, Search, X, Edit2, ShieldCheck, 
     Check, Save, CheckCircle2, AlertCircle, UserPlus, User, ChevronLeft,
-    Home, LogOut, Calendar, Lock, Unlock, Menu
+    Home, LogOut, Calendar, Lock, Unlock, Menu, BarChart3 // 加入 BarChart3
 } from 'lucide-react';
 
-const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, constants }) => {
+const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabase, utils, constants }) => { 
+// 加入 goToInsights
     const { fetchAllData, extractAccountFromEmail, generateBaseQuarters, getNextQuarter, getCurrentQuarter, getSundaysInQuarter, getHolidayName } = utils;
     const { ADMIN_ACCOUNT, DEFAULT_MEMBER, SESSION_OPTIONS, STATUS_OPTIONS } = constants;
 
@@ -561,7 +562,11 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, supabase, utils, cons
                                 <Calendar size={18} className="text-slate-400 group-hover:text-violet-400 transition-colors" />
                                 <span>排班作業中心</span>
                             </button>
-                        </nav>
+                <button onClick={() => { goToInsights(); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
+                                <BarChart3 size={18} className="text-slate-400 group-hover:text-sky-400 transition-colors" />
+                                <span>人力洞察中心</span>
+                            </button>      
+                </nav>
                     </div>
                     
                     <div className="p-4 border-t border-slate-800">
