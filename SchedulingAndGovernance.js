@@ -7,7 +7,10 @@ import {
     Lightbulb, UserCheck, UserX, LayoutList, 
     ArrowUpDown, X, Database, AlertTriangle,
     Home, LogOut, Edit2, Check, ShieldCheck, Undo2, Redo2
-} from 'lucide-react';
+} from 'lucide-react'; // 確認有 BarChart3
+
+const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, supabase, utils, constants, StatCard }) => {
+// 加入 goToInsights
 
 const safeParseJSON = (data, fallback) => {
     if (!data) return fallback;
@@ -1071,6 +1074,10 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, supabase, utils
                         <button onClick={goBack} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group"><Home size={18} className="text-slate-400 group-hover:text-indigo-400 transition-colors" /><span>Home</span></button>
                         <button onClick={goToMembers} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group"><Users size={18} className="text-slate-400 group-hover:text-violet-400 transition-colors" /><span>同工資料中心</span></button>
                         <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl font-medium text-sm shadow-button"><Calendar size={18} /><span>排班作業中心</span></div>
+        <button onClick={goToInsights} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
+                            <BarChart3 size={18} className="text-slate-400 group-hover:text-sky-400 transition-colors" />
+                            <span>人力洞察中心</span>
+                        </button>
                     </nav>
                 </div>
                 <div className="p-4 border-t border-slate-800"><button onClick={async () => { if (supabase?.auth?.signOut) { await supabase.auth.signOut(); } window.location.reload(); }} className="w-full flex items-center gap-3 px-4 py-3 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl font-normal text-sm transition-all text-left group"><LogOut size={18} className="text-rose-400 group-hover:translate-x-0.5 transition-transform" /><span>Sign Out</span></button></div>
