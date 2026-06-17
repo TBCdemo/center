@@ -1,71 +1,36 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
     Home, Users, Calendar, LogOut, BarChart3, ChevronLeft, 
-    UserCheck, UserMinus, LayoutList, CheckCircle2, TrendingDown,
-    CalendarDays, Activity
+    UserCheck, UserMinus, LayoutList, CheckCircle2 
 } from 'lucide-react';
 
-// 共用的 SVG 漸層面積折線圖元件
-const AreaLineChart = ({ data, yKey, colorClass, gradientFrom, gradientTo }) => {
-    if (!data || data.length === 0) return <div className="h-full flex items-center justify-center text-slate-400 text-sm">暫無排班數據</div>;
-
-    const maxVal = Math.max(...data.map(d => d[yKey]), 1);
-    const minVal = 0;
-    
-    // 計算 SVG 路徑點
-    const points = data.map((d, i) => {
-        const x = data.length > 1 ? (i / (data.length - 1)) * 100 : 50;
-        const y = 100 - ((d[yKey] - minVal) / (maxVal - minVal)) * 90; // 留 10% 頂部空間
-        return `${x},${y}`;
-    }).join(' ');
-
-    const areaPath = `M 0,100 L ${points.split(' ').map(p => p.replace(',', ',')).join(' L ')} L 100,100 Z`;
-
-    return (
-        <div className="w-full h-full relative group">
-            {/* 浮動提示框 (Tooltip) 僅作展示，以 Tailwind hover 模擬 */}
-            <div className="absolute inset-0 flex justify-between items-end z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <div className="bg-slate-800 text-white text-[10px] px-2 py-1 rounded shadow-lg -ml-4 mb-2">最高: {maxVal}</div>
-                <div className="bg-slate-800 text-white text-[10px] px-2 py-1 rounded shadow-lg -mr-4 mb-2">最低: {data[data.length-1][yKey]}</div>
-            </div>
-            
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
-                <defs>
-                    <linearGradient id={`gradient-${yKey}`} x1="0" x2="0" y1="0" y2="1">
-                        <stop offset="0%" stopColor={gradientFrom} stopOpacity="0.4" />
-                        <stop offset="100%" stopColor={gradientTo} stopOpacity="0.0" />
-                    </linearGradient>
-                </defs>
-                {/* 面積填色 */}
-                <path d={areaPath} fill={`url(#gradient-${yKey})`} />
-                {/* 折線 */}
-                <polyline points={points} fill="none" stroke={gradientFrom} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-md" />
-                
-                {/* X軸底線 */}
-                <line x1="0" y1="100" x2="100" y2="100" stroke="#e2e8f0" strokeWidth="1" />
-            </svg>
-        </div>
-    );
-};
-
 const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, utils, StatCard }) => {
-    const { fetchAllData, getCurrentQuarter, getNextQuarter } = utils;
+    const { fetchAllData, getCurrentQuarter } = utils;
     
     const [isLoading, setIsLoading] = useState(true);
-    const [viewQuarter, setViewQuarter] = useState('BASE');
-    const [availableQuarters, setAvailableQuarters] = useState(['BASE']);
+    const [viewQuarter, setViewQuarter] = useState('');
+    const [availableQuarters, setAvailableQuarters] = useState([]);
     const [dbData, setDbData] = useState({ members: [], positions: [], memberPositions: [], quarterSettings: [] });
 
-    // 取得所有可用季度
+    // 取得所有可用季度 (排除 SYSTEM 與 BASE)
     useEffect(() => {
         const fetchQuarters = async () => {
             try {
                 const { data } = await supabase.from('member_quarter_settings').select('quarter');
                 if (data) {
-                    const qs = [...new Set(data.map(d => d.quarter))].filter(q => q !== 'SYSTEM' && q !== 'BASE').sort().reverse();
-                    setAvailableQuarters(['BASE', ...qs]);
-                    // 預設選擇最新的一季，如果沒有則選 BASE
-                    if (qs.length > 0) setViewQuarter(qs[0]);
+                    const qs = [...new Set(data.map(d => d.quarter))]
+                        .filter(q => q !== 'SYSTEM' && q !== 'BASE')
+                        .sort()
+                        .reverse();
+                    
+                    if (qs.length > 0) {
+                        setAvailableQuarters(qs);
+                        setViewQuarter(qs[0]); // 預設選擇最新的一季
+                    } else {
+                        const currentQ = getCurrentQuarter();
+                        setAvailableQuarters([currentQ]);
+                        setViewQuarter(currentQ);
+                    }
                 }
             } catch (err) { console.error('抓取季度失敗', err); }
         };
@@ -74,6 +39,8 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
 
     // 依據選擇的季度載入資料
     useEffect(() => {
+        if (!viewQuarter) return; // 確保有季度值才載入
+
         const loadQuarterData = async () => {
             setIsLoading(true);
             try {
@@ -86,7 +53,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                     fetchAllData(() => supabase.from('members').select('*').order('name')),
                     fetchAllData(() => supabase.from('positions').select('*').order('id')),
                     fetchAllData(() => supabase.from('member_positions').select('*').eq('quarter', viewQuarter)),
-                    fetchAllData(() => supabase.from('member_quarter_settings').select('*').in('quarter', [viewQuarter, 'SYSTEM']))
+                    fetchAllData(() => supabase.from('member_quarter_settings').select('*').in('quarter', [viewQuarter]))
                 ]);
 
                 setDbData({
@@ -114,20 +81,6 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
         // 建立 settings mapping
         const qsMap = {};
         quarterSettings.forEach(qs => { if(qs.quarter === viewQuarter) qsMap[qs.member_id] = qs; });
-
-        // 解析排班資料 (尋找 SYSTEM_SCHEDULE_ARCHIVE)
-        let activeSchedules = [];
-        const archiveMem = members.find(m => m.name === 'SYSTEM_SCHEDULE_ARCHIVE');
-        if (archiveMem) {
-            const archiveQs = quarterSettings.find(q => q.member_id === archiveMem.id && q.quarter === viewQuarter);
-            if (archiveQs && archiveQs.unavailable_dates) {
-                try {
-                    activeSchedules = typeof archiveQs.unavailable_dates === 'string' 
-                        ? JSON.parse(archiveQs.unavailable_dates) 
-                        : archiveQs.unavailable_dates;
-                } catch(e) { console.error('解析班表失敗', e); }
-            }
-        }
 
         // 2. 計算狀態人數 (只計算嚴格的'暫停服事')
         let suspendedCount = 0;
@@ -170,30 +123,9 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
         }));
         const maxConcurrencyPeople = Math.max(0, ...concurrencyData.map(d => d.people));
 
-        // 5. 服事天數與次數分布 (折線面積圖數據)
-        let scheduleStats = [];
-        if (activeSchedules.length > 0) {
-            scheduleStats = realMembers.map(m => {
-                const memShifts = activeSchedules.filter(s => s.m === m.id);
-                const uniqueDays = new Set(memShifts.map(s => s.d)).size;
-                return {
-                    id: m.id,
-                    name: m.name,
-                    times: memShifts.length,
-                    days: uniqueDays
-                };
-            }).filter(s => s.times > 0); // 只顯示有排班的人，呈現曲線
-        }
-
-        // 降序排列以產生「負擔遞減曲線」
-        const timesDistribution = [...scheduleStats].sort((a, b) => b.times - a.times);
-        const daysDistribution = [...scheduleStats].sort((a, b) => b.days - a.days);
-
         return {
             totalMembersCount, suspendedCount, activeCount,
-            positionDistribution, concurrencyData, maxConcurrencyPeople,
-            timesDistribution, daysDistribution,
-            hasSchedule: activeSchedules.length > 0
+            positionDistribution, concurrencyData, maxConcurrencyPeople
         };
     }, [dbData, viewQuarter]);
 
@@ -247,7 +179,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                             onChange={e => setViewQuarter(e.target.value)} 
                             className="bg-white border border-slate-200 rounded-md px-3 py-1 font-bold text-indigo-600 text-sm outline-none cursor-pointer focus:ring-2 focus:ring-indigo-500/20 shadow-sm transition-all"
                         >
-                            {availableQuarters.map(q => <option key={q} value={q}>{q === 'BASE' ? 'BASE 基礎設定' : q.replace('-', '')}</option>)}
+                            {availableQuarters.map(q => <option key={q} value={q}>{q.replace('-', '')}</option>)}
                         </select>
                     </div>
                 </div>
@@ -264,77 +196,6 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                 <StatCard icon={UserMinus} title="暫停服事人數" value={insights.suspendedCount} unit="人" iconBgClass="bg-orange-50" iconTextClass="text-orange-600" />
                             </div>
 
-                            {/* 折線圖區域 (僅在非 BASE 或有排班資料時顯示) */}
-                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                                {/* 服事天數分布圖 */}
-                                <div className="bg-white rounded-xl shadow-soft border border-slate-100 overflow-hidden flex flex-col">
-                                    <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between gap-2">
-                                        <div className="flex items-center gap-2">
-                                            <CalendarDays className="text-sky-500" size={20} />
-                                            <h3 className="text-lg font-bold text-slate-800">服事天數分布圖</h3>
-                                        </div>
-                                        <span className="text-[10px] bg-sky-100 text-sky-600 px-2 py-1 rounded font-bold uppercase tracking-wider">{viewQuarter === 'BASE' ? '無排班數據' : '按人數遞減'}</span>
-                                    </div>
-                                    <div className="p-6 flex-1 flex flex-col min-h-[280px]">
-                                        {!insights.hasSchedule ? (
-                                            <div className="flex-1 flex flex-col items-center justify-center text-slate-400 text-sm bg-slate-50 rounded-lg border border-dashed border-slate-200">
-                                                <Activity size={32} className="mb-2 opacity-50"/> 該季度尚無排班發布資料
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <div className="flex-1 relative pl-2 pb-2">
-                                                    <AreaLineChart 
-                                                        data={insights.daysDistribution} 
-                                                        yKey="days" 
-                                                        gradientFrom="#0ea5e9" // sky-500
-                                                        gradientTo="#e0f2fe"   // sky-100
-                                                    />
-                                                </div>
-                                                <div className="flex justify-between items-center text-xs font-bold text-slate-400 mt-3 pt-2 border-t border-slate-100">
-                                                    <span>高頻服事 (天數多)</span>
-                                                    <span>X 軸：上線同工人數 (共 {insights.daysDistribution.length} 人)</span>
-                                                    <span>低頻服事 (天數少)</span>
-                                                </div>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* 服事次數分布圖 */}
-                                <div className="bg-white rounded-xl shadow-soft border border-slate-100 overflow-hidden flex flex-col">
-                                    <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between gap-2">
-                                        <div className="flex items-center gap-2">
-                                            <TrendingDown className="text-emerald-500" size={20} />
-                                            <h3 className="text-lg font-bold text-slate-800">服事次數分布圖</h3>
-                                        </div>
-                                        <span className="text-[10px] bg-emerald-100 text-emerald-600 px-2 py-1 rounded font-bold uppercase tracking-wider">{viewQuarter === 'BASE' ? '無排班數據' : '按人數遞減'}</span>
-                                    </div>
-                                    <div className="p-6 flex-1 flex flex-col min-h-[280px]">
-                                        {!insights.hasSchedule ? (
-                                            <div className="flex-1 flex flex-col items-center justify-center text-slate-400 text-sm bg-slate-50 rounded-lg border border-dashed border-slate-200">
-                                                <Activity size={32} className="mb-2 opacity-50"/> 該季度尚無排班發布資料
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <div className="flex-1 relative pl-2 pb-2">
-                                                    <AreaLineChart 
-                                                        data={insights.timesDistribution} 
-                                                        yKey="times" 
-                                                        gradientFrom="#10b981" // emerald-500
-                                                        gradientTo="#d1fae5"   // emerald-100
-                                                    />
-                                                </div>
-                                                <div className="flex justify-between items-center text-xs font-bold text-slate-400 mt-3 pt-2 border-t border-slate-100">
-                                                    <span>高量服事 (次數多)</span>
-                                                    <span>X 軸：上線同工人數 (共 {insights.timesDistribution.length} 人)</span>
-                                                    <span>低量服事 (次數少)</span>
-                                                </div>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
                             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                                 {/* 左側：崗位人力分布表格 */}
                                 <div className="bg-white rounded-xl shadow-soft border border-slate-100 overflow-hidden flex flex-col">
@@ -342,7 +203,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                         <LayoutList className="text-indigo-500" size={20} />
                                         <h3 className="text-lg font-bold text-slate-800">崗位人力分布</h3>
                                     </div>
-                                    <div className="overflow-x-auto">
+                                    <div className="overflow-x-auto flex-1">
                                         <table className="w-full text-left border-collapse">
                                             <thead>
                                                 <tr>
