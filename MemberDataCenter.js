@@ -2,11 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { 
     Users, Copy, Trash2, CalendarX, Search, X, Edit2, ShieldCheck, 
     Check, Save, CheckCircle2, AlertCircle, UserPlus, User, ChevronLeft,
-    Home, LogOut, Calendar, Lock, Unlock, Menu, BarChart3 // 加入 BarChart3
+    Home, LogOut, Calendar, Lock, Unlock, Menu, BarChart3
 } from 'lucide-react';
 
-const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabase, utils, constants }) => { 
-// 加入 goToInsights
+const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabase, utils, constants }) => {
     const { fetchAllData, extractAccountFromEmail, generateBaseQuarters, getNextQuarter, getCurrentQuarter, getSundaysInQuarter, getHolidayName } = utils;
     const { ADMIN_ACCOUNT, DEFAULT_MEMBER, SESSION_OPTIONS, STATUS_OPTIONS } = constants;
 
@@ -457,10 +456,8 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
     };
 
     let displayMembers = members.filter(m => {
-        // 排除系統帳號
         if (m.name && m.name.startsWith('SYSTEM_')) return false;
     
-        // 權限過濾
         if (!isAdmin) {
             const memberEmail = m.email ? m.email.trim() : '';
             if (memberEmail !== currentUserAccount && memberEmail !== currentUserEmail) return false;
@@ -485,12 +482,9 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
             if (settings) {
                 if (settings.preferred_session && settings.preferred_session.toLowerCase().includes(term)) return true;
                 
-                // 【修改點】區分「暫停服事」與「暫停(單一崗位)」
                 if (settings.availability_status) {
                     const statusStr = settings.availability_status.toLowerCase();
-                    // 若精準輸入「暫停」，不讓它模糊匹配到「暫停服事」的整體狀態
                     if (term === '暫停' && statusStr === '暫停服事') {
-                        // 略過，交給下方的崗位檢查
                     } else if (statusStr.includes(term)) {
                         return true;
                     }
@@ -504,7 +498,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
                 if (dualPrefText.includes(term)) return true;
             }
             
-            // 【修改點】只有輸入「暫停」時，才專門去檢查是否有被設為暫停 (is_active: false) 的崗位
             if (term === '暫停') {
                 const hasSuspendedPosition = memberPositions.filter(mp => mp.member_id === m.id).some(mp => mp.is_active === false);
                 if (hasSuspendedPosition) return true;
@@ -562,11 +555,11 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
                                 <Calendar size={18} className="text-slate-400 group-hover:text-violet-400 transition-colors" />
                                 <span>排班作業中心</span>
                             </button>
-                <button onClick={() => { goToInsights(); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
+                            <button onClick={() => { goToInsights(); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
                                 <BarChart3 size={18} className="text-slate-400 group-hover:text-sky-400 transition-colors" />
                                 <span>人力洞察中心</span>
-                            </button>      
-                </nav>
+                            </button>
+                        </nav>
                     </div>
                     
                     <div className="p-4 border-t border-slate-800">
@@ -713,7 +706,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
                                     return p ? { name: p.name, isActive: mp.is_active !== false } : null;
                                 }).filter(Boolean);
 
-                                // --- 計算卡片顯示的「不可排班日」(包含手動請假與跨團隊週次) ---
                                 let safeDates = [];
                                 if (Array.isArray(settings.unavailable_dates)) safeDates = [...settings.unavailable_dates];
                                 else if (typeof settings.unavailable_dates === 'string') {
@@ -739,7 +731,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
                                     });
                                 }
                                 safeDates.sort();
-                                // -----------------------------------------------------------
 
                                 return (
                                     <div key={member.id} className="bg-white rounded-xl p-4 sm:p-6 shadow-soft border border-slate-100 hover:shadow-hover-soft hover:-translate-y-1 transition-all duration-200 relative group">
