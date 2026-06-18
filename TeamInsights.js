@@ -122,25 +122,44 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
 
             // 計算健康度指標
             const req = POSITION_REQUIREMENTS[pos.name] || { singleSession: 0, freq: 'weekly' };
-            let weeklyDemand = req.singleSession * 2; // 每週2堂
-            let quarterDemand = req.freq === 'monthly' ? weeklyDemand * 3 : weeklyDemand * 13;
+            let weeklyDemand = req.singleSession * 2; // 每週2堂總計
+            let quarterDemand = req.freq === 'monthly' ? weeklyDemand * 3 : weeklyDemand * 13; // 總季需
+            let sessionQuarterDemand = req.freq === 'monthly' ? req.singleSession * 3 : req.singleSession * 13; // 單堂季需
 
-            // 公式：理想下限(每人每季4次內)、最低警戒(每人每季6次內)
+            // 公式：理想(每人每季4次內)、最低警戒(每人每季6次內)
             const idealMin = Math.ceil(quarterDemand / 4);
-            const idealMax = Math.ceil(quarterDemand / 3);
             const minRequired = Math.ceil(quarterDemand / 6);
+            
+            // 單堂的安全標準
+            const sessionIdealMin = Math.ceil(sessionQuarterDemand / 4);
+            const sessionMinRequired = Math.ceil(sessionQuarterDemand / 6);
 
-            let healthStatus = 'gray'; // 預設無資料
+            // 單堂實質可用人數 = 單堂專職 + 皆可
+            const s1Available = session1 + both;
+            const s2Available = session2 + both;
+
+            // 判斷單堂健康度
+            let s1Health = 'gray';
+            let s2Health = 'gray';
+            let overallHealth = 'gray';
+
             if (req.singleSession > 0) {
-                if (total >= idealMin) healthStatus = 'green';
-                else if (total >= minRequired) healthStatus = 'yellow';
-                else healthStatus = 'red';
+                // 單堂判斷
+                s1Health = s1Available >= sessionIdealMin ? 'green' : (s1Available >= sessionMinRequired ? 'yellow' : 'red');
+                s2Health = s2Available >= sessionIdealMin ? 'green' : (s2Available >= sessionMinRequired ? 'yellow' : 'red');
+                
+                // 整體判斷
+                if (total >= idealMin) overallHealth = 'green';
+                else if (total >= minRequired) overallHealth = 'yellow';
+                else overallHealth = 'red';
             }
 
             return { 
                 id: pos.id, name: pos.name, 
                 session1, session2, both, total,
-                quarterDemand, idealMin, idealMax, minRequired, healthStatus
+                s1Available, s2Available,
+                sessionIdealMin, sessionMinRequired, s1Health, s2Health,
+                idealMin, minRequired, overallHealth
             };
         });
 
@@ -220,7 +239,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                             onChange={e => setViewQuarter(e.target.value)} 
                             className="bg-white border border-slate-200 rounded-md px-3 py-1 font-bold text-indigo-600 text-sm outline-none cursor-pointer focus:ring-2 focus:ring-indigo-500/20 shadow-sm transition-all"
                         >
-                            {availableQuarters.map(q => <option key={q} value={q}>{q.replace('-', '')}</option>)}
+                            {availableQuarters.map(q => <option key={q} value={q}>{q === 'BASE' ? 'BASE 基礎設定' : q.replace('-', '')}</option>)}
                         </select>
                     </div>
                 </div>
@@ -238,48 +257,63 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                             </div>
 
                             <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-                                {/* 左側：崗位人力分布與健康度表格 (佔較寬版面) */}
+                                {/* 左側：崗位人力分布與單堂健康度 (佔3格) */}
                                 <div className="xl:col-span-3 bg-white rounded-xl shadow-soft border border-slate-100 overflow-hidden flex flex-col">
                                     <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between gap-2">
                                         <div className="flex items-center gap-2">
                                             <LayoutList className="text-indigo-500" size={20} />
-                                            <h3 className="text-lg font-bold text-slate-800">崗位人力分布與健康度</h3>
+                                            <h3 className="text-lg font-bold text-slate-800">單堂實質人力診斷</h3>
                                         </div>
                                     </div>
                                     <div className="overflow-x-auto flex-1">
-                                        <table className="w-full text-left border-collapse min-w-[600px]">
+                                        <table className="w-full text-left border-collapse min-w-[650px]">
                                             <thead>
                                                 <tr>
                                                     <th className="py-3 px-4 font-semibold text-slate-500 text-sm border-b border-slate-200 bg-slate-50">崗位</th>
-                                                    <th className="py-3 px-2 font-semibold text-slate-500 text-[13px] border-b border-slate-200 bg-slate-50 text-center">第一堂</th>
-                                                    <th className="py-3 px-2 font-semibold text-slate-500 text-[13px] border-b border-slate-200 bg-slate-50 text-center">第二堂</th>
-                                                    <th className="py-3 px-2 font-semibold text-slate-500 text-[13px] border-b border-slate-200 bg-slate-50 text-center">皆可</th>
-                                                    <th className="py-3 px-3 font-bold text-slate-700 text-sm border-b border-slate-200 bg-indigo-50/30 text-center shadow-[inset_1px_0_0_rgba(226,232,240,0.5)]">實際人數</th>
-                                                    <th className="py-3 px-4 font-semibold text-slate-500 text-[13px] border-b border-slate-200 bg-slate-50 text-center">安全人數標準</th>
-                                                    <th className="py-3 px-4 font-semibold text-slate-500 text-sm border-b border-slate-200 bg-slate-50 text-center">狀態</th>
+                                                    <th className="py-3 px-2 font-semibold text-slate-500 text-xs border-b border-slate-200 bg-slate-50 text-center">單堂低標</th>
+                                                    {/* 單堂可用：含專職+皆可 */}
+                                                    <th className="py-3 px-2 font-semibold text-slate-700 text-sm border-b border-slate-200 bg-indigo-50/30 text-center">第一堂可用<br/><span className="text-[10px] text-slate-400 font-normal">專職+皆可</span></th>
+                                                    <th className="py-3 px-2 font-semibold text-slate-700 text-sm border-b border-slate-200 bg-indigo-50/30 text-center">第二堂可用<br/><span className="text-[10px] text-slate-400 font-normal">專職+皆可</span></th>
+                                                    <th className="py-3 px-2 font-semibold text-slate-500 text-xs border-b border-slate-200 bg-slate-50 text-center">純皆可<br/><span className="text-[10px] text-slate-400 font-normal">共同緩衝</span></th>
+                                                    <th className="py-3 px-3 font-semibold text-slate-500 text-xs border-b border-slate-200 bg-slate-50 text-center">總計</th>
+                                                    <th className="py-3 px-4 font-semibold text-slate-500 text-sm border-b border-slate-200 bg-slate-50 text-center">整體狀態</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {insights.positionDistribution.map((pos, idx) => (
                                                     <tr key={pos.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'} hover:bg-slate-50 transition-colors`}>
-                                                        <td className="py-3.5 px-4 font-bold text-slate-700 border-b border-slate-100">{pos.name}</td>
-                                                        <td className="py-3.5 px-2 text-center font-medium text-slate-500 border-b border-slate-100">{pos.session1}</td>
-                                                        <td className="py-3.5 px-2 text-center font-medium text-slate-500 border-b border-slate-100">{pos.session2}</td>
-                                                        <td className="py-3.5 px-2 text-center font-medium text-slate-500 border-b border-slate-100">{pos.both}</td>
-                                                        {/* 實際人數 (獨立高亮背景) */}
-                                                        <td className={`py-3.5 px-3 text-center font-extrabold text-lg border-b border-slate-100 bg-indigo-50/20 shadow-[inset_1px_0_0_rgba(226,232,240,0.5)] ${pos.healthStatus === 'red' ? 'text-rose-600' : 'text-indigo-600'}`}>
-                                                            {pos.total}
+                                                        <td className="py-2.5 px-4 font-bold text-slate-700 border-b border-slate-100">{pos.name}</td>
+                                                        
+                                                        {/* 單堂安全低標 */}
+                                                        <td className="py-2.5 px-2 text-center border-b border-slate-100 font-bold text-slate-400">
+                                                            {pos.sessionMinRequired > 0 ? `${pos.sessionMinRequired}` : '-'}
                                                         </td>
-                                                        <td className="py-3.5 px-4 text-center border-b border-slate-100">
-                                                            {pos.idealMin > 0 ? (
-                                                                <div className="flex flex-col text-[11px] leading-tight text-slate-500">
-                                                                    <span>理想 <strong className="text-slate-700">{pos.idealMin}-{pos.idealMax}</strong> 人</span>
-                                                                    <span className="text-slate-400">(最低警戒: {pos.minRequired})</span>
-                                                                </div>
-                                                            ) : <span className="text-slate-300">-</span>}
+
+                                                        {/* 第一堂可用 (紅燈警告) */}
+                                                        <td className={`py-2.5 px-2 text-center border-b border-slate-100 ${pos.s1Health === 'red' ? 'bg-rose-50/70' : 'bg-indigo-50/10'}`}>
+                                                            <div className={`font-bold text-lg leading-tight ${pos.s1Health === 'red' ? 'text-rose-600' : 'text-slate-700'}`}>
+                                                                {pos.s1Available}
+                                                            </div>
+                                                            <div className={`text-[10px] ${pos.s1Health === 'red' ? 'text-rose-400' : 'text-slate-400'}`}>專{pos.session1}+皆{pos.both}</div>
                                                         </td>
-                                                        <td className="py-3.5 px-4 text-center border-b border-slate-100">
-                                                            {renderHealthBadge(pos.healthStatus)}
+
+                                                        {/* 第二堂可用 (紅燈警告) */}
+                                                        <td className={`py-2.5 px-2 text-center border-b border-slate-100 ${pos.s2Health === 'red' ? 'bg-rose-50/70' : 'bg-indigo-50/10'}`}>
+                                                            <div className={`font-bold text-lg leading-tight ${pos.s2Health === 'red' ? 'text-rose-600' : 'text-slate-700'}`}>
+                                                                {pos.s2Available}
+                                                            </div>
+                                                            <div className={`text-[10px] ${pos.s2Health === 'red' ? 'text-rose-400' : 'text-slate-400'}`}>專{pos.session2}+皆{pos.both}</div>
+                                                        </td>
+
+                                                        {/* 僅皆可 (緩衝區) */}
+                                                        <td className="py-2.5 px-2 text-center font-medium text-slate-500 border-b border-slate-100">{pos.both}</td>
+                                                        
+                                                        {/* 總計 */}
+                                                        <td className="py-2.5 px-3 text-center font-bold text-slate-600 border-b border-slate-100">{pos.total}</td>
+                                                        
+                                                        {/* 整體狀態 */}
+                                                        <td className="py-2.5 px-4 text-center border-b border-slate-100">
+                                                            {renderHealthBadge(pos.overallHealth)}
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -288,7 +322,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                     </div>
                                 </div>
 
-                                {/* 右側：崗位兼任分析長條圖 (佔較窄版面) */}
+                                {/* 右側：崗位兼任分析長條圖 (佔2格) */}
                                 <div className="xl:col-span-2 bg-white rounded-xl shadow-soft border border-slate-100 overflow-hidden flex flex-col">
                                     <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
                                         <UserCheck className="text-violet-500" size={20} />
