@@ -1,8 +1,22 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
     Home, Users, Calendar, LogOut, BarChart3, ChevronLeft, 
-    UserCheck, UserMinus, LayoutList, CheckCircle2 
+    UserCheck, UserMinus, LayoutList, CheckCircle2, AlertTriangle, XCircle
 } from 'lucide-react';
+
+// ==========================================
+// 崗位需求設定參數 (單堂需求人數)
+// freq: 'weekly' 代表每週常規, 'monthly' 代表每月一次
+// ==========================================
+const POSITION_REQUIREMENTS = {
+    '司會': { singleSession: 1, freq: 'weekly' },
+    '執事輪值': { singleSession: 1, freq: 'weekly' },
+    'PPT': { singleSession: 1, freq: 'weekly' },
+    '新朋友關懷': { singleSession: 3, freq: 'weekly' },
+    '接待': { singleSession: 4, freq: 'weekly' },
+    '收奉獻': { singleSession: 5, freq: 'weekly' },
+    '主餐': { singleSession: 6, freq: 'monthly' }
+};
 
 const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, utils, StatCard }) => {
     const { fetchAllData, getCurrentQuarter } = utils;
@@ -12,7 +26,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
     const [availableQuarters, setAvailableQuarters] = useState([]);
     const [dbData, setDbData] = useState({ members: [], positions: [], memberPositions: [], quarterSettings: [] });
 
-    // 取得所有可用季度 (排除 SYSTEM 與 BASE)
+    // 取得所有可用季度
     useEffect(() => {
         const fetchQuarters = async () => {
             try {
@@ -25,7 +39,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                     
                     if (qs.length > 0) {
                         setAvailableQuarters(qs);
-                        setViewQuarter(qs[0]); // 預設選擇最新的一季
+                        setViewQuarter(qs[0]); 
                     } else {
                         const currentQ = getCurrentQuarter();
                         setAvailableQuarters([currentQ]);
@@ -39,7 +53,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
 
     // 依據選擇的季度載入資料
     useEffect(() => {
-        if (!viewQuarter) return; // 確保有季度值才載入
+        if (!viewQuarter) return;
 
         const loadQuarterData = async () => {
             setIsLoading(true);
@@ -74,15 +88,12 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
     const insights = useMemo(() => {
         const { members, positions, memberPositions, quarterSettings } = dbData;
         
-        // 1. 過濾有效同工 (排除系統帳號)
         const realMembers = members.filter(m => !m.name.startsWith('SYSTEM_'));
         const totalMembersCount = realMembers.length;
 
-        // 建立 settings mapping
         const qsMap = {};
         quarterSettings.forEach(qs => { if(qs.quarter === viewQuarter) qsMap[qs.member_id] = qs; });
 
-        // 2. 計算狀態人數 (只計算嚴格的'暫停服事')
         let suspendedCount = 0;
         const activeMemberIds = new Set();
 
@@ -94,7 +105,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
 
         const activeCount = totalMembersCount - suspendedCount;
 
-        // 3. 崗位人力分布
+        // 3. 崗位人力分布與健康度試算
         const positionDistribution = positions.map(pos => {
             let session1 = 0, session2 = 0, both = 0;
             realMembers.forEach(m => {
@@ -107,10 +118,32 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                     else both++;
                 }
             });
-            return { id: pos.id, name: pos.name, session1, session2, both, total: session1 + session2 + both };
+            const total = session1 + session2 + both;
+
+            // 計算健康度指標
+            const req = POSITION_REQUIREMENTS[pos.name] || { singleSession: 0, freq: 'weekly' };
+            let weeklyDemand = req.singleSession * 2; // 每週2堂
+            let quarterDemand = req.freq === 'monthly' ? weeklyDemand * 3 : weeklyDemand * 13;
+
+            // 公式：理想下限(每人每季4次內)、最低警戒(每人每季6次內)
+            const idealMin = Math.ceil(quarterDemand / 4);
+            const idealMax = Math.ceil(quarterDemand / 3);
+            const minRequired = Math.ceil(quarterDemand / 6);
+
+            let healthStatus = 'gray'; // 預設無資料
+            if (req.singleSession > 0) {
+                if (total >= idealMin) healthStatus = 'green';
+                else if (total >= minRequired) healthStatus = 'yellow';
+                else healthStatus = 'red';
+            }
+
+            return { 
+                id: pos.id, name: pos.name, 
+                session1, session2, both, total,
+                quarterDemand, idealMin, idealMax, minRequired, healthStatus
+            };
         });
 
-        // 4. 崗位兼任分析 (長條圖)
         const concurrencyMap = {};
         realMembers.forEach(m => {
             if (!activeMemberIds.has(m.id)) return;
@@ -128,6 +161,14 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             positionDistribution, concurrencyData, maxConcurrencyPeople
         };
     }, [dbData, viewQuarter]);
+
+    // 渲染健康度徽章
+    const renderHealthBadge = (status) => {
+        if (status === 'green') return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-600 border border-emerald-200 text-xs font-bold"><CheckCircle2 size={14}/> 充裕</span>;
+        if (status === 'yellow') return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-50 text-amber-600 border border-amber-200 text-xs font-bold"><AlertTriangle size={14}/> 緊繃</span>;
+        if (status === 'red') return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-rose-50 text-rose-600 border border-rose-200 text-xs font-bold"><XCircle size={14}/> 短缺</span>;
+        return <span className="text-slate-300 text-xs">-</span>;
+    };
 
     return (
         <div className="flex h-screen w-full bg-slate-50 overflow-hidden relative">
@@ -188,7 +229,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                     {isLoading ? (
                         <div className="h-full flex items-center justify-center text-slate-400 font-medium animate-pulse">計算數據中...</div>
                     ) : (
-                        <div className="max-w-6xl mx-auto space-y-6">
+                        <div className="max-w-7xl mx-auto space-y-6">
                             {/* 三大指標卡片 */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <StatCard icon={Users} title="同工總人數" value={insights.totalMembersCount} unit="人" iconBgClass="bg-slate-100" iconTextClass="text-slate-600" />
@@ -196,32 +237,50 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                 <StatCard icon={UserMinus} title="暫停服事人數" value={insights.suspendedCount} unit="人" iconBgClass="bg-orange-50" iconTextClass="text-orange-600" />
                             </div>
 
-                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                                {/* 左側：崗位人力分布表格 */}
-                                <div className="bg-white rounded-xl shadow-soft border border-slate-100 overflow-hidden flex flex-col">
-                                    <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
-                                        <LayoutList className="text-indigo-500" size={20} />
-                                        <h3 className="text-lg font-bold text-slate-800">崗位人力分布</h3>
+                            <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+                                {/* 左側：崗位人力分布與健康度表格 (佔較寬版面) */}
+                                <div className="xl:col-span-3 bg-white rounded-xl shadow-soft border border-slate-100 overflow-hidden flex flex-col">
+                                    <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                            <LayoutList className="text-indigo-500" size={20} />
+                                            <h3 className="text-lg font-bold text-slate-800">崗位人力分布與健康度</h3>
+                                        </div>
                                     </div>
                                     <div className="overflow-x-auto flex-1">
-                                        <table className="w-full text-left border-collapse">
+                                        <table className="w-full text-left border-collapse min-w-[600px]">
                                             <thead>
                                                 <tr>
                                                     <th className="py-3 px-4 font-semibold text-slate-500 text-sm border-b border-slate-200 bg-slate-50">崗位</th>
-                                                    <th className="py-3 px-4 font-semibold text-slate-500 text-sm border-b border-slate-200 bg-slate-50 text-center">第一堂</th>
-                                                    <th className="py-3 px-4 font-semibold text-slate-500 text-sm border-b border-slate-200 bg-slate-50 text-center">第二堂</th>
-                                                    <th className="py-3 px-4 font-semibold text-slate-500 text-sm border-b border-slate-200 bg-slate-50 text-center">皆可</th>
-                                                    <th className="py-3 px-4 font-bold text-slate-700 text-sm border-b border-slate-200 bg-slate-100 text-center">小計</th>
+                                                    <th className="py-3 px-2 font-semibold text-slate-500 text-[13px] border-b border-slate-200 bg-slate-50 text-center">第一堂</th>
+                                                    <th className="py-3 px-2 font-semibold text-slate-500 text-[13px] border-b border-slate-200 bg-slate-50 text-center">第二堂</th>
+                                                    <th className="py-3 px-2 font-semibold text-slate-500 text-[13px] border-b border-slate-200 bg-slate-50 text-center">皆可</th>
+                                                    <th className="py-3 px-3 font-bold text-slate-700 text-sm border-b border-slate-200 bg-indigo-50/30 text-center shadow-[inset_1px_0_0_rgba(226,232,240,0.5)]">實際人數</th>
+                                                    <th className="py-3 px-4 font-semibold text-slate-500 text-[13px] border-b border-slate-200 bg-slate-50 text-center">安全人數標準</th>
+                                                    <th className="py-3 px-4 font-semibold text-slate-500 text-sm border-b border-slate-200 bg-slate-50 text-center">狀態</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {insights.positionDistribution.map((pos, idx) => (
-                                                    <tr key={pos.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}>
-                                                        <td className="py-3 px-4 font-bold text-slate-700 border-b border-slate-100">{pos.name}</td>
-                                                        <td className="py-3 px-4 text-center font-medium text-slate-600 border-b border-slate-100">{pos.session1}</td>
-                                                        <td className="py-3 px-4 text-center font-medium text-slate-600 border-b border-slate-100">{pos.session2}</td>
-                                                        <td className="py-3 px-4 text-center font-medium text-slate-600 border-b border-slate-100">{pos.both}</td>
-                                                        <td className="py-3 px-4 text-center font-bold text-indigo-600 bg-indigo-50/30 border-b border-slate-100">{pos.total}</td>
+                                                    <tr key={pos.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'} hover:bg-slate-50 transition-colors`}>
+                                                        <td className="py-3.5 px-4 font-bold text-slate-700 border-b border-slate-100">{pos.name}</td>
+                                                        <td className="py-3.5 px-2 text-center font-medium text-slate-500 border-b border-slate-100">{pos.session1}</td>
+                                                        <td className="py-3.5 px-2 text-center font-medium text-slate-500 border-b border-slate-100">{pos.session2}</td>
+                                                        <td className="py-3.5 px-2 text-center font-medium text-slate-500 border-b border-slate-100">{pos.both}</td>
+                                                        {/* 實際人數 (獨立高亮背景) */}
+                                                        <td className={`py-3.5 px-3 text-center font-extrabold text-lg border-b border-slate-100 bg-indigo-50/20 shadow-[inset_1px_0_0_rgba(226,232,240,0.5)] ${pos.healthStatus === 'red' ? 'text-rose-600' : 'text-indigo-600'}`}>
+                                                            {pos.total}
+                                                        </td>
+                                                        <td className="py-3.5 px-4 text-center border-b border-slate-100">
+                                                            {pos.idealMin > 0 ? (
+                                                                <div className="flex flex-col text-[11px] leading-tight text-slate-500">
+                                                                    <span>理想 <strong className="text-slate-700">{pos.idealMin}-{pos.idealMax}</strong> 人</span>
+                                                                    <span className="text-slate-400">(最低警戒: {pos.minRequired})</span>
+                                                                </div>
+                                                            ) : <span className="text-slate-300">-</span>}
+                                                        </td>
+                                                        <td className="py-3.5 px-4 text-center border-b border-slate-100">
+                                                            {renderHealthBadge(pos.healthStatus)}
+                                                        </td>
                                                     </tr>
                                                 ))}
                                             </tbody>
@@ -229,14 +288,14 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                     </div>
                                 </div>
 
-                                {/* 右側：崗位兼任分析長條圖 */}
-                                <div className="bg-white rounded-xl shadow-soft border border-slate-100 overflow-hidden flex flex-col">
+                                {/* 右側：崗位兼任分析長條圖 (佔較窄版面) */}
+                                <div className="xl:col-span-2 bg-white rounded-xl shadow-soft border border-slate-100 overflow-hidden flex flex-col">
                                     <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
                                         <UserCheck className="text-violet-500" size={20} />
-                                        <h3 className="text-lg font-bold text-slate-800">崗位兼任分析 <span className="text-sm text-slate-400 font-normal ml-1">(上線同工)</span></h3>
+                                        <h3 className="text-lg font-bold text-slate-800">崗位兼任現況</h3>
                                     </div>
                                     <div className="p-6 flex-1 flex flex-col justify-center min-h-[300px]">
-                                        <div className="flex items-end gap-4 h-64 border-b border-slate-200 pb-2 relative">
+                                        <div className="flex items-end gap-3 sm:gap-6 h-64 border-b border-slate-200 pb-2 relative px-2">
                                             {/* 背景網格線 */}
                                             <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-2 opacity-10">
                                                 <div className="border-t border-slate-500 w-full"></div>
@@ -253,17 +312,17 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                     <div key={idx} className="flex-1 h-full flex flex-col items-center justify-end gap-2 group relative z-10">
                                                         <span className="text-sm font-bold text-slate-600 transition-transform group-hover:-translate-y-1">{data.people} 人</span>
                                                         <div 
-                                                            className="w-full max-w-[60px] bg-violet-500 rounded-t-md transition-all duration-500 hover:bg-violet-400 shadow-sm"
+                                                            className="w-full max-w-[40px] bg-violet-500 rounded-t-md transition-all duration-500 hover:bg-violet-400 shadow-sm"
                                                             style={{ height: `${heightPct}%`, minHeight: data.people > 0 ? '4px' : '0' }}
                                                         ></div>
                                                     </div>
                                                 );
                                             })}
                                         </div>
-                                        <div className="flex gap-4 mt-3">
+                                        <div className="flex gap-3 sm:gap-6 mt-3 px-2">
                                             {insights.concurrencyData.map((data, idx) => (
-                                                <div key={idx} className="flex-1 text-center text-sm font-medium text-slate-500">
-                                                    {data.roles} 個崗位
+                                                <div key={idx} className="flex-1 text-center text-[11px] sm:text-xs font-medium text-slate-500 leading-tight">
+                                                    {data.roles} 個<br/>崗位
                                                 </div>
                                             ))}
                                         </div>
