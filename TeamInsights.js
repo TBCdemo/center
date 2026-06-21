@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
     Home, Users, Calendar, LogOut, BarChart3, ChevronLeft, 
-    UserCheck, UserMinus, LayoutList, CheckCircle2, AlertTriangle, XCircle, Coffee
+    UserCheck, LayoutList, TrendingUp
 } from 'lucide-react';
 
 // ==========================================
@@ -21,63 +21,38 @@ const POSITION_REQUIREMENTS = {
 // 輔助函式：計算歷史季度
 // ==========================================
 const getPrevQuarter = (qStr) => {
-    if (!qStr || qStr === 'BASE') return null;
+    if (!qStr || qStr === 'BASE' || qStr === 'SYSTEM') return null;
     let [y, q] = qStr.split('-Q').map(Number);
     if (q === 1) return `${y - 1}-Q4`;
     return `${y}-Q${q - 1}`;
 };
 
 const getYoYQuarter = (qStr) => {
-    if (!qStr || qStr === 'BASE') return null;
+    if (!qStr || qStr === 'BASE' || qStr === 'SYSTEM') return null;
     let [y, q] = qStr.split('-Q').map(Number);
     return `${y - 1}-Q${q}`;
 };
 
 // ==========================================
-// 視覺元件：歷史趨勢標籤 (紅漲綠跌)
+// 視覺元件：歷史趨勢儲存格 (紅漲綠跌)
 // ==========================================
-const TrendIndicator = ({ label, value }) => {
-    if (value === null || value === undefined) return <div className="text-[11px] text-slate-400 font-bold flex justify-between items-center w-full"><span>{label}</span><span>無資料</span></div>;
-    if (value > 0) return <div className="text-[11px] text-rose-500 font-bold flex justify-between items-center w-full"><span>{label}</span><span>↑ {value} 人</span></div>;
-    if (value < 0) return <div className="text-[11px] text-emerald-500 font-bold flex justify-between items-center w-full"><span>{label}</span><span>↓ {Math.abs(value)} 人</span></div>;
-    return <div className="text-[11px] text-slate-400 font-bold flex justify-between items-center w-full"><span>{label}</span><span>- 0 人</span></div>;
+const DiffCell = ({ diff, isHovered }) => {
+    const baseClass = "px-2 py-2.5 text-center text-[12px] font-bold border-b border-slate-100/50";
+    if (diff === null || diff === undefined) return <td className={`${baseClass} text-slate-300`}>-</td>;
+    if (diff > 0) return <td className={`${baseClass} text-rose-500`}>↑ {diff} 人</td>;
+    if (diff < 0) return <td className={`${baseClass} text-emerald-500`}>↓ {Math.abs(diff)} 人</td>;
+    return <td className={`${baseClass} text-slate-400 font-medium`}>- 0 人</td>;
 };
-
-const GlobalStatCard = ({ icon: Icon, title, value, unit, iconBgClass, iconTextClass, qoq, yoy }) => (
-    <div className="bg-white rounded-xl shadow-soft border border-slate-100 flex flex-col relative overflow-hidden h-full">
-        <div className="p-4 lg:p-5 flex-1 relative z-10 flex flex-col">
-            <div className="flex justify-between items-start mb-3">
-                <div className={`${iconBgClass} p-2 rounded-lg ${iconTextClass}`}><Icon size={18} strokeWidth={2.5}/></div>
-            </div>
-            <div className="mb-2">
-                <p className="text-xs font-medium text-slate-500 mb-1">{title}</p>
-                <p className="text-2xl font-bold text-slate-900 tracking-tight leading-none">{value} <span className="text-sm font-medium text-slate-400 ml-0.5">{unit}</span></p>
-            </div>
-        </div>
-        <div className="pt-2.5 pb-3 px-4 lg:px-5 border-t border-slate-100 flex flex-col gap-1.5 w-full bg-slate-50 relative z-10">
-            <TrendIndicator label="QoQ (季)" value={qoq} />
-            <TrendIndicator label="YoY (年)" value={yoy} />
-        </div>
-        <div className={`absolute top-4 right-[-10%] opacity-[0.03] scale-150 ${iconTextClass} pointer-events-none`}><Icon size={100} /></div>
-    </div>
-);
 
 const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, utils }) => {
     const { fetchAllData, getCurrentQuarter } = utils;
     
     const [isLoading, setIsLoading] = useState(true);
-    
-    // 季度狀態管理
     const [availableQuarters, setAvailableQuarters] = useState([]);
-    const [latestQuarter, setLatestQuarter] = useState('');
     const [viewQuarter, setViewQuarter] = useState('');
-    
-    const qoqQuarter = useMemo(() => getPrevQuarter(latestQuarter), [latestQuarter]);
-    const yoyQuarter = useMemo(() => getYoYQuarter(latestQuarter), [latestQuarter]);
-
     const [dbData, setDbData] = useState({ members: [], positions: [], memberPositions: [], quarterSettings: [] });
 
-    // 1. 初始化：取得資料庫中所有季度並定義「最新一季 (Latest)」
+    // 1. 初始化：取得所有季度
     useEffect(() => {
         const fetchQuarters = async () => {
             try {
@@ -90,12 +65,10 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                     
                     if (qs.length > 0) {
                         setAvailableQuarters(qs);
-                        setLatestQuarter(qs[0]);
                         setViewQuarter(qs[0]); 
                     } else {
                         const currentQ = getCurrentQuarter();
                         setAvailableQuarters([currentQ]);
-                        setLatestQuarter(currentQ);
                         setViewQuarter(currentQ);
                     }
                 }
@@ -104,12 +77,8 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
         fetchQuarters();
     }, []);
 
-    // 2. 載入所需數據 (包含視圖季度與全局指標需要的歷史季度)
+    // 2. 載入所需數據 (載入全年度 quarter_settings 以計算歷史表格)
     useEffect(() => {
-        if (!viewQuarter || !latestQuarter) return;
-
-        const targetQuarters = [...new Set([viewQuarter, latestQuarter, qoqQuarter, yoyQuarter])].filter(Boolean);
-
         const loadQuarterData = async () => {
             setIsLoading(true);
             try {
@@ -122,7 +91,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                     fetchAllData(() => supabase.from('members').select('*').order('name')),
                     fetchAllData(() => supabase.from('positions').select('*').order('id')),
                     fetchAllData(() => supabase.from('member_positions').select('*').eq('quarter', viewQuarter)),
-                    fetchAllData(() => supabase.from('member_quarter_settings').select('*').in('quarter', targetQuarters))
+                    fetchAllData(() => supabase.from('member_quarter_settings').select('*')) // 抓取所有以產出矩陣表
                 ]);
 
                 setDbData({
@@ -138,25 +107,25 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             }
         };
         loadQuarterData();
-    }, [viewQuarter, latestQuarter, qoqQuarter, yoyQuarter]);
+    }, [viewQuarter]);
 
     // ==========================================
-    // 計算 1：全局戰略指標 (鎖定 latestQuarter)
+    // 計算 1：全年度戰略矩陣數據 (Matrix Table)
     // ==========================================
-    const globalStats = useMemo(() => {
-        if (!latestQuarter || dbData.members.length === 0) return null;
+    const matrixStats = useMemo(() => {
+        if (dbData.members.length === 0 || availableQuarters.length === 0) return [];
 
         const realMembers = dbData.members.filter(m => !m.name.startsWith('SYSTEM_'));
         const { quarterSettings } = dbData;
 
+        // 計算單一季度的基礎 4 項指標
         const getQuarterStat = (qStr) => {
             if (!qStr) return null;
             const hasData = quarterSettings.some(qs => qs.quarter === qStr);
-            if (!hasData && qStr !== latestQuarter) return null; 
+            if (!hasData) return null;
 
             let suspended = 0;
             let sabbatical = 0;
-
             const qsMap = {};
             quarterSettings.forEach(qs => { if(qs.quarter === qStr) qsMap[qs.member_id] = qs; });
 
@@ -168,37 +137,43 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
 
             const total = realMembers.length;
             const active = total - suspended - sabbatical;
-
             return { total, active, suspended, sabbatical };
         };
 
-        const current = getQuarterStat(latestQuarter);
-        if (!current) return null;
+        // 為每個可用季度產生一列矩陣資料
+        return availableQuarters.map(qStr => {
+            const current = getQuarterStat(qStr) || { total: 0, active: 0, suspended: 0, sabbatical: 0 };
+            const prevQ = getPrevQuarter(qStr);
+            const yoyQ = getYoYQuarter(qStr);
+            
+            const qoqStat = getQuarterStat(prevQ);
+            const yoyStat = getQuarterStat(yoyQ);
 
-        const qoq = getQuarterStat(qoqQuarter);
-        const yoy = getQuarterStat(yoyQuarter);
+            const calcDiff = (currVal, pastStat, key) => pastStat ? (currVal - pastStat[key]) : null;
 
-        const calcDiff = (curr, past, key) => past ? (curr[key] - past[key]) : null;
-
-        return {
-            current,
-            qoqDiff: {
-                total: calcDiff(current, qoq, 'total'),
-                active: calcDiff(current, qoq, 'active'),
-                suspended: calcDiff(current, qoq, 'suspended'),
-                sabbatical: calcDiff(current, qoq, 'sabbatical'),
-            },
-            yoyDiff: {
-                total: calcDiff(current, yoy, 'total'),
-                active: calcDiff(current, yoy, 'active'),
-                suspended: calcDiff(current, yoy, 'suspended'),
-                sabbatical: calcDiff(current, yoy, 'sabbatical'),
-            }
-        };
-    }, [dbData, latestQuarter, qoqQuarter, yoyQuarter]);
+            return {
+                quarter: qStr,
+                total: current.total,
+                totalQoQ: calcDiff(current.total, qoqStat, 'total'),
+                totalYoY: calcDiff(current.total, yoyStat, 'total'),
+                
+                active: current.active,
+                activeQoQ: calcDiff(current.active, qoqStat, 'active'),
+                activeYoY: calcDiff(current.active, yoyStat, 'active'),
+                
+                suspended: current.suspended,
+                suspendedQoQ: calcDiff(current.suspended, qoqStat, 'suspended'),
+                suspendedYoY: calcDiff(current.suspended, yoyStat, 'suspended'),
+                
+                sabbatical: current.sabbatical,
+                sabbaticalQoQ: calcDiff(current.sabbatical, qoqStat, 'sabbatical'),
+                sabbaticalYoY: calcDiff(current.sabbatical, yoyStat, 'sabbatical'),
+            };
+        });
+    }, [dbData, availableQuarters]);
 
     // ==========================================
-    // 計算 2：單季操作洞察 (依據 viewQuarter)
+    // 計算 2：單季操作洞察 (受 viewQuarter 控制)
     // ==========================================
     const insights = useMemo(() => {
         const { members, positions, memberPositions, quarterSettings } = dbData;
@@ -218,8 +193,8 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
         const positionDistribution = positions.map(pos => {
             let session1 = 0, session2 = 0, both = 0;
             realMembers.forEach(m => {
-                if (!activeMemberIds.has(m.id)) return; // 實質可排班人力，排除安息/暫停同工
-                const hasPos = memberPositions.some(mp => mp.member_id === m.id && mp.position_id === pos.id && mp.is_active !== false); // 排除暫停崗位
+                if (!activeMemberIds.has(m.id)) return; 
+                const hasPos = memberPositions.some(mp => mp.member_id === m.id && mp.position_id === pos.id && mp.is_active !== false);
                 if (hasPos) {
                     const pref = qsMap[m.id]?.preferred_session || '第一堂';
                     if (pref === '第一堂') session1++;
@@ -229,12 +204,10 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             });
             const total = session1 + session2 + both;
 
-            // 計算單堂低標指標
             const req = POSITION_REQUIREMENTS[pos.name] || { singleSession: 0, freq: 'weekly' };
             let sessionQuarterDemand = req.freq === 'monthly' ? req.singleSession * 3 : req.singleSession * 13; 
             const sessionMinRequired = Math.ceil(sessionQuarterDemand / 6);
 
-            // 判斷單堂健康度 (只看純第一堂/第二堂數字)
             let s1Health = 'gray';
             let s2Health = 'gray';
 
@@ -310,57 +283,101 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6 lg:p-8 custom-scrollbar pb-24">
-                    {isLoading || !globalStats ? (
-                        <div className="h-full flex items-center justify-center text-slate-400 font-medium animate-pulse">計算數據中...</div>
+                    {isLoading || matrixStats.length === 0 ? (
+                        <div className="h-full flex items-center justify-center text-slate-400 font-medium animate-pulse">計算戰略數據中...</div>
                     ) : (
-                        <div className="max-w-7xl mx-auto space-y-6">
+                        <div className="max-w-7xl mx-auto space-y-8">
                             
-                            {/* 頂部：全局戰略指標 (鎖定最新季度) */}
-                            <div>
-                                <div className="flex items-center gap-2 mb-4">
-                                    <span className="bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider uppercase">全局戰略指標</span>
-                                    <span className="text-sm font-bold text-slate-400">數據基準：{latestQuarter}</span>
+                            {/* 頂部：全年度戰略矩陣 (13 欄表格) */}
+                            <div className="bg-white rounded-xl shadow-soft border border-slate-100 overflow-hidden flex flex-col">
+                                <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                                    <div className="flex items-center gap-2">
+                                        <TrendingUp className="text-indigo-600" size={20} />
+                                        <h3 className="text-lg font-extrabold text-slate-800 tracking-tight">人力資源戰略分析矩陣</h3>
+                                    </div>
+                                    <span className="text-xs font-medium text-slate-400 bg-white px-3 py-1.5 rounded-full border border-slate-200 shadow-sm">點擊列可同步檢視該季詳細沙盤</span>
                                 </div>
-                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                                    <GlobalStatCard 
-                                        icon={Users} title="同工總人數" value={globalStats.current.total} unit="人" 
-                                        iconBgClass="bg-slate-100" iconTextClass="text-slate-600" 
-                                        qoq={globalStats.qoqDiff.total} yoy={globalStats.yoyDiff.total} 
-                                    />
-                                    <GlobalStatCard 
-                                        icon={CheckCircle2} title="上線服事人數" value={globalStats.current.active} unit="人" 
-                                        iconBgClass="bg-emerald-50" iconTextClass="text-emerald-600" 
-                                        qoq={globalStats.qoqDiff.active} yoy={globalStats.yoyDiff.active} 
-                                    />
-                                    <GlobalStatCard 
-                                        icon={UserMinus} title="暫停服事人數" value={globalStats.current.suspended} unit="人" 
-                                        iconBgClass="bg-orange-50" iconTextClass="text-orange-600" 
-                                        qoq={globalStats.qoqDiff.suspended} yoy={globalStats.yoyDiff.suspended} 
-                                    />
-                                    <GlobalStatCard 
-                                        icon={Coffee} title="安息季人數" value={globalStats.current.sabbatical} unit="人" 
-                                        iconBgClass="bg-sky-50" iconTextClass="text-sky-600" 
-                                        qoq={globalStats.qoqDiff.sabbatical} yoy={globalStats.yoyDiff.sabbatical} 
-                                    />
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse min-w-[900px]">
+                                        <thead>
+                                            {/* 第一層表頭：四大分類區塊 */}
+                                            <tr>
+                                                <th rowSpan="2" className="py-3 px-4 font-bold text-slate-700 text-sm border-b-2 border-slate-200 bg-white shadow-[1px_0_0_rgba(226,232,240,1)] sticky left-0 z-10 w-[100px]">分析季度</th>
+                                                <th colSpan="3" className="py-2.5 px-3 font-extrabold text-slate-700 text-[13px] border-b border-slate-200 bg-slate-100/70 text-center tracking-widest shadow-[1px_0_0_rgba(226,232,240,1)]">同工總人數</th>
+                                                <th colSpan="3" className="py-2.5 px-3 font-extrabold text-emerald-800 text-[13px] border-b border-emerald-200/50 bg-emerald-50/70 text-center tracking-widest shadow-[1px_0_0_rgba(226,232,240,1)]">上線服事人數</th>
+                                                <th colSpan="3" className="py-2.5 px-3 font-extrabold text-orange-800 text-[13px] border-b border-orange-200/50 bg-orange-50/70 text-center tracking-widest shadow-[1px_0_0_rgba(226,232,240,1)]">暫停服事人數</th>
+                                                <th colSpan="3" className="py-2.5 px-3 font-extrabold text-sky-800 text-[13px] border-b border-sky-200/50 bg-sky-50/70 text-center tracking-widest">安息季人數</th>
+                                            </tr>
+                                            {/* 第二層表頭：細部指標 */}
+                                            <tr>
+                                                {/* 總人數 */}
+                                                <th className="py-2 px-2 font-semibold text-slate-500 text-[11px] border-b-2 border-slate-200 bg-slate-50/50 text-center">總計</th>
+                                                <th className="py-2 px-2 font-semibold text-slate-500 text-[11px] border-b-2 border-slate-200 bg-slate-50/50 text-center">QoQ季變動</th>
+                                                <th className="py-2 px-2 font-semibold text-slate-500 text-[11px] border-b-2 border-slate-200 bg-slate-50/50 text-center shadow-[1px_0_0_rgba(226,232,240,1)]">YoY年變動</th>
+                                                {/* 上線人數 */}
+                                                <th className="py-2 px-2 font-semibold text-emerald-600/80 text-[11px] border-b-2 border-emerald-200/50 bg-emerald-50/30 text-center">總計</th>
+                                                <th className="py-2 px-2 font-semibold text-emerald-600/80 text-[11px] border-b-2 border-emerald-200/50 bg-emerald-50/30 text-center">QoQ季變動</th>
+                                                <th className="py-2 px-2 font-semibold text-emerald-600/80 text-[11px] border-b-2 border-emerald-200/50 bg-emerald-50/30 text-center shadow-[1px_0_0_rgba(226,232,240,1)]">YoY年變動</th>
+                                                {/* 暫停人數 */}
+                                                <th className="py-2 px-2 font-semibold text-orange-600/80 text-[11px] border-b-2 border-orange-200/50 bg-orange-50/30 text-center">總計</th>
+                                                <th className="py-2 px-2 font-semibold text-orange-600/80 text-[11px] border-b-2 border-orange-200/50 bg-orange-50/30 text-center">QoQ季變動</th>
+                                                <th className="py-2 px-2 font-semibold text-orange-600/80 text-[11px] border-b-2 border-orange-200/50 bg-orange-50/30 text-center shadow-[1px_0_0_rgba(226,232,240,1)]">YoY年變動</th>
+                                                {/* 安息季人數 */}
+                                                <th className="py-2 px-2 font-semibold text-sky-600/80 text-[11px] border-b-2 border-sky-200/50 bg-sky-50/30 text-center">總計</th>
+                                                <th className="py-2 px-2 font-semibold text-sky-600/80 text-[11px] border-b-2 border-sky-200/50 bg-sky-50/30 text-center">QoQ季變動</th>
+                                                <th className="py-2 px-2 font-semibold text-sky-600/80 text-[11px] border-b-2 border-sky-200/50 bg-sky-50/30 text-center">YoY年變動</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {matrixStats.map((row, idx) => {
+                                                const isSelected = viewQuarter === row.quarter;
+                                                return (
+                                                    <tr 
+                                                        key={row.quarter} 
+                                                        onClick={() => setViewQuarter(row.quarter)}
+                                                        className={`cursor-pointer transition-all duration-150 ${isSelected ? 'bg-indigo-50/60 shadow-[inset_3px_0_0_rgba(79,70,229,1)]' : 'hover:bg-slate-50 bg-white'}`}
+                                                    >
+                                                        {/* 第一欄：季度 (鎖定左側) */}
+                                                        <td className={`py-3 px-4 font-extrabold text-[13px] border-b border-slate-100/50 shadow-[1px_0_0_rgba(226,232,240,1)] sticky left-0 z-10 ${isSelected ? 'text-indigo-700 bg-indigo-50/60' : 'text-slate-600 bg-inherit'}`}>
+                                                            {row.quarter.replace('-', '')}
+                                                        </td>
+                                                        
+                                                        {/* 區塊 1: 總人數 */}
+                                                        <td className="px-3 py-2.5 text-center font-bold text-[14px] text-slate-700 border-b border-slate-100/50">{row.total}</td>
+                                                        <DiffCell diff={row.totalQoQ} />
+                                                        <td className="p-0 border-b border-slate-100/50 shadow-[1px_0_0_rgba(226,232,240,1)]"><DiffCell diff={row.totalYoY} /></td>
+                                                        
+                                                        {/* 區塊 2: 上線人數 */}
+                                                        <td className="px-3 py-2.5 text-center font-bold text-[14px] text-slate-700 border-b border-slate-100/50">{row.active}</td>
+                                                        <DiffCell diff={row.activeQoQ} />
+                                                        <td className="p-0 border-b border-slate-100/50 shadow-[1px_0_0_rgba(226,232,240,1)]"><DiffCell diff={row.activeYoY} /></td>
+                                                        
+                                                        {/* 區塊 3: 暫停人數 */}
+                                                        <td className="px-3 py-2.5 text-center font-bold text-[14px] text-slate-700 border-b border-slate-100/50">{row.suspended}</td>
+                                                        <DiffCell diff={row.suspendedQoQ} />
+                                                        <td className="p-0 border-b border-slate-100/50 shadow-[1px_0_0_rgba(226,232,240,1)]"><DiffCell diff={row.suspendedYoY} /></td>
+                                                        
+                                                        {/* 區塊 4: 安息季人數 */}
+                                                        <td className="px-3 py-2.5 text-center font-bold text-[14px] text-slate-700 border-b border-slate-100/50">{row.sabbatical}</td>
+                                                        <DiffCell diff={row.sabbaticalQoQ} />
+                                                        <DiffCell diff={row.sabbaticalYoY} />
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
 
-                            <hr className="border-slate-200 my-8" />
+                            <hr className="border-slate-200/60 my-2" />
 
-                            {/* 底部：單季操作沙盤 (受下拉選單控制) */}
+                            {/* 底部：單季操作沙盤 (受上方表格點擊控制 viewQuarter) */}
                             <div>
                                 <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-4 justify-between">
                                     <div className="flex items-center gap-2">
                                         <span className="bg-violet-100 text-violet-700 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider uppercase">單季操作沙盤</span>
-                                        <span className="text-sm font-bold text-slate-400">檢視個別季度細節</span>
+                                        <span className="text-sm font-bold text-slate-500">目前檢視：<strong className="text-violet-700 ml-1">{viewQuarter}</strong></span>
                                     </div>
-                                    <select 
-                                        value={viewQuarter} 
-                                        onChange={e => setViewQuarter(e.target.value)} 
-                                        className="bg-white border border-slate-200 rounded-lg px-4 py-2 font-bold text-violet-600 text-sm outline-none cursor-pointer focus:ring-2 focus:ring-violet-500/20 shadow-sm transition-all"
-                                    >
-                                        {availableQuarters.map(q => <option key={q} value={q}>{q.replace('-', '')}</option>)}
-                                    </select>
                                 </div>
                                 
                                 <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
