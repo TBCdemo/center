@@ -6,7 +6,8 @@ import {
     ArrowLeftRight, Users, TrendingUp, CalendarDays, GitBranch, 
     Lightbulb, UserCheck, UserX, LayoutList, 
     ArrowUpDown, X, Database, AlertTriangle,
-    Home, LogOut, Edit2, Check, ShieldCheck, Undo2, Redo2
+    Home, LogOut, Edit2, Check, ShieldCheck, Undo2, Redo2,
+    ChevronDown, ChevronUp, Plus
 } from 'lucide-react';
 
 const safeParseJSON = (data, fallback) => {
@@ -40,6 +41,12 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
     const [errorMsg, setErrorMsg] = useState('');
     const [showSuccessToast, setShowSuccessToast] = useState(false);
     
+    // --- 崗位與人數設定狀態 ---
+    const [isPositionsPanelOpen, setIsPositionsPanelOpen] = useState(false);
+    const [editPositions, setEditPositions] = useState([]);
+    const [isSavingPositions, setIsSavingPositions] = useState(false);
+    // -------------------------
+
     const [activeSlot, setActiveSlot] = useState(null); 
     const [searchTerm, setSearchTerm] = useState('');
     const [analysisSearchTerm, setAnalysisSearchTerm] = useState(''); 
@@ -65,7 +72,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                 const currentQuarterStr = `${year}-Q${quarter}`;
                 const [{ data: members }, { data: positions }, { data: memberPositions }, { data: quarterSettings }] = await Promise.all([
                     fetchAllData(() => supabase.from('members').select('*')),
-                    fetchAllData(() => supabase.from('positions').select('*')),
+                    fetchAllData(() => supabase.from('positions').select('*').order('created_at', { ascending: true })),
                     fetchAllData(() => supabase.from('member_positions').select('*').eq('quarter', currentQuarterStr)),
                     fetchAllData(() => supabase.from('member_quarter_settings').select('*').in('quarter', [currentQuarterStr, 'SYSTEM']))
                 ]);
@@ -78,6 +85,12 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
         };
         fetchInitialData(); 
     }, [year, quarter]); 
+
+    useEffect(() => {
+        if (dbData.positions && dbData.positions.length > 0) {
+            setEditPositions(dbData.positions);
+        }
+    }, [dbData.positions]);
 
     useEffect(() => {
         const checkScheduleExists = async () => {
@@ -95,6 +108,43 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
     }, [queryYear, queryQuarter, appMode]);
 
     const currentQuarterStr = `${year}-Q${quarter}`;
+
+    // --- 崗位與人數設定操作邏輯 ---
+    const handlePositionChange = (index, field, value) => {
+        const updated = [...editPositions];
+        updated[index][field] = value;
+        setEditPositions(updated);
+    };
+
+    const handleAddPosition = () => {
+        setEditPositions([...editPositions, { temp_id: `NEW_${Date.now()}`, name: '', max_people: 1 }]);
+    };
+
+    const handleSavePositions = async () => {
+        setIsSavingPositions(true);
+        try {
+            const payload = editPositions
+                .filter(p => (p.name || '').trim() !== '')
+                .map(p => {
+                    const posData = { name: p.name.trim(), max_people: parseInt(p.max_people) || 1 };
+                    if (p.id) posData.id = p.id; 
+                    return posData;
+                });
+
+            const { data, error } = await supabase.from('positions').upsert(payload).select();
+            if (error) throw error;
+
+            setDbData(prev => ({ ...prev, positions: data }));
+            setIsPositionsPanelOpen(false);
+            setShowSuccessToast(true);
+            setTimeout(() => setShowSuccessToast(false), 2000);
+        } catch (err) {
+            setErrorMsg('儲存崗位設定失敗：' + err.message);
+        } finally {
+            setIsSavingPositions(false);
+        }
+    };
+    // -------------------------
 
     const effectiveMembers = useMemo(() => {
         const sundays = getSundaysInQuarter(currentQuarterStr) || [];
@@ -164,7 +214,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
             
             const [{ data: mData }, { data: pData }, { data: mpData }, { data: qsData }] = await Promise.all([
                 fetchAllData(() => supabase.from('members').select('*')),
-                fetchAllData(() => supabase.from('positions').select('*')),
+                fetchAllData(() => supabase.from('positions').select('*').order('created_at', { ascending: true })),
                 fetchAllData(() => supabase.from('member_positions').select('*').eq('quarter', targetQuarter)),
                 fetchAllData(() => supabase.from('member_quarter_settings').select('*').in('quarter', [targetQuarter, 'SYSTEM']))
             ]);
@@ -190,17 +240,16 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
 
             const reconstructed = [];
             const sundays = window.ScheduleEngine ? window.ScheduleEngine.getSundaysInQuarter(qY, qQ) : [];
-            const roleLimits = { '司會': 1, 'PPT': 1, '主餐': 2, '收奉獻': 2, '接待': 2, '新朋友關懷': 2, '執事輪值': 1 };
 
             sundays.forEach(sunday => {
                 const dateStr = window.ScheduleEngine ? window.ScheduleEngine.formatDate(sunday) : sunday.toISOString().split('T')[0];
                 sessionsToSchedule.forEach(session => {
                     (pData || []).forEach(pos => {
                         const posName = (pos.name || '').trim();
-                        if (!['司會', 'PPT', '主餐', '收奉獻', '接待', '新朋友關懷', '執事輪值'].includes(posName)) return;
+                        if (!posName) return;
                         if (posName === '主餐' && sunday.getDate() > 7) return; 
 
-                        const maxPeople = pos.max_people || roleLimits[posName] || 1;
+                        const maxPeople = pos.max_people || 1;
                         const existingForSlot = activeSchedules.filter(s => s.d === dateStr && s.s === session && s.p === posName);
 
                         existingForSlot.forEach(s => {
@@ -637,17 +686,17 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
             return a.date.localeCompare(b.date);
         });
 
-        let csvContent = '\uFEFF日期,堂別,司會,執事,接待,收奉獻,主餐,PPT,新朋友關懷\n';
+        const headerRow = `\uFEFF日期,堂別,${dbData.positions.map(p => p.name).join(',')}\n`;
+        let csvContent = headerRow;
+        
         sortedRows.forEach(row => {
-            const r = [
-                row.date, row.session,
-                (row.positions['司會'] || []).join('、'), (row.positions['執事輪值'] || []).join('、'),
-                (row.positions['接待'] || []).join('、'), (row.positions['收奉獻'] || []).join('、'),
-                (row.positions['主餐'] || []).join('、'), (row.positions['PPT'] || []).join('、'),
-                (row.positions['新朋友關懷'] || []).join('、')
-            ];
+            const r = [row.date, row.session];
+            dbData.positions.forEach(pos => {
+                r.push((row.positions[pos.name] || []).join('、'));
+            });
             csvContent += r.map(v => `"${v}"`).join(',') + '\n';
         });
+        
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `TBC_排班表_${year}Q${quarter}.csv`;
         document.body.appendChild(link); link.click(); document.body.removeChild(link);
@@ -655,11 +704,15 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
 
     const dashboardData = useMemo(() => {
         const memberStats = {};
+        const emptyRoles = {};
+        dbData.positions.forEach(p => emptyRoles[p.name] = 0);
+
         effectiveMembers.forEach(m => {
             const status = (m.availability_status || '').trim();
             if (status === '暫停服事' || status === '安息季') return;
-            memberStats[m.id] = { id: m.id, name: m.name, group: m.group_id, totalService: 0, attendanceDates: new Set(), roles: { '司會': 0, '執事輪值': 0, '接待': 0, '收奉獻': 0, '主餐': 0, 'PPT': 0, '新朋友關懷': 0 } };
+            memberStats[m.id] = { id: m.id, name: m.name, group: m.group_id, totalService: 0, attendanceDates: new Set(), roles: { ...emptyRoles } };
         });
+        
         generatedDraft.forEach(d => {
             if (d.is_empty || !memberStats[d.member_id]) return;
             const stats = memberStats[d.member_id];
@@ -667,8 +720,9 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
             stats.totalService += 1;
             if (d._positionName && stats.roles[d._positionName] !== undefined) stats.roles[d._positionName] += 1;
         });
+        
         return Object.values(memberStats).map(d => ({ ...d, attendance: d.attendanceDates.size, distinctRolesCount: Object.values(d.roles).filter(c => c > 0).length, healthScore: 0 })); 
-    }, [generatedDraft, effectiveMembers]);
+    }, [generatedDraft, effectiveMembers, dbData.positions]);
 
     const dashboardStats = useMemo(() => {
         if (!dashboardData || dashboardData.length === 0) return null;
@@ -798,8 +852,8 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                                     <th onClick={() => requestSort('name')} className="py-4 px-4 font-medium text-slate-500 text-sm whitespace-nowrap pl-8 border-b border-slate-100 cursor-pointer hover:bg-slate-50 select-none">姓名 <ArrowUpDown size={14} className="inline ml-1 opacity-40"/></th>
                                     <th onClick={() => requestSort('totalService')} className="py-4 px-4 font-medium text-slate-500 text-sm whitespace-nowrap border-b border-slate-100 text-center cursor-pointer hover:bg-slate-50">服事次數 <ArrowUpDown size={14} className="inline ml-1 opacity-40"/></th>
                                     <th onClick={() => requestSort('attendance')} className="py-4 px-4 font-medium text-slate-500 text-sm whitespace-nowrap border-b border-slate-100 text-center cursor-pointer hover:bg-slate-50">出席天數 <ArrowUpDown size={14} className="inline ml-1 opacity-40"/></th>
-                                    {['司會', '執事輪值', '接待', '收奉獻', '主餐', 'PPT', '新朋友關懷'].map(role => (
-                                        <th key={role} onClick={() => requestSort(role)} className="py-4 px-4 font-medium text-slate-500 text-sm whitespace-nowrap border-b border-slate-100 text-center cursor-pointer hover:bg-slate-50">{role} <ArrowUpDown size={14} className="inline ml-1 opacity-40"/></th>
+                                    {dbData.positions.map(pos => (
+                                        <th key={pos.id} onClick={() => requestSort(pos.name)} className="py-4 px-4 font-medium text-slate-500 text-sm whitespace-nowrap border-b border-slate-100 text-center cursor-pointer hover:bg-slate-50">{pos.name} <ArrowUpDown size={14} className="inline ml-1 opacity-40"/></th>
                                     ))}
                                 </tr>
                             </thead>
@@ -809,8 +863,8 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                                         <td className="py-3 px-4 pl-8 whitespace-nowrap"><p className="font-bold text-slate-900 text-base">{d.name}</p></td>
                                         <td className="py-3 px-4 text-center font-bold text-indigo-600 bg-indigo-50/30">{d.totalService}</td>
                                         <td className="py-3 px-4 text-center font-medium text-slate-600">{d.attendance}</td>
-                                        {['司會', '執事輪值', '接待', '收奉獻', '主餐', 'PPT', '新朋友關懷'].map(role => (
-                                            <td key={role} className="py-3 px-4 text-center font-normal text-slate-400">{d.roles[role] || '-'}</td>
+                                        {dbData.positions.map(pos => (
+                                            <td key={pos.id} className="py-3 px-4 text-center font-normal text-slate-400">{d.roles[pos.name] || '-'}</td>
                                         ))}
                                     </tr>
                                 ))}
@@ -839,18 +893,79 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
 
     const renderSchedulingView = () => {
         return (
-            <div className="flex-1 flex items-center justify-center bg-slate-50 p-6 animate-fade-in overflow-y-auto">
-                <div className="w-full max-w-xl bg-white p-10 lg:p-12 rounded-2xl shadow-soft border border-slate-100 relative">
+            <div className="flex-1 flex flex-col items-center justify-start bg-slate-50 p-6 animate-fade-in overflow-y-auto">
+                <div className="w-full max-w-xl bg-white p-10 lg:p-12 rounded-2xl shadow-soft border border-slate-100 relative mt-8">
                     <div className="flex bg-slate-100 p-1.5 rounded-xl mb-8">
                         <button onClick={() => setAppMode('schedule')} className={`flex-1 py-3.5 flex items-center justify-center gap-2 text-sm font-medium rounded-lg transition-all ${appMode === 'schedule' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/50'}`}><Play size={18} /> 預排作業</button>
                         <button onClick={() => setAppMode('query')} className={`flex-1 py-3.5 flex items-center justify-center gap-2 text-sm font-medium rounded-lg transition-all ${appMode === 'query' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/50'}`}><Search size={18} /> 編輯班表</button>
                     </div>
                     {appMode === 'schedule' ? (
                         <div className="animate-fade-in">
-                            <div className="grid grid-cols-2 gap-6 mb-10">
+                            <div className="grid grid-cols-2 gap-6 mb-8">
                                 <div className="space-y-2"><label className="text-xs font-medium text-slate-500 ml-2">年份</label><input type="number" value={year} onChange={e => setYear(parseInt(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-6 py-4 font-normal text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" /></div>
                                 <div className="space-y-2"><label className="text-xs font-medium text-slate-500 ml-2">季度</label><select value={quarter} onChange={e => setQuarter(parseInt(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-6 py-4 font-normal text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"><option value={1}>Q1 (1-3月)</option><option value={2}>Q2 (4-6月)</option><option value={3}>Q3 (7-9月)</option><option value={4}>Q4 (10-12月)</option></select></div>
                             </div>
+                            
+                            {/* --- 崗位設定 Accordion 面板 --- */}
+                            <div className="mb-8 border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                                <button 
+                                    onClick={() => setIsPositionsPanelOpen(!isPositionsPanelOpen)}
+                                    className="w-full flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100 transition-colors focus:outline-none"
+                                >
+                                    <div className="flex items-center gap-2 font-bold text-slate-700">
+                                        <ShieldCheck size={18} className="text-indigo-500" />
+                                        服事崗位與人數設定
+                                    </div>
+                                    {isPositionsPanelOpen ? <ChevronUp size={18} className="text-slate-400"/> : <ChevronDown size={18} className="text-slate-400"/>}
+                                </button>
+                                
+                                {isPositionsPanelOpen && (
+                                    <div className="p-5 border-t border-slate-200 bg-white animate-fade-in space-y-4">
+                                        <div className="flex justify-end">
+                                            <button 
+                                                onClick={handleSavePositions} 
+                                                disabled={isSavingPositions}
+                                                className="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors flex items-center gap-2 disabled:opacity-50"
+                                            >
+                                                {isSavingPositions ? <RefreshCw className="animate-spin" size={16}/> : <Save size={16}/>}
+                                                儲存設定
+                                            </button>
+                                        </div>
+                                        <div className="space-y-3 max-h-64 overflow-y-auto custom-scrollbar pr-2">
+                                            {editPositions.map((pos, idx) => (
+                                                <div key={pos.id || pos.temp_id} className="flex items-center gap-3">
+                                                    <input 
+                                                        type="text" 
+                                                        value={pos.name || ''} 
+                                                        onChange={e => handlePositionChange(idx, 'name', e.target.value)}
+                                                        placeholder="崗位名稱"
+                                                        className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-indigo-500 transition-all font-medium text-slate-700"
+                                                    />
+                                                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 shrink-0">
+                                                        <span className="text-slate-500 text-[13px] font-medium">需求人數</span>
+                                                        <input 
+                                                            type="number" 
+                                                            min="1"
+                                                            value={pos.max_people || 1} 
+                                                            onChange={e => handlePositionChange(idx, 'max_people', e.target.value)}
+                                                            className="w-10 text-center text-sm font-bold text-slate-900 bg-transparent outline-none"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            <button 
+                                                onClick={handleAddPosition}
+                                                className="mt-3 text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 py-2.5 rounded-lg transition-colors flex items-center justify-center w-full border border-indigo-100 border-dashed"
+                                                title="新增崗位"
+                                            >
+                                                <Plus size={20} strokeWidth={3} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            {/* ------------------------- */}
+
                             <button onClick={runAutoSchedule} disabled={isLoading} className="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-medium py-4 rounded-xl flex items-center justify-center gap-3 transition-all active:scale-95 shadow-button hover:-translate-y-0.5">{isLoading ? <RefreshCw className="animate-spin" /> : <><Play size={20} fill="currentColor"/> 建立新班表</>}</button>
                             {!dbData.memberQuarterSettings.some(s => s.quarter === `${year}-Q${quarter}`) && !isLoading && (
                                 <p className="text-rose-500 text-[13px] font-medium text-center mt-4 flex items-center justify-center gap-1.5 animate-pulse"><AlertCircle size={16} /> 尚未建立 {year}Q{quarter} 同工資料，請至「同工資料中心」新增。</p>
@@ -1136,8 +1251,9 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                                             <thead>
                                                 <tr>
                                                     <th className="sticky left-0 z-20 bg-slate-100/95 backdrop-blur whitespace-nowrap text-center px-4 w-[110px] font-medium">日期</th>
-                                                    <th className="whitespace-nowrap font-medium">司會</th><th className="whitespace-nowrap font-medium">執事</th><th className="whitespace-nowrap font-medium">接待</th>
-                                                    <th className="whitespace-nowrap font-medium">收奉獻</th><th className="whitespace-nowrap font-medium">主餐</th><th className="whitespace-nowrap font-medium">PPT</th><th className="whitespace-nowrap font-medium">新朋友關懷</th>
+                                                    {dbData.positions.map(pos => (
+                                                        <th key={pos.id} className="whitespace-nowrap font-medium">{pos.name}</th>
+                                                    ))}
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -1147,12 +1263,13 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                                                         return (
                                                             <tr key={idx} className={rowBg}>
                                                                 <td className={`sticky left-0 z-10 font-medium text-slate-500 text-center whitespace-nowrap px-4 backdrop-blur-sm border-r border-slate-100 ${stickyBg}`}>{row.date}</td>
-                                                                <ScheduleCell row={row} positionName="司會" /><ScheduleCell row={row} positionName="執事輪值" /><ScheduleCell row={row} positionName="接待" gridCols={2} />
-                                                                <ScheduleCell row={row} positionName="收奉獻" gridCols={2} /><ScheduleCell row={row} positionName="主餐" gridCols={2} /><ScheduleCell row={row} positionName="PPT" /><ScheduleCell row={row} positionName="新朋友關懷" gridCols={2} />
+                                                                {dbData.positions.map(pos => (
+                                                                    <ScheduleCell key={pos.id} row={row} positionName={pos.name} gridCols={pos.max_people > 1 ? 2 : 1} />
+                                                                ))}
                                                             </tr>
                                                         );
                                                     })
-                                                ) : (<tr><td colSpan="8" className="text-center py-16 text-slate-400 font-medium bg-white">此堂別尚無排班資料</td></tr>)}
+                                                ) : (<tr><td colSpan={dbData.positions.length + 1} className="text-center py-16 text-slate-400 font-medium bg-white">此堂別尚無排班資料</td></tr>)}
                                             </tbody>
                                         </table>
                                     </div>
@@ -1164,7 +1281,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                 </div>
 
                 {errorMsg && <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 bg-red-50 text-red-600 px-6 py-3 rounded-lg flex items-center gap-3 font-medium border border-red-100 shadow-xl animate-bounce"><AlertCircle size={20} /> {errorMsg}</div>}
-                {showSuccessToast && <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[200] bg-emerald-50 text-emerald-600 px-8 py-5 rounded-2xl flex items-center gap-4 font-bold text-xl border-2 border-emerald-200 shadow-glow animate-pop"><CheckCircle2 size={32} className="text-emerald-500" /> 發布成功</div>}
+                {showSuccessToast && <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[200] bg-emerald-50 text-emerald-600 px-8 py-5 rounded-2xl flex items-center gap-4 font-bold text-xl border-2 border-emerald-200 shadow-glow animate-pop"><CheckCircle2 size={32} className="text-emerald-500" /> 儲存成功</div>}
                 
                 {confirmDialog.isOpen && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in">
