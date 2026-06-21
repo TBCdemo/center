@@ -16,6 +16,20 @@ const safeParseJSON = (data, fallback) => {
     try { return JSON.parse(data); } catch (e) { return fallback; }
 };
 
+// 自訂崗位固定排序順序
+const POSITION_ORDER = ['司會', '執事輪值', '接待', '收奉獻', '主餐', 'PPT', '新朋友關懷'];
+const sortPositions = (positions) => {
+    if (!positions) return [];
+    return [...positions].sort((a, b) => {
+        const idxA = POSITION_ORDER.indexOf(a.name);
+        const idxB = POSITION_ORDER.indexOf(b.name);
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        if (idxA !== -1) return -1;
+        if (idxB !== -1) return 1;
+        return (a.name || '').localeCompare(b.name || '');
+    });
+};
+
 const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, supabase, utils, constants, StatCard }) => {
     const { fetchAllData, getSundaysInQuarter, getQuarterDateRange } = utils;
     const { sessionsToSchedule } = constants;
@@ -70,12 +84,15 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
             setIsLoading(true);
             try {
                 const currentQuarterStr = `${year}-Q${quarter}`;
-                const [{ data: members }, { data: positions }, { data: memberPositions }, { data: quarterSettings }] = await Promise.all([
+                const [{ data: members }, { data: rawPositions }, { data: memberPositions }, { data: quarterSettings }] = await Promise.all([
                     fetchAllData(() => supabase.from('members').select('*')),
-                    fetchAllData(() => supabase.from('positions').select('*').order('name', { ascending: true })),
+                    fetchAllData(() => supabase.from('positions').select('*')),
                     fetchAllData(() => supabase.from('member_positions').select('*').eq('quarter', currentQuarterStr)),
                     fetchAllData(() => supabase.from('member_quarter_settings').select('*').in('quarter', [currentQuarterStr, 'SYSTEM']))
                 ]);
+                
+                const positions = sortPositions(rawPositions);
+
                 setDbData({ 
                     members: members || [], positions: positions || [], memberPositions: memberPositions || [], 
                     existingSchedules: [], memberQuarterSettings: quarterSettings || []
@@ -112,12 +129,32 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
     // --- 崗位與人數設定操作邏輯 ---
     const handlePositionChange = (index, field, value) => {
         const updated = [...editPositions];
-        updated[index][field] = value;
+        let val = value;
+        
+        if (field === 'min_people' || field === 'max_people') {
+            val = parseInt(value) || 0;
+            if (field === 'min_people') {
+                if (val < 0) val = 0;
+                updated[index].min_people = val;
+                if (val > (updated[index].max_people || 1)) {
+                    updated[index].max_people = val; // 連動補足最大人數
+                }
+            } else {
+                if (val < 1) val = 1;
+                updated[index].max_people = val;
+                if (val < (updated[index].min_people || 0)) {
+                    updated[index].min_people = val; // 連動降低最小人數
+                }
+            }
+        } else {
+            updated[index][field] = value;
+        }
+        
         setEditPositions(updated);
     };
 
     const handleAddPosition = () => {
-        setEditPositions([...editPositions, { temp_id: `NEW_${Date.now()}`, name: '', max_people: 1 }]);
+        setEditPositions([...editPositions, { temp_id: `NEW_${Date.now()}`, name: '', min_people: 1, max_people: 1 }]);
     };
 
     const handleSavePositions = async () => {
@@ -126,7 +163,11 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
             const payload = editPositions
                 .filter(p => (p.name || '').trim() !== '')
                 .map(p => {
-                    const posData = { name: p.name.trim(), max_people: parseInt(p.max_people) || 1 };
+                    const posData = { 
+                        name: p.name.trim(), 
+                        min_people: parseInt(p.min_people) >= 0 ? parseInt(p.min_people) : 1,
+                        max_people: parseInt(p.max_people) || 1 
+                    };
                     if (p.id) posData.id = p.id; 
                     return posData;
                 });
@@ -134,12 +175,13 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
             const { data, error } = await supabase.from('positions').upsert(payload).select();
             if (error) throw error;
 
-            setDbData(prev => ({ ...prev, positions: data }));
+            const sortedData = sortPositions(data);
+            setDbData(prev => ({ ...prev, positions: sortedData }));
             setIsPositionsPanelOpen(false);
             setShowSuccessToast(true);
             setTimeout(() => setShowSuccessToast(false), 2000);
         } catch (err) {
-            setErrorMsg('儲存崗位設定失敗：' + err.message);
+            setErrorMsg('儲存崗位失敗：' + err.message);
         } finally {
             setIsSavingPositions(false);
         }
@@ -212,12 +254,14 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
             const qY = queryYear; const qQ = queryQuarter; setYear(qY); setQuarter(qQ);
             const targetQuarter = `${qY}-Q${qQ}`;
             
-            const [{ data: mData }, { data: pData }, { data: mpData }, { data: qsData }] = await Promise.all([
+            const [{ data: mData }, { data: rawPData }, { data: mpData }, { data: qsData }] = await Promise.all([
                 fetchAllData(() => supabase.from('members').select('*')),
-                fetchAllData(() => supabase.from('positions').select('*').order('name', { ascending: true })),
+                fetchAllData(() => supabase.from('positions').select('*')),
                 fetchAllData(() => supabase.from('member_positions').select('*').eq('quarter', targetQuarter)),
                 fetchAllData(() => supabase.from('member_quarter_settings').select('*').in('quarter', [targetQuarter, 'SYSTEM']))
             ]);
+
+            const pData = sortPositions(rawPData);
 
             setDbData({ 
                 members: mData || [], positions: pData || [], memberPositions: mpData || [], 
@@ -634,12 +678,36 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
     }, [recommendations, searchTerm]);
 
     const handlePublishClick = () => {
-        const hasEmpty = generatedDraft.some(d => d.is_empty);
-        if (hasEmpty) { 
-            setErrorMsg('⚠️「人工指派」空缺未填補，完成後再發布'); 
+        // 利用 min_people 智慧驗證空缺
+        const counts = {}; 
+        generatedDraft.forEach(d => {
+            if (d.is_empty) return;
+            const key = `${d.service_date}_${d.session}_${d.position_id}`;
+            counts[key] = (counts[key] || 0) + 1;
+        });
+
+        const expectedKeys = new Set();
+        generatedDraft.forEach(d => { expectedKeys.add(`${d.service_date}_${d.session}_${d.position_id}`); });
+
+        let unmetMin = false;
+        for (let key of expectedKeys) {
+            const parts = key.split('_');
+            const posId = parts[2];
+            const pos = dbData.positions.find(p => p.id == posId);
+            const min = pos?.min_people !== undefined ? pos.min_people : 1;
+            const filled = counts[key] || 0;
+            if (filled < min) {
+                unmetMin = true;
+                break;
+            }
+        }
+
+        if (unmetMin) { 
+            setErrorMsg('⚠️ 尚未達到崗位「最少」需求人數，請補齊後再發布'); 
             setTimeout(() => setErrorMsg(''), 5000); 
             return; 
         }
+
         setPublishConfirmOpen(true);
     };
 
@@ -779,6 +847,78 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
         setSortConfig({ key, direction });
     };
 
+    const renderPositionSettingsPanel = () => (
+        <div className="mb-8 border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+            <button 
+                onClick={() => setIsPositionsPanelOpen(!isPositionsPanelOpen)}
+                className="w-full flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100 transition-colors focus:outline-none"
+            >
+                <div className="flex items-center gap-2 font-bold text-slate-700">
+                    <ShieldCheck size={18} className="text-indigo-500" />
+                    崗位設定
+                </div>
+                {isPositionsPanelOpen ? <ChevronUp size={18} className="text-slate-400"/> : <ChevronDown size={18} className="text-slate-400"/>}
+            </button>
+            
+            {isPositionsPanelOpen && (
+                <div className="p-5 border-t border-slate-200 bg-white animate-fade-in space-y-4">
+                    <div className="flex justify-end gap-3">
+                        <button 
+                            onClick={handleAddPosition}
+                            className="bg-indigo-50 text-indigo-600 border border-indigo-100 px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-100 transition-colors flex items-center gap-1.5"
+                            title="新增崗位"
+                        >
+                            <Plus size={16} strokeWidth={3} /> 新增
+                        </button>
+                        <button 
+                            onClick={handleSavePositions} 
+                            disabled={isSavingPositions}
+                            className="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors flex items-center gap-2 disabled:opacity-50"
+                        >
+                            {isSavingPositions ? <RefreshCw className="animate-spin" size={16}/> : <Save size={16}/>}
+                            儲存
+                        </button>
+                    </div>
+                    <div className="space-y-3 max-h-64 overflow-y-auto custom-scrollbar pr-2">
+                        {editPositions.map((pos, idx) => (
+                            <div key={pos.id || pos.temp_id} className="flex flex-col sm:flex-row sm:items-center gap-3">
+                                <input 
+                                    type="text" 
+                                    value={pos.name || ''} 
+                                    onChange={e => handlePositionChange(idx, 'name', e.target.value)}
+                                    placeholder="崗位名稱"
+                                    className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-500 transition-all font-medium text-slate-700"
+                                />
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 shrink-0">
+                                        <span className="text-slate-500 text-[13px] font-medium">最少</span>
+                                        <input 
+                                            type="number" 
+                                            min="0"
+                                            value={pos.min_people !== undefined ? pos.min_people : 1} 
+                                            onChange={e => handlePositionChange(idx, 'min_people', e.target.value)}
+                                            className="w-10 text-center text-sm font-bold text-slate-900 bg-transparent outline-none"
+                                        />
+                                    </div>
+                                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 shrink-0">
+                                        <span className="text-slate-500 text-[13px] font-medium">最多</span>
+                                        <input 
+                                            type="number" 
+                                            min="1"
+                                            value={pos.max_people !== undefined ? pos.max_people : 1} 
+                                            onChange={e => handlePositionChange(idx, 'max_people', e.target.value)}
+                                            className="w-10 text-center text-sm font-bold text-slate-900 bg-transparent outline-none"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+
     const renderOriginalDataAnalysis = () => {
         if (!dashboardStats) return (
             <div className="h-full flex flex-col items-center justify-center p-8 text-slate-400 font-medium bg-slate-50">
@@ -906,65 +1046,8 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                                 <div className="space-y-2"><label className="text-xs font-medium text-slate-500 ml-2">季度</label><select value={quarter} onChange={e => setQuarter(parseInt(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-6 py-4 font-normal text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"><option value={1}>Q1 (1-3月)</option><option value={2}>Q2 (4-6月)</option><option value={3}>Q3 (7-9月)</option><option value={4}>Q4 (10-12月)</option></select></div>
                             </div>
                             
-                            {/* --- 崗位設定 Accordion 面板 --- */}
-                            <div className="mb-8 border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
-                                <button 
-                                    onClick={() => setIsPositionsPanelOpen(!isPositionsPanelOpen)}
-                                    className="w-full flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100 transition-colors focus:outline-none"
-                                >
-                                    <div className="flex items-center gap-2 font-bold text-slate-700">
-                                        <ShieldCheck size={18} className="text-indigo-500" />
-                                        崗位設定
-                                    </div>
-                                    {isPositionsPanelOpen ? <ChevronUp size={18} className="text-slate-400"/> : <ChevronDown size={18} className="text-slate-400"/>}
-                                </button>
-                                
-                                {isPositionsPanelOpen && (
-                                    <div className="p-5 border-t border-slate-200 bg-white animate-fade-in space-y-4">
-                                        <div className="flex justify-end">
-                                            <button 
-                                                onClick={handleSavePositions} 
-                                                disabled={isSavingPositions}
-                                                className="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors flex items-center gap-2 disabled:opacity-50"
-                                            >
-                                                {isSavingPositions ? <RefreshCw className="animate-spin" size={16}/> : <Save size={16}/>}
-                                                儲存設定
-                                            </button>
-                                        </div>
-                                        <div className="space-y-3 max-h-64 overflow-y-auto custom-scrollbar pr-2">
-                                            {editPositions.map((pos, idx) => (
-                                                <div key={pos.id || pos.temp_id} className="flex items-center gap-3">
-                                                    <input 
-                                                        type="text" 
-                                                        value={pos.name || ''} 
-                                                        onChange={e => handlePositionChange(idx, 'name', e.target.value)}
-                                                        placeholder="崗位名稱"
-                                                        className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-indigo-500 transition-all font-medium text-slate-700"
-                                                    />
-                                                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 shrink-0">
-                                                        <span className="text-slate-500 text-[13px] font-medium">需求人數</span>
-                                                        <input 
-                                                            type="number" 
-                                                            min="1"
-                                                            value={pos.max_people || 1} 
-                                                            onChange={e => handlePositionChange(idx, 'max_people', e.target.value)}
-                                                            className="w-10 text-center text-sm font-bold text-slate-900 bg-transparent outline-none"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            ))}
-                                            <button 
-                                                onClick={handleAddPosition}
-                                                className="mt-3 text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 py-2.5 rounded-lg transition-colors flex items-center justify-center w-full border border-indigo-100 border-dashed"
-                                                title="新增崗位"
-                                            >
-                                                <Plus size={20} strokeWidth={3} />
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                            {/* ------------------------- */}
+                            {/* --- 無所不在的崗位設定面板 --- */}
+                            {renderPositionSettingsPanel()}
 
                             <button onClick={runAutoSchedule} disabled={isLoading} className="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-medium py-4 rounded-xl flex items-center justify-center gap-3 transition-all active:scale-95 shadow-button hover:-translate-y-0.5">{isLoading ? <RefreshCw className="animate-spin" /> : <><Play size={20} fill="currentColor"/> 建立新班表</>}</button>
                             {!dbData.memberQuarterSettings.some(s => s.quarter === `${year}-Q${quarter}`) && !isLoading && (
@@ -973,10 +1056,14 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                         </div>
                     ) : (
                         <div className="animate-fade-in">
-                            <div className="grid grid-cols-2 gap-6 mb-10">
+                            <div className="grid grid-cols-2 gap-6 mb-8">
                                 <div className="space-y-2"><label className="text-xs font-medium text-slate-500 ml-2">年份</label><input type="number" value={queryYear} onChange={e => setQueryYear(parseInt(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-6 py-4 font-normal text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" /></div>
                                 <div className="space-y-2"><label className="text-xs font-medium text-slate-500 ml-2">季度</label><select value={queryQuarter} onChange={e => setQueryQuarter(parseInt(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-6 py-4 font-normal text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"><option value={1}>Q1 (1-3月)</option><option value={2}>Q2 (4-6月)</option><option value={3}>Q3 (7-9月)</option><option value={4}>Q4 (10-12月)</option></select></div>
                             </div>
+                            
+                            {/* --- 無所不在的崗位設定面板 --- */}
+                            {renderPositionSettingsPanel()}
+
                             <button onClick={runQuerySchedule} disabled={isLoading} className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:opacity-95 disabled:from-indigo-300 disabled:to-violet-300 text-white font-medium py-4 rounded-xl flex items-center justify-center gap-3 transition-all active:scale-95 shadow-button hover:-translate-y-0.5">{isLoading ? <RefreshCw className="animate-spin" /> : <><Search size={20} strokeWidth={3}/> 開始編輯</>}</button>
                             {!hasQuerySchedule && !isLoading && (
                                 <p className="text-rose-500 text-[13px] font-medium text-center mt-4 flex items-center justify-center gap-1.5 animate-pulse"><AlertCircle size={16} /> 尚未建立 {queryYear}Q{queryQuarter} 排班資料，請至「預排作業」新增。</p>
