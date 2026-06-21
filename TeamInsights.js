@@ -36,7 +36,7 @@ const getYoYQuarter = (qStr) => {
 // ==========================================
 // 視覺元件：歷史趨勢儲存格 (紅漲綠跌)
 // ==========================================
-const DiffCell = ({ diff, isHovered }) => {
+const DiffCell = ({ diff }) => {
     const baseClass = "px-2 py-2.5 text-center text-[12px] font-bold border-b border-slate-100/50";
     if (diff === null || diff === undefined) return <td className={`${baseClass} text-slate-300`}>-</td>;
     if (diff > 0) return <td className={`${baseClass} text-rose-500`}>↑ {diff} 人</td>;
@@ -284,7 +284,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
 
                 <div className="flex-1 overflow-y-auto p-6 lg:p-8 custom-scrollbar pb-24">
                     {isLoading || matrixStats.length === 0 ? (
-                        <div className="h-full flex items-center justify-center text-slate-400 font-medium animate-pulse">計算戰略數據中...</div>
+                        <div className="h-full flex items-center justify-center text-slate-400 font-medium animate-pulse">Loading...</div>
                     ) : (
                         <div className="max-w-7xl mx-auto space-y-8">
                             
@@ -293,16 +293,15 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                 <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
                                     <div className="flex items-center gap-2">
                                         <TrendingUp className="text-indigo-600" size={20} />
-                                        <h3 className="text-lg font-extrabold text-slate-800 tracking-tight">人力資源戰略分析矩陣</h3>
+                                        <h3 className="text-lg font-extrabold text-slate-800 tracking-tight">人力資源分析</h3>
                                     </div>
-                                    <span className="text-xs font-medium text-slate-400 bg-white px-3 py-1.5 rounded-full border border-slate-200 shadow-sm">點擊列可同步檢視該季詳細沙盤</span>
                                 </div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left border-collapse min-w-[900px]">
                                         <thead>
                                             {/* 第一層表頭：四大分類區塊 */}
                                             <tr>
-                                                <th rowSpan="2" className="py-3 px-4 font-bold text-slate-700 text-sm border-b-2 border-slate-200 bg-white shadow-[1px_0_0_rgba(226,232,240,1)] sticky left-0 z-10 w-[100px]">分析季度</th>
+                                                <th rowSpan="2" className="py-3 px-4 font-bold text-slate-700 text-sm border-b-2 border-slate-200 bg-white shadow-[1px_0_0_rgba(226,232,240,1)] sticky left-0 z-10 w-[100px]">季度</th>
                                                 <th colSpan="3" className="py-2.5 px-3 font-extrabold text-slate-700 text-[13px] border-b border-slate-200 bg-slate-100/70 text-center tracking-widest shadow-[1px_0_0_rgba(226,232,240,1)]">同工總人數</th>
                                                 <th colSpan="3" className="py-2.5 px-3 font-extrabold text-emerald-800 text-[13px] border-b border-emerald-200/50 bg-emerald-50/70 text-center tracking-widest shadow-[1px_0_0_rgba(226,232,240,1)]">上線服事人數</th>
                                                 <th colSpan="3" className="py-2.5 px-3 font-extrabold text-orange-800 text-[13px] border-b border-orange-200/50 bg-orange-50/70 text-center tracking-widest shadow-[1px_0_0_rgba(226,232,240,1)]">暫停服事人數</th>
@@ -312,20 +311,20 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                             <tr>
                                                 {/* 總人數 */}
                                                 <th className="py-2 px-2 font-semibold text-slate-500 text-[11px] border-b-2 border-slate-200 bg-slate-50/50 text-center">總計</th>
-                                                <th className="py-2 px-2 font-semibold text-slate-500 text-[11px] border-b-2 border-slate-200 bg-slate-50/50 text-center">QoQ季變動</th>
-                                                <th className="py-2 px-2 font-semibold text-slate-500 text-[11px] border-b-2 border-slate-200 bg-slate-50/50 text-center shadow-[1px_0_0_rgba(226,232,240,1)]">YoY年變動</th>
+                                                <th className="py-2 px-2 font-semibold text-slate-500 text-[11px] border-b-2 border-slate-200 bg-slate-50/50 text-center">QoQ</th>
+                                                <th className="py-2 px-2 font-semibold text-slate-500 text-[11px] border-b-2 border-slate-200 bg-slate-50/50 text-center shadow-[1px_0_0_rgba(226,232,240,1)]">YoY</th>
                                                 {/* 上線人數 */}
                                                 <th className="py-2 px-2 font-semibold text-emerald-600/80 text-[11px] border-b-2 border-emerald-200/50 bg-emerald-50/30 text-center">總計</th>
-                                                <th className="py-2 px-2 font-semibold text-emerald-600/80 text-[11px] border-b-2 border-emerald-200/50 bg-emerald-50/30 text-center">QoQ季變動</th>
-                                                <th className="py-2 px-2 font-semibold text-emerald-600/80 text-[11px] border-b-2 border-emerald-200/50 bg-emerald-50/30 text-center shadow-[1px_0_0_rgba(226,232,240,1)]">YoY年變動</th>
+                                                <th className="py-2 px-2 font-semibold text-emerald-600/80 text-[11px] border-b-2 border-emerald-200/50 bg-emerald-50/30 text-center">QoQ</th>
+                                                <th className="py-2 px-2 font-semibold text-emerald-600/80 text-[11px] border-b-2 border-emerald-200/50 bg-emerald-50/30 text-center shadow-[1px_0_0_rgba(226,232,240,1)]">YoY</th>
                                                 {/* 暫停人數 */}
                                                 <th className="py-2 px-2 font-semibold text-orange-600/80 text-[11px] border-b-2 border-orange-200/50 bg-orange-50/30 text-center">總計</th>
-                                                <th className="py-2 px-2 font-semibold text-orange-600/80 text-[11px] border-b-2 border-orange-200/50 bg-orange-50/30 text-center">QoQ季變動</th>
-                                                <th className="py-2 px-2 font-semibold text-orange-600/80 text-[11px] border-b-2 border-orange-200/50 bg-orange-50/30 text-center shadow-[1px_0_0_rgba(226,232,240,1)]">YoY年變動</th>
+                                                <th className="py-2 px-2 font-semibold text-orange-600/80 text-[11px] border-b-2 border-orange-200/50 bg-orange-50/30 text-center">QoQ</th>
+                                                <th className="py-2 px-2 font-semibold text-orange-600/80 text-[11px] border-b-2 border-orange-200/50 bg-orange-50/30 text-center shadow-[1px_0_0_rgba(226,232,240,1)]">YoY</th>
                                                 {/* 安息季人數 */}
                                                 <th className="py-2 px-2 font-semibold text-sky-600/80 text-[11px] border-b-2 border-sky-200/50 bg-sky-50/30 text-center">總計</th>
-                                                <th className="py-2 px-2 font-semibold text-sky-600/80 text-[11px] border-b-2 border-sky-200/50 bg-sky-50/30 text-center">QoQ季變動</th>
-                                                <th className="py-2 px-2 font-semibold text-sky-600/80 text-[11px] border-b-2 border-sky-200/50 bg-sky-50/30 text-center">YoY年變動</th>
+                                                <th className="py-2 px-2 font-semibold text-sky-600/80 text-[11px] border-b-2 border-sky-200/50 bg-sky-50/30 text-center">QoQ</th>
+                                                <th className="py-2 px-2 font-semibold text-sky-600/80 text-[11px] border-b-2 border-sky-200/50 bg-sky-50/30 text-center">YoY</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -375,8 +374,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                             <div>
                                 <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-4 justify-between">
                                     <div className="flex items-center gap-2">
-                                        <span className="bg-violet-100 text-violet-700 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider uppercase">單季操作沙盤</span>
-                                        <span className="text-sm font-bold text-slate-500">目前檢視：<strong className="text-violet-700 ml-1">{viewQuarter}</strong></span>
+                                        <span className="text-sm font-bold text-slate-500">季度：<strong className="text-violet-700 ml-1">{viewQuarter.replace('-', '')}</strong></span>
                                     </div>
                                 </div>
                                 
@@ -386,7 +384,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                         <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between gap-2">
                                             <div className="flex items-center gap-2">
                                                 <LayoutList className="text-indigo-500" size={20} />
-                                                <h3 className="text-lg font-bold text-slate-800">單堂人力分布現況</h3>
+                                                <h3 className="text-lg font-bold text-slate-800">人力分布</h3>
                                             </div>
                                         </div>
                                         <div className="overflow-x-auto flex-1">
@@ -394,7 +392,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                 <thead>
                                                     <tr>
                                                         <th className="py-3 px-4 font-semibold text-slate-500 text-sm border-b border-slate-200 bg-slate-50">崗位</th>
-                                                        <th className="py-3 px-2 font-semibold text-slate-500 text-sm border-b border-slate-200 bg-slate-50 text-center">單堂低標</th>
+                                                        <th className="py-3 px-2 font-semibold text-slate-500 text-sm border-b border-slate-200 bg-slate-50 text-center">單堂最低人數</th>
                                                         <th className="py-3 px-3 font-semibold text-slate-700 text-sm border-b border-slate-200 bg-indigo-50/30 text-center">第一堂</th>
                                                         <th className="py-3 px-3 font-semibold text-slate-700 text-sm border-b border-slate-200 bg-indigo-50/30 text-center">第二堂</th>
                                                         <th className="py-3 px-3 font-semibold text-slate-500 text-sm border-b border-slate-200 bg-slate-50 text-center">皆可</th>
