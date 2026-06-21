@@ -171,7 +171,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
     }, [dbData, availableQuarters]);
 
     // ==========================================
-    // 計算 2：單季操作洞察 (導入 FTE 有效人力計算)
+    // 計算 2：單季操作洞察 (雙變數: 人數與FTE有效人力)
     // ==========================================
     const insights = useMemo(() => {
         const { members, positions, memberPositions, quarterSettings } = dbData;
@@ -187,47 +187,52 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             }
         });
 
-        // 崗位人力分布與單堂健康度試算 (FTE 加權版)
+        // 崗位人力分布試算
         const positionDistribution = positions.map(pos => {
-            let session1 = 0, session2 = 0, both = 0;
+            let s1Count = 0, s2Count = 0, bothCount = 0;
+            let s1FTE = 0, s2FTE = 0, bothFTE = 0;
             
             realMembers.forEach(m => {
                 if (!activeMemberIds.has(m.id)) return; 
                 const hasPos = memberPositions.some(mp => mp.member_id === m.id && mp.position_id === pos.id && mp.is_active !== false);
                 
                 if (hasPos) {
-                    // 計算有效人力權重 (1 / 活躍兼任崗位數)
+                    // 計算 FTE 權重
                     const activePosCount = memberPositions.filter(mp => mp.member_id === m.id && mp.is_active !== false).length;
                     const weight = 1 / (activePosCount || 1);
-
                     const pref = qsMap[m.id]?.preferred_session || '第一堂';
-                    if (pref === '第一堂') session1 += weight;
-                    else if (pref === '第二堂') session2 += weight;
-                    else both += weight;
+
+                    if (pref === '第一堂') { s1Count++; s1FTE += weight; }
+                    else if (pref === '第二堂') { s2Count++; s2FTE += weight; }
+                    else { bothCount++; bothFTE += weight; }
                 }
             });
 
-            // 四捨五入至小數點第一位，呈現精確的有效人力
-            session1 = Math.round(session1 * 10) / 10;
-            session2 = Math.round(session2 * 10) / 10;
-            both = Math.round(both * 10) / 10;
-            const total = Math.round((session1 + session2 + both) * 10) / 10;
+            // 四捨五入處理 FTE
+            s1FTE = Math.round(s1FTE * 10) / 10;
+            s2FTE = Math.round(s2FTE * 10) / 10;
+            bothFTE = Math.round(bothFTE * 10) / 10;
+            
+            const totalCount = s1Count + s2Count + bothCount;
+            const totalFTE = Math.round((s1FTE + s2FTE + bothFTE) * 10) / 10;
 
             const req = POSITION_REQUIREMENTS[pos.name] || { singleSession: 0, freq: 'weekly' };
             let sessionQuarterDemand = req.freq === 'monthly' ? req.singleSession * 3 : req.singleSession * 13; 
             const sessionMinRequired = Math.ceil(sessionQuarterDemand / 6);
 
+            // 判斷健康度 (以 FTE 為基準)
             let s1Health = 'gray';
             let s2Health = 'gray';
 
             if (req.singleSession > 0) {
-                s1Health = session1 >= sessionMinRequired ? 'green' : 'red';
-                s2Health = session2 >= sessionMinRequired ? 'green' : 'red';
+                s1Health = s1FTE >= sessionMinRequired ? 'green' : 'red';
+                s2Health = s2FTE >= sessionMinRequired ? 'green' : 'red';
             }
 
             return { 
                 id: pos.id, name: pos.name, 
-                session1, session2, both, total,
+                s1Count, s2Count, bothCount, totalCount,
+                s1FTE, s2FTE, bothFTE, totalFTE,
                 sessionMinRequired, s1Health, s2Health
             };
         });
@@ -308,7 +313,6 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left border-collapse min-w-[900px]">
                                         <thead>
-                                            {/* 第一層表頭：四大分類區塊 */}
                                             <tr>
                                                 <th rowSpan="2" className="py-3 px-4 font-bold text-slate-700 text-sm border-b-2 border-slate-200 bg-white shadow-[1px_0_0_rgba(226,232,240,1)] sticky left-0 z-10 w-[100px]">季度</th>
                                                 <th colSpan="3" className="py-2.5 px-3 font-extrabold text-slate-700 text-[13px] border-b border-slate-200 bg-slate-100/70 text-center tracking-widest shadow-[1px_0_0_rgba(226,232,240,1)]">同工總人數</th>
@@ -316,28 +320,26 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                 <th colSpan="3" className="py-2.5 px-3 font-extrabold text-orange-800 text-[13px] border-b border-orange-200/50 bg-orange-50/70 text-center tracking-widest shadow-[1px_0_0_rgba(226,232,240,1)]">暫停服事人數</th>
                                                 <th colSpan="3" className="py-2.5 px-3 font-extrabold text-sky-800 text-[13px] border-b border-sky-200/50 bg-sky-50/70 text-center tracking-widest">安息季人數</th>
                                             </tr>
-                                            {/* 第二層表頭：細部指標 */}
                                             <tr>
-                                                {/* 總人數 */}
                                                 <th className="py-2 px-2 font-semibold text-slate-500 text-[11px] border-b-2 border-slate-200 bg-slate-50/50 text-center">總計</th>
                                                 <th className="py-2 px-2 font-semibold text-slate-500 text-[11px] border-b-2 border-slate-200 bg-slate-50/50 text-center">QoQ</th>
                                                 <th className="py-2 px-2 font-semibold text-slate-500 text-[11px] border-b-2 border-slate-200 bg-slate-50/50 text-center shadow-[1px_0_0_rgba(226,232,240,1)]">YoY</th>
-                                                {/* 上線人數 */}
+                                                
                                                 <th className="py-2 px-2 font-semibold text-emerald-600/80 text-[11px] border-b-2 border-emerald-200/50 bg-emerald-50/30 text-center">總計</th>
                                                 <th className="py-2 px-2 font-semibold text-emerald-600/80 text-[11px] border-b-2 border-emerald-200/50 bg-emerald-50/30 text-center">QoQ</th>
                                                 <th className="py-2 px-2 font-semibold text-emerald-600/80 text-[11px] border-b-2 border-emerald-200/50 bg-emerald-50/30 text-center shadow-[1px_0_0_rgba(226,232,240,1)]">YoY</th>
-                                                {/* 暫停人數 */}
+                                                
                                                 <th className="py-2 px-2 font-semibold text-orange-600/80 text-[11px] border-b-2 border-orange-200/50 bg-orange-50/30 text-center">總計</th>
                                                 <th className="py-2 px-2 font-semibold text-orange-600/80 text-[11px] border-b-2 border-orange-200/50 bg-orange-50/30 text-center">QoQ</th>
                                                 <th className="py-2 px-2 font-semibold text-orange-600/80 text-[11px] border-b-2 border-orange-200/50 bg-orange-50/30 text-center shadow-[1px_0_0_rgba(226,232,240,1)]">YoY</th>
-                                                {/* 安息季人數 */}
+                                                
                                                 <th className="py-2 px-2 font-semibold text-sky-600/80 text-[11px] border-b-2 border-sky-200/50 bg-sky-50/30 text-center">總計</th>
                                                 <th className="py-2 px-2 font-semibold text-sky-600/80 text-[11px] border-b-2 border-sky-200/50 bg-sky-50/30 text-center">QoQ</th>
                                                 <th className="py-2 px-2 font-semibold text-sky-600/80 text-[11px] border-b-2 border-sky-200/50 bg-sky-50/30 text-center">YoY</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {matrixStats.map((row, idx) => {
+                                            {matrixStats.map((row) => {
                                                 const isSelected = viewQuarter === row.quarter;
                                                 return (
                                                     <tr 
@@ -345,27 +347,18 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                         onClick={() => setViewQuarter(row.quarter)}
                                                         className={`cursor-pointer transition-all duration-150 ${isSelected ? 'bg-indigo-50/60 shadow-[inset_3px_0_0_rgba(79,70,229,1)]' : 'hover:bg-slate-50 bg-white'}`}
                                                     >
-                                                        {/* 第一欄：季度 (鎖定左側) */}
                                                         <td className={`py-3 px-4 font-extrabold text-[13px] border-b border-slate-100/50 shadow-[1px_0_0_rgba(226,232,240,1)] sticky left-0 z-10 ${isSelected ? 'text-indigo-700 bg-indigo-50/60' : 'text-slate-600 bg-inherit'}`}>
                                                             {row.quarter.replace('-', '')}
                                                         </td>
-                                                        
-                                                        {/* 區塊 1: 總人數 */}
                                                         <td className="px-3 py-2.5 text-center font-bold text-[14px] text-slate-700 border-b border-slate-100/50">{row.total}</td>
                                                         <DiffCell diff={row.totalQoQ} />
                                                         <td className="p-0 border-b border-slate-100/50 shadow-[1px_0_0_rgba(226,232,240,1)]"><DiffCell diff={row.totalYoY} /></td>
-                                                        
-                                                        {/* 區塊 2: 上線人數 */}
                                                         <td className="px-3 py-2.5 text-center font-bold text-[14px] text-slate-700 border-b border-slate-100/50">{row.active}</td>
                                                         <DiffCell diff={row.activeQoQ} />
                                                         <td className="p-0 border-b border-slate-100/50 shadow-[1px_0_0_rgba(226,232,240,1)]"><DiffCell diff={row.activeYoY} /></td>
-                                                        
-                                                        {/* 區塊 3: 暫停人數 */}
                                                         <td className="px-3 py-2.5 text-center font-bold text-[14px] text-slate-700 border-b border-slate-100/50">{row.suspended}</td>
                                                         <DiffCell diff={row.suspendedQoQ} />
                                                         <td className="p-0 border-b border-slate-100/50 shadow-[1px_0_0_rgba(226,232,240,1)]"><DiffCell diff={row.suspendedYoY} /></td>
-                                                        
-                                                        {/* 區塊 4: 安息季人數 */}
                                                         <td className="px-3 py-2.5 text-center font-bold text-[14px] text-slate-700 border-b border-slate-100/50">{row.sabbatical}</td>
                                                         <DiffCell diff={row.sabbaticalQoQ} />
                                                         <DiffCell diff={row.sabbaticalYoY} />
@@ -388,7 +381,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                 </div>
                                 
                                 <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-                                    {/* 左側：人力分布 (FTE加權) (佔3格) */}
+                                    {/* 左側：人力分布 (雙層表頭版) */}
                                     <div className="xl:col-span-3 bg-white rounded-xl shadow-soft border border-slate-100 overflow-hidden flex flex-col">
                                         <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between gap-2">
                                             <div className="flex items-center gap-2">
@@ -397,15 +390,27 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                             </div>
                                         </div>
                                         <div className="overflow-x-auto flex-1">
-                                            <table className="w-full text-left border-collapse min-w-[550px]">
+                                            <table className="w-full text-left border-collapse min-w-[700px]">
                                                 <thead>
+                                                    {/* 第一層大區塊 */}
                                                     <tr>
-                                                        <th className="py-3 px-4 font-semibold text-slate-500 text-sm border-b border-slate-200 bg-slate-50">崗位</th>
-                                                        <th className="py-3 px-2 font-semibold text-slate-500 text-sm border-b border-slate-200 bg-slate-50 text-center">單堂最低人數</th>
-                                                        <th className="py-3 px-3 font-semibold text-slate-700 text-sm border-b border-slate-200 bg-indigo-50/30 text-center leading-tight">第一堂<br/><span className="text-[10px] text-slate-400 font-normal">有效人力</span></th>
-                                                        <th className="py-3 px-3 font-semibold text-slate-700 text-sm border-b border-slate-200 bg-indigo-50/30 text-center leading-tight">第二堂<br/><span className="text-[10px] text-slate-400 font-normal">有效人力</span></th>
-                                                        <th className="py-3 px-3 font-semibold text-slate-500 text-sm border-b border-slate-200 bg-slate-50 text-center leading-tight">皆可<br/><span className="text-[10px] text-slate-400 font-normal">有效人力</span></th>
-                                                        <th className="py-3 px-4 font-bold text-slate-700 text-sm border-b border-slate-200 bg-slate-50 text-center leading-tight">總計<br/><span className="text-[10px] text-slate-400 font-normal">有效人力</span></th>
+                                                        <th rowSpan="2" className="py-2 px-4 font-semibold text-slate-500 text-sm border-b border-slate-200 bg-slate-50 align-middle">崗位</th>
+                                                        <th rowSpan="2" className="py-2 px-2 font-semibold text-slate-500 text-[13px] border-b border-slate-200 bg-slate-50 text-center align-middle">單堂最低人數</th>
+                                                        <th colSpan="2" className="py-2 px-3 font-bold text-slate-700 text-sm border-b border-slate-200 bg-indigo-50/60 text-center">第一堂</th>
+                                                        <th colSpan="2" className="py-2 px-3 font-bold text-slate-700 text-sm border-b border-slate-200 bg-indigo-50/60 text-center">第二堂</th>
+                                                        <th colSpan="2" className="py-2 px-3 font-bold text-slate-600 text-sm border-b border-slate-200 bg-slate-100/50 text-center">皆可</th>
+                                                        <th colSpan="2" className="py-2 px-4 font-extrabold text-slate-800 text-sm border-b border-slate-200 bg-slate-100/80 text-center">總計</th>
+                                                    </tr>
+                                                    {/* 第二層細部指標 */}
+                                                    <tr>
+                                                        <th className="py-1.5 px-2 font-semibold text-slate-500 text-[11px] border-b border-slate-200 bg-indigo-50/30 text-center">人數</th>
+                                                        <th className="py-1.5 px-2 font-semibold text-slate-500 text-[11px] border-b border-slate-200 bg-indigo-50/30 text-center">FTE</th>
+                                                        <th className="py-1.5 px-2 font-semibold text-slate-500 text-[11px] border-b border-slate-200 bg-indigo-50/30 text-center">人數</th>
+                                                        <th className="py-1.5 px-2 font-semibold text-slate-500 text-[11px] border-b border-slate-200 bg-indigo-50/30 text-center">FTE</th>
+                                                        <th className="py-1.5 px-2 font-semibold text-slate-500 text-[11px] border-b border-slate-200 bg-slate-50/80 text-center">人數</th>
+                                                        <th className="py-1.5 px-2 font-semibold text-slate-500 text-[11px] border-b border-slate-200 bg-slate-50/80 text-center">FTE</th>
+                                                        <th className="py-1.5 px-2 font-semibold text-slate-600 text-[11px] border-b border-slate-200 bg-slate-100/50 text-center">人數</th>
+                                                        <th className="py-1.5 px-2 font-semibold text-slate-600 text-[11px] border-b border-slate-200 bg-slate-100/50 text-center">FTE</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -417,21 +422,37 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                                 {pos.sessionMinRequired > 0 ? `${pos.sessionMinRequired}` : '-'}
                                                             </td>
 
-                                                            <td className={`py-3.5 px-3 text-center border-b border-slate-100 ${pos.s1Health === 'red' ? 'bg-rose-50/70' : 'bg-indigo-50/10'}`}>
-                                                                <div className={`font-bold text-lg leading-none ${pos.s1Health === 'red' ? 'text-rose-600' : 'text-slate-700'}`}>
-                                                                    {pos.session1}
-                                                                </div>
+                                                            {/* 第一堂：若 FTE 不足，則人數與 FTE 兩格皆亮紅字紅底 */}
+                                                            <td className={`py-3.5 px-2 text-center border-b border-slate-100 ${pos.s1Health === 'red' ? 'bg-rose-50/70 text-rose-600' : 'bg-indigo-50/10 text-slate-700'}`}>
+                                                                <div className="font-bold text-base leading-none">{pos.s1Count}</div>
+                                                            </td>
+                                                            <td className={`py-3.5 px-2 text-center border-b border-slate-100 ${pos.s1Health === 'red' ? 'bg-rose-50/70 text-rose-600' : 'bg-indigo-50/10 text-indigo-600'}`}>
+                                                                <div className="font-semibold text-sm leading-none">{pos.s1FTE}</div>
                                                             </td>
 
-                                                            <td className={`py-3.5 px-3 text-center border-b border-slate-100 ${pos.s2Health === 'red' ? 'bg-rose-50/70' : 'bg-indigo-50/10'}`}>
-                                                                <div className={`font-bold text-lg leading-none ${pos.s2Health === 'red' ? 'text-rose-600' : 'text-slate-700'}`}>
-                                                                    {pos.session2}
-                                                                </div>
+                                                            {/* 第二堂：若 FTE 不足，則人數與 FTE 兩格皆亮紅字紅底 */}
+                                                            <td className={`py-3.5 px-2 text-center border-b border-slate-100 ${pos.s2Health === 'red' ? 'bg-rose-50/70 text-rose-600' : 'bg-indigo-50/10 text-slate-700'}`}>
+                                                                <div className="font-bold text-base leading-none">{pos.s2Count}</div>
+                                                            </td>
+                                                            <td className={`py-3.5 px-2 text-center border-b border-slate-100 ${pos.s2Health === 'red' ? 'bg-rose-50/70 text-rose-600' : 'bg-indigo-50/10 text-indigo-600'}`}>
+                                                                <div className="font-semibold text-sm leading-none">{pos.s2FTE}</div>
                                                             </td>
 
-                                                            <td className="py-3.5 px-3 text-center font-bold text-slate-500 border-b border-slate-100 bg-slate-50">{pos.both}</td>
+                                                            {/* 皆可 */}
+                                                            <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-slate-50">
+                                                                <div className="font-bold text-base leading-none text-slate-600">{pos.bothCount}</div>
+                                                            </td>
+                                                            <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-slate-50">
+                                                                <div className="font-semibold text-sm leading-none text-slate-500">{pos.bothFTE}</div>
+                                                            </td>
                                                             
-                                                            <td className="py-3.5 px-4 text-center font-extrabold text-lg text-indigo-600 border-b border-slate-100 bg-slate-50">{pos.total}</td>
+                                                            {/* 總計 */}
+                                                            <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-slate-100/30">
+                                                                <div className="font-extrabold text-base leading-none text-slate-800">{pos.totalCount}</div>
+                                                            </td>
+                                                            <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-slate-100/30">
+                                                                <div className="font-bold text-sm leading-none text-indigo-600">{pos.totalFTE}</div>
+                                                            </td>
                                                         </tr>
                                                     ))}
                                                 </tbody>
