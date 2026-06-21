@@ -72,7 +72,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                 const currentQuarterStr = `${year}-Q${quarter}`;
                 const [{ data: members }, { data: positions }, { data: memberPositions }, { data: quarterSettings }] = await Promise.all([
                     fetchAllData(() => supabase.from('members').select('*')),
-                    fetchAllData(() => supabase.from('positions').select('*').order('created_at', { ascending: true })),
+                    fetchAllData(() => supabase.from('positions').select('*').order('name', { ascending: true })),
                     fetchAllData(() => supabase.from('member_positions').select('*').eq('quarter', currentQuarterStr)),
                     fetchAllData(() => supabase.from('member_quarter_settings').select('*').in('quarter', [currentQuarterStr, 'SYSTEM']))
                 ]);
@@ -214,7 +214,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
             
             const [{ data: mData }, { data: pData }, { data: mpData }, { data: qsData }] = await Promise.all([
                 fetchAllData(() => supabase.from('members').select('*')),
-                fetchAllData(() => supabase.from('positions').select('*').order('created_at', { ascending: true })),
+                fetchAllData(() => supabase.from('positions').select('*').order('name', { ascending: true })),
                 fetchAllData(() => supabase.from('member_positions').select('*').eq('quarter', targetQuarter)),
                 fetchAllData(() => supabase.from('member_quarter_settings').select('*').in('quarter', [targetQuarter, 'SYSTEM']))
             ]);
@@ -914,7 +914,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                                 >
                                     <div className="flex items-center gap-2 font-bold text-slate-700">
                                         <ShieldCheck size={18} className="text-indigo-500" />
-                                        服事崗位與人數設定
+                                        崗位設定
                                     </div>
                                     {isPositionsPanelOpen ? <ChevronUp size={18} className="text-slate-400"/> : <ChevronDown size={18} className="text-slate-400"/>}
                                 </button>
