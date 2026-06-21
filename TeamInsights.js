@@ -91,7 +91,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                     fetchAllData(() => supabase.from('members').select('*').order('name')),
                     fetchAllData(() => supabase.from('positions').select('*').order('id')),
                     fetchAllData(() => supabase.from('member_positions').select('*').eq('quarter', viewQuarter)),
-                    fetchAllData(() => supabase.from('member_quarter_settings').select('*')) // 抓取所有以產出矩陣表
+                    fetchAllData(() => supabase.from('member_quarter_settings').select('*')) 
                 ]);
 
                 setDbData({
@@ -118,7 +118,6 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
         const realMembers = dbData.members.filter(m => !m.name.startsWith('SYSTEM_'));
         const { quarterSettings } = dbData;
 
-        // 計算單一季度的基礎 4 項指標
         const getQuarterStat = (qStr) => {
             if (!qStr) return null;
             const hasData = quarterSettings.some(qs => qs.quarter === qStr);
@@ -140,7 +139,6 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             return { total, active, suspended, sabbatical };
         };
 
-        // 為每個可用季度產生一列矩陣資料
         return availableQuarters.map(qStr => {
             const current = getQuarterStat(qStr) || { total: 0, active: 0, suspended: 0, sabbatical: 0 };
             const prevQ = getPrevQuarter(qStr);
@@ -173,7 +171,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
     }, [dbData, availableQuarters]);
 
     // ==========================================
-    // 計算 2：單季操作洞察 (受 viewQuarter 控制)
+    // 計算 2：單季操作洞察 (導入 FTE 有效人力計算)
     // ==========================================
     const insights = useMemo(() => {
         const { members, positions, memberPositions, quarterSettings } = dbData;
@@ -189,20 +187,31 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             }
         });
 
-        // 崗位人力分布與單堂健康度試算
+        // 崗位人力分布與單堂健康度試算 (FTE 加權版)
         const positionDistribution = positions.map(pos => {
             let session1 = 0, session2 = 0, both = 0;
+            
             realMembers.forEach(m => {
                 if (!activeMemberIds.has(m.id)) return; 
                 const hasPos = memberPositions.some(mp => mp.member_id === m.id && mp.position_id === pos.id && mp.is_active !== false);
+                
                 if (hasPos) {
+                    // 計算有效人力權重 (1 / 活躍兼任崗位數)
+                    const activePosCount = memberPositions.filter(mp => mp.member_id === m.id && mp.is_active !== false).length;
+                    const weight = 1 / (activePosCount || 1);
+
                     const pref = qsMap[m.id]?.preferred_session || '第一堂';
-                    if (pref === '第一堂') session1++;
-                    else if (pref === '第二堂') session2++;
-                    else both++;
+                    if (pref === '第一堂') session1 += weight;
+                    else if (pref === '第二堂') session2 += weight;
+                    else both += weight;
                 }
             });
-            const total = session1 + session2 + both;
+
+            // 四捨五入至小數點第一位，呈現精確的有效人力
+            session1 = Math.round(session1 * 10) / 10;
+            session2 = Math.round(session2 * 10) / 10;
+            both = Math.round(both * 10) / 10;
+            const total = Math.round((session1 + session2 + both) * 10) / 10;
 
             const req = POSITION_REQUIREMENTS[pos.name] || { singleSession: 0, freq: 'weekly' };
             let sessionQuarterDemand = req.freq === 'monthly' ? req.singleSession * 3 : req.singleSession * 13; 
@@ -370,7 +379,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
 
                             <hr className="border-slate-200/60 my-2" />
 
-                            {/* 底部：單季操作沙盤 (受上方表格點擊控制 viewQuarter) */}
+                            {/* 底部：單季操作沙盤 */}
                             <div>
                                 <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-4 justify-between">
                                     <div className="flex items-center gap-2">
@@ -379,7 +388,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                 </div>
                                 
                                 <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-                                    {/* 左側：崗位人力分布與單堂健康度 (佔3格) */}
+                                    {/* 左側：人力分布 (FTE加權) (佔3格) */}
                                     <div className="xl:col-span-3 bg-white rounded-xl shadow-soft border border-slate-100 overflow-hidden flex flex-col">
                                         <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between gap-2">
                                             <div className="flex items-center gap-2">
@@ -393,10 +402,10 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                     <tr>
                                                         <th className="py-3 px-4 font-semibold text-slate-500 text-sm border-b border-slate-200 bg-slate-50">崗位</th>
                                                         <th className="py-3 px-2 font-semibold text-slate-500 text-sm border-b border-slate-200 bg-slate-50 text-center">單堂最低人數</th>
-                                                        <th className="py-3 px-3 font-semibold text-slate-700 text-sm border-b border-slate-200 bg-indigo-50/30 text-center">第一堂</th>
-                                                        <th className="py-3 px-3 font-semibold text-slate-700 text-sm border-b border-slate-200 bg-indigo-50/30 text-center">第二堂</th>
-                                                        <th className="py-3 px-3 font-semibold text-slate-500 text-sm border-b border-slate-200 bg-slate-50 text-center">皆可</th>
-                                                        <th className="py-3 px-4 font-bold text-slate-700 text-sm border-b border-slate-200 bg-slate-50 text-center">總計</th>
+                                                        <th className="py-3 px-3 font-semibold text-slate-700 text-sm border-b border-slate-200 bg-indigo-50/30 text-center leading-tight">第一堂<br/><span className="text-[10px] text-slate-400 font-normal">有效人力</span></th>
+                                                        <th className="py-3 px-3 font-semibold text-slate-700 text-sm border-b border-slate-200 bg-indigo-50/30 text-center leading-tight">第二堂<br/><span className="text-[10px] text-slate-400 font-normal">有效人力</span></th>
+                                                        <th className="py-3 px-3 font-semibold text-slate-500 text-sm border-b border-slate-200 bg-slate-50 text-center leading-tight">皆可<br/><span className="text-[10px] text-slate-400 font-normal">有效人力</span></th>
+                                                        <th className="py-3 px-4 font-bold text-slate-700 text-sm border-b border-slate-200 bg-slate-50 text-center leading-tight">總計<br/><span className="text-[10px] text-slate-400 font-normal">有效人力</span></th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -430,11 +439,11 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                         </div>
                                     </div>
 
-                                    {/* 右側：崗位兼任分析長條圖 (佔2格) */}
+                                    {/* 右側：崗位分析長條圖 (佔2格) */}
                                     <div className="xl:col-span-2 bg-white rounded-xl shadow-soft border border-slate-100 overflow-hidden flex flex-col">
                                         <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
                                             <UserCheck className="text-violet-500" size={20} />
-                                            <h3 className="text-lg font-bold text-slate-800">崗位兼任現況 <span className="text-sm text-slate-400 font-normal ml-1">(全體同工)</span></h3>
+                                            <h3 className="text-lg font-bold text-slate-800">崗位分析</h3>
                                         </div>
                                         <div className="p-6 flex-1 flex flex-col justify-center min-h-[300px]">
                                             <div className="flex items-end gap-3 sm:gap-6 h-64 border-b border-slate-200 pb-2 relative px-2">
