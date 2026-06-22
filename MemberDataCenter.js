@@ -448,9 +448,9 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
                     
                     if (error) throw error;
                     
-                    showMessage('success', `成功刪除 ${name} 密碼，請通知同工重新註冊`);
+                    showMessage('success', `重設 ${name} 密碼完成，請通知同工重新註冊`);
                 } catch (err) {
-                    showMessage('error', '刪除失敗: ' + err.message);
+                    showMessage('error', '重設失敗: ' + err.message);
                 } finally {
                     setIsLoading(false);
                 }
