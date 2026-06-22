@@ -146,19 +146,19 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
     };
 
     const handleUpdateInviteCode = async () => {
-        if (!systemInviteCode || systemInviteCode.trim() === '') return showMessage('error', '邀請碼不能為空！');
+        if (!systemInviteCode || systemInviteCode.trim() === '') return showMessage('error', '邀請碼不能為空值');
         
         // 防呆：限制只能是 4~12 位的英數字
         const regex = /^[A-Za-z0-9]{4,12}$/;
         if (!regex.test(systemInviteCode)) {
-            return showMessage('error', '格式錯誤：請輸入 4~12 位英數字組合');
+            return showMessage('error', '格式錯誤：輸入 4~12 位英數字組合');
         }
         
         setIsLoading(true);
         try {
             const { error } = await supabase.rpc('update_invite_code', { new_code: systemInviteCode });
             if (error) throw error;
-            showMessage('success', '邀請碼更新成功！');
+            showMessage('success', '更新成功');
             setIsInviteCodeManagerOpen(false);
         } catch (err) {
             showMessage('error', '更新失敗: ' + err.message);
@@ -170,7 +170,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
     const handleCopyCode = () => {
         navigator.clipboard.writeText(systemInviteCode);
         setIsCopied(true);
-        showMessage('success', '邀請碼已複製！');
+        showMessage('success', '邀請碼已複製');
         setTimeout(() => setIsCopied(false), 2000);
     };
     // =================================
@@ -1131,13 +1131,13 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
                         <div className="bg-white w-full max-w-sm rounded-2xl shadow-hover-soft overflow-hidden flex flex-col animate-fade-in border border-slate-100">
                             <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
                                 <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                                    <KeyRound className="text-indigo-500" size={20} /> 邀請碼管理
+                                    <KeyRound className="text-indigo-500" size={20} /> 邀請碼設定
                                 </h3>
                                 <button onClick={() => setIsInviteCodeManagerOpen(false)} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors"><X size={20}/></button>
                             </div>
                             <div className="p-6 space-y-6">
                                 <p className="text-sm font-normal text-slate-500 leading-relaxed">
-                                    請設定新同工註冊系統時所需的專屬邀請碼。<br/>建議使用 4~12 位的英數字組合。
+                                    輸入 4~12 位的英數字組合
                                 </p>
                                 
                                 <div className="space-y-1.5">
@@ -1175,7 +1175,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
                                     disabled={isLoading} 
                                     className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-medium py-3.5 rounded-lg shadow-button hover:-translate-y-0.5 transition-all duration-200 active:scale-95 disabled:opacity-50"
                                 >
-                                    {isLoading ? '儲存中...' : '儲存更新'}
+                                    {isLoading ? '儲存中' : '儲存'}
                                 </button>
                             </div>
                         </div>
