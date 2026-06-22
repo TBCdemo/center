@@ -430,13 +430,13 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
     const handleResetAuth = async (email, name) => {
         if (!isAdmin) return;
         if (!email || email.trim() === '') {
-            return showMessage('error', '該同工目前沒有綁定 Email，無法執行此操作！');
+            return showMessage('error', '同工沒有綁定 Email，無法執行');
         }
 
         setConfirmAction({
-            title: '重設/刪除登入帳號',
-            message: `確定要刪除「${name}」(${email}) 的登入帳號嗎？\n\n⚠️ 刪除後同工的「排班資料」會被保留，但對方下次登入時需要用此 Email「重新註冊」來設定新密碼。`,
-            confirmText: '刪除 Auth 帳號',
+            title: '重設密碼',
+            message: `確定重設「${name}」(${email}) 的密碼？`,
+            confirmText: '刪除使用者密碼',
             onConfirm: async () => {
                 setConfirmAction(null);
                 setIsLoading(true);
@@ -448,9 +448,9 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
                     
                     if (error) throw error;
                     
-                    showMessage('success', `已成功刪除 ${name} 的登入帳號，請通知對方重新註冊。`);
+                    showMessage('success', `成功刪除 ${name} 密碼，請通知同工重新註冊`);
                 } catch (err) {
-                    showMessage('error', '帳號刪除失敗: ' + err.message);
+                    showMessage('error', '刪除失敗: ' + err.message);
                 } finally {
                     setIsLoading(false);
                 }
