@@ -202,8 +202,6 @@
             const [showPassword, setShowPassword] = useState(false);
             const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-            const SECRET_INVITE_CODE = "HAPPY";
-
             const handleAuth = async (e) => {
                 e.preventDefault();
                 setLoading(true);
@@ -217,22 +215,23 @@
                         // 1. 註冊邏輯：前置防呆
                         // ==========================================
                         if (password !== confirmPassword) throw new Error('兩次輸入的密碼不同');
-                        if (inviteCode !== SECRET_INVITE_CODE) throw new Error('邀請碼錯誤');
 
                         // ==========================================
-                        // 2. 註冊邏輯：白名單機制檢查
+                        // 2. 註冊邏輯：後端雙重驗證 (邀請碼 + 白名單)
                         // ==========================================
-                        const { data: isMember, error: checkError } = await supabase.rpc('check_member_exists', { 
-                            p_account: account 
+                        const { data: isValid, error: checkError } = await supabase.rpc('check_member_exists', { 
+                            p_account: account,
+                            p_invite_code: inviteCode
                         });
 
                         if (checkError) {
-                            console.error("白名單檢查失敗:", checkError);
+                            console.error("驗證過程發生錯誤:", checkError);
                             throw new Error('系統連線異常，無法驗證您的身分，請稍後再試');
                         }
 
-                        if (!isMember) {
-                            throw new Error('查無帳號！再試一次，或聯絡行政辦公室。');
+                        // 根據後端回傳的結果判斷
+                        if (!isValid) {
+                            throw new Error('邀請碼錯誤，或查無此帳號！請確認後再試，或聯絡行政辦公室。');
                         }
 
                         // ==========================================
@@ -250,7 +249,7 @@
 
                         if (error) throw error;
                         
-                        alert('註冊成功！');
+                        alert('註冊成功！請使用新密碼登入。');
                         setIsSignUp(false);
                         setInviteCode('');
                         setConfirmPassword('');
@@ -270,11 +269,10 @@
                     // ==========================================
                     let msg = error.message;
                     if (msg.includes('Invalid login credentials')) msg = '登入失敗：帳號或密碼錯誤';
-                    if (msg.includes('User already registered')) msg = 'Oops！帳號已註冊';
-                    if (msg.includes('Password should be at least')) msg = '密碼長度至少需6個字元';
-                    if (msg.includes('邀請碼錯誤')) msg = error.message; 
+                    if (msg.includes('User already registered')) msg = 'Oops！此帳號已經註冊過了';
+                    if (msg.includes('Password should be at least')) msg = '密碼長度至少需 6 個字元';
+                    if (msg.includes('邀請碼錯誤，或查無此帳號')) msg = error.message; 
                     if (msg.includes('兩次輸入的密碼不同')) msg = error.message; 
-                    if (msg.includes('查無帳號')) msg = error.message; 
                     setErrorMsg(msg);
                 } finally {
                     setLoading(false);
