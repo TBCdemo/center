@@ -851,7 +851,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
             >
                 <div className="flex items-center gap-2 font-bold text-slate-700">
                     <ShieldCheck size={18} className="text-indigo-500" />
-                    崗位設定
+                    崗位人數設定
                 </div>
                 {isPositionsPanelOpen ? <ChevronUp size={18} className="text-slate-400"/> : <ChevronDown size={18} className="text-slate-400"/>}
             </button>
