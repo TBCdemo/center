@@ -231,7 +231,7 @@
 
                         // 根據後端回傳的結果判斷
                         if (!isValid) {
-                            throw new Error('邀請碼錯誤，或查無此帳號！請確認後再試，或聯絡行政辦公室。');
+                            throw new Error('邀請碼或帳號錯誤');
                         }
 
                         // ==========================================
@@ -249,7 +249,7 @@
 
                         if (error) throw error;
                         
-                        alert('註冊成功！請使用新密碼登入。');
+                        alert('註冊成功！請使用新密碼登入');
                         setIsSignUp(false);
                         setInviteCode('');
                         setConfirmPassword('');
@@ -271,7 +271,7 @@
                     if (msg.includes('Invalid login credentials')) msg = '登入失敗：帳號或密碼錯誤';
                     if (msg.includes('User already registered')) msg = 'Oops！此帳號已經註冊過了';
                     if (msg.includes('Password should be at least')) msg = '密碼長度至少需 6 個字元';
-                    if (msg.includes('邀請碼錯誤，或查無此帳號')) msg = error.message; 
+                    if (msg.includes('邀請碼或帳號錯誤')) msg = error.message; 
                     if (msg.includes('兩次輸入的密碼不同')) msg = error.message; 
                     setErrorMsg(msg);
                 } finally {
