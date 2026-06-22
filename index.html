@@ -225,8 +225,8 @@
                         });
 
                         if (checkError) {
-                            console.error("驗證過程發生錯誤:", checkError);
-                            throw new Error('系統連線異常，無法驗證您的身分，請稍後再試');
+                            console.error("驗證錯誤:", checkError);
+                            throw new Error('驗證時發生錯誤，聯絡行政辦公室或稍後再試');
                         }
 
                         // 根據後端回傳的結果判斷
