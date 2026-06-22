@@ -426,6 +426,39 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
         });
     };
 
+    // ================= 新增：重設/刪除 Auth 帳號功能 =================
+    const handleResetAuth = async (email, name) => {
+        if (!isAdmin) return;
+        if (!email || email.trim() === '') {
+            return showMessage('error', '該同工目前沒有綁定 Email，無法執行此操作！');
+        }
+
+        setConfirmAction({
+            title: '重設/刪除登入帳號',
+            message: `確定要刪除「${name}」(${email}) 的登入帳號嗎？\n\n⚠️ 刪除後同工的「排班資料」會被保留，但對方下次登入時需要用此 Email「重新註冊」來設定新密碼。`,
+            confirmText: '刪除 Auth 帳號',
+            onConfirm: async () => {
+                setConfirmAction(null);
+                setIsLoading(true);
+                try {
+                    // 呼叫我們在資料庫建立的 RPC 函式
+                    const { error } = await supabase.rpc('delete_auth_account_by_email', { 
+                        target_email: email 
+                    });
+                    
+                    if (error) throw error;
+                    
+                    showMessage('success', `已成功刪除 ${name} 的登入帳號，請通知對方重新註冊。`);
+                } catch (err) {
+                    showMessage('error', '帳號刪除失敗: ' + err.message);
+                } finally {
+                    setIsLoading(false);
+                }
+            }
+        });
+    };
+    // ==============================================================
+
     const currentGroupID = formData.group_id || '';
     const groupPrefix = currentGroupID.replace(/[0-9]/g, '') || 'FA'; 
     const groupNumberStr = currentGroupID.replace(/[^0-9]/g, ''); 
@@ -753,6 +786,17 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
                                             </div>
                                             <div className={`flex gap-1.5 transition-opacity ${!isAdmin ? 'opacity-100' : 'opacity-100 sm:opacity-0 sm:group-hover:opacity-100'}`}>
                                                 {(isAdmin || isSubmissionOpen) && <button onClick={() => openEditModal(member)} className="p-2.5 bg-slate-50 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"><Edit2 size={16}/></button>}
+                                                {/* ========= 新增重設帳號按鈕 ========= */}
+                                                {isAdmin && member.email && (
+                                                    <button 
+                                                        onClick={() => handleResetAuth(member.email, member.name)} 
+                                                        title="刪除登入帳號 (讓同工重新註冊)"
+                                                        className="p-2.5 bg-slate-50 hover:bg-amber-50 text-slate-400 hover:text-amber-600 rounded-lg transition-colors"
+                                                    >
+                                                        <Unlock size={16}/> 
+                                                    </button>
+                                                )}
+                                                {/* ================================== */}
                                                 {isAdmin && <button onClick={() => handleDelete(member.id, member.name)} className="p-2.5 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-lg transition-colors"><Trash2 size={16}/></button>}
                                             </div>
                                         </div>
