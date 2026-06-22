@@ -436,7 +436,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
         setConfirmAction({
             title: '重設密碼',
             message: `確定重設「${name}」(${email}) 的密碼？`,
-            confirmText: '刪除使用者密碼',
+            confirmText: '確定',
             onConfirm: async () => {
                 setConfirmAction(null);
                 setIsLoading(true);
