@@ -1141,14 +1141,13 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
                                 </p>
                                 
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">系統邀請碼</label>
-                                    <div className="relative">
+                                <div className="relative">
                                         <input 
                                             type={showInviteCode ? "text" : "password"} 
                                             value={systemInviteCode} 
                                             onChange={(e) => setSystemInviteCode(e.target.value)} 
                                             className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-4 pr-24 py-3.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all font-semibold text-slate-700 tracking-wider" 
-                                            placeholder="請輸入邀請碼"
+                                            placeholder="輸入邀請碼"
                                             maxLength={12}
                                         />
                                         <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
