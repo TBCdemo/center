@@ -851,7 +851,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
                                                 {isAdmin && member.email && (
                                                     <button 
                                                         onClick={() => handleResetAuth(member.email, member.name)} 
-                                                        title="刪除登入帳號 (讓同工重新註冊)"
+                                                        title="重設密碼"
                                                         className="p-2.5 bg-slate-50 hover:bg-amber-50 text-slate-400 hover:text-amber-600 rounded-lg transition-colors"
                                                     >
                                                         <Unlock size={16}/> 
