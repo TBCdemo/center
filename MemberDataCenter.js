@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
     Users, Copy, Trash2, CalendarX, Search, X, Edit2, ShieldCheck, 
     Check, Save, CheckCircle2, AlertCircle, UserPlus, User, ChevronLeft,
-    Home, LogOut, Calendar, Lock, Unlock, Menu, BarChart3
+    Home, LogOut, Calendar, Lock, Unlock, Menu, BarChart3, KeyRound, Eye, EyeOff
 } from 'lucide-react';
 
 const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabase, utils, constants }) => {
@@ -57,6 +57,12 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
     const [editingMember, setEditingMember] = useState(null); 
     const [formData, setFormData] = useState({ ...DEFAULT_MEMBER, unavailable_weeks: [] });
     const [formPositions, setFormPositions] = useState({}); 
+
+    // ======== 邀請碼管理狀態 ========
+    const [isInviteCodeManagerOpen, setIsInviteCodeManagerOpen] = useState(false);
+    const [systemInviteCode, setSystemInviteCode] = useState('');
+    const [showInviteCode, setShowInviteCode] = useState(false);
+    const [isCopied, setIsCopied] = useState(false);
 
     const loadData = async () => {
         setIsLoading(true);
@@ -122,6 +128,52 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
     useEffect(() => { loadData(); }, [viewQuarter]);
 
     const showMessage = (type, text) => { setMessage({ type, text }); setTimeout(() => setMessage({ type: '', text: '' }), 4000); };
+
+    // ======== 邀請碼功能處理 ========
+    const openInviteCodeManager = async () => {
+        setIsLoading(true);
+        try {
+            const { data, error } = await supabase.rpc('get_invite_code');
+            if (error) throw error;
+            setSystemInviteCode(data || '');
+            setShowInviteCode(false);
+            setIsInviteCodeManagerOpen(true);
+        } catch (err) {
+            showMessage('error', '無法讀取邀請碼: ' + err.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleUpdateInviteCode = async () => {
+        if (!systemInviteCode || systemInviteCode.trim() === '') return showMessage('error', '邀請碼不能為空！');
+        
+        // 防呆：限制只能是 4~12 位的英數字
+        const regex = /^[A-Za-z0-9]{4,12}$/;
+        if (!regex.test(systemInviteCode)) {
+            return showMessage('error', '格式錯誤：請輸入 4~12 位英數字組合');
+        }
+        
+        setIsLoading(true);
+        try {
+            const { error } = await supabase.rpc('update_invite_code', { new_code: systemInviteCode });
+            if (error) throw error;
+            showMessage('success', '邀請碼更新成功！');
+            setIsInviteCodeManagerOpen(false);
+        } catch (err) {
+            showMessage('error', '更新失敗: ' + err.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleCopyCode = () => {
+        navigator.clipboard.writeText(systemInviteCode);
+        setIsCopied(true);
+        showMessage('success', '邀請碼已複製！');
+        setTimeout(() => setIsCopied(false), 2000);
+    };
+    // =================================
 
     const toggleSubmissionStatus = async () => {
         if (!isAdmin) return;
@@ -695,7 +747,17 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
                                     <CalendarX size={14} className="text-slate-500" /> 節日提醒
                                 </button>
                                 
-                                <div className="w-px h-5 bg-slate-200 mx-2 self-center"></div>
+                                {/* 邀請碼按鈕 */}
+                                <div className="w-px h-5 bg-slate-200 mx-1.5 self-center"></div>
+                                
+                                <button 
+                                    onClick={openInviteCodeManager} 
+                                    className="h-8 px-4 rounded-md text-xs font-medium transition-all duration-200 whitespace-nowrap text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 flex items-center gap-1.5"
+                                >
+                                    <KeyRound size={14} className="text-slate-500" /> 邀請碼
+                                </button>
+
+                                <div className="w-px h-5 bg-slate-200 mx-1.5 self-center"></div>
                                 
                                 <button 
                                     onClick={toggleSubmissionStatus} 
@@ -786,7 +848,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
                                             </div>
                                             <div className={`flex gap-1.5 transition-opacity ${!isAdmin ? 'opacity-100' : 'opacity-100 sm:opacity-0 sm:group-hover:opacity-100'}`}>
                                                 {(isAdmin || isSubmissionOpen) && <button onClick={() => openEditModal(member)} className="p-2.5 bg-slate-50 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"><Edit2 size={16}/></button>}
-                                                {/* ========= 新增重設帳號按鈕 ========= */}
                                                 {isAdmin && member.email && (
                                                     <button 
                                                         onClick={() => handleResetAuth(member.email, member.name)} 
@@ -796,7 +857,6 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
                                                         <Unlock size={16}/> 
                                                     </button>
                                                 )}
-                                                {/* ================================== */}
                                                 {isAdmin && <button onClick={() => handleDelete(member.id, member.name)} className="p-2.5 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-lg transition-colors"><Trash2 size={16}/></button>}
                                             </div>
                                         </div>
@@ -1064,6 +1124,64 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
                         </div>
                     </div>
                 )}
+
+                {/* ======== 邀請碼管理 Modal ======== */}
+                {isInviteCodeManagerOpen && isAdmin && (
+                    <div className="fixed inset-0 z-[100] flex flex-col justify-center items-center p-4 bg-slate-900/40 backdrop-blur-sm">
+                        <div className="bg-white w-full max-w-sm rounded-2xl shadow-hover-soft overflow-hidden flex flex-col animate-fade-in border border-slate-100">
+                            <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
+                                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                                    <KeyRound className="text-indigo-500" size={20} /> 邀請碼管理
+                                </h3>
+                                <button onClick={() => setIsInviteCodeManagerOpen(false)} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors"><X size={20}/></button>
+                            </div>
+                            <div className="p-6 space-y-6">
+                                <p className="text-sm font-normal text-slate-500 leading-relaxed">
+                                    請設定新同工註冊系統時所需的專屬邀請碼。<br/>建議使用 4~12 位的英數字組合。
+                                </p>
+                                
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">系統邀請碼</label>
+                                    <div className="relative">
+                                        <input 
+                                            type={showInviteCode ? "text" : "password"} 
+                                            value={systemInviteCode} 
+                                            onChange={(e) => setSystemInviteCode(e.target.value)} 
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-4 pr-24 py-3.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all font-semibold text-slate-700 tracking-wider" 
+                                            placeholder="請輸入邀請碼"
+                                            maxLength={12}
+                                        />
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                                            <button 
+                                                onClick={() => setShowInviteCode(!showInviteCode)} 
+                                                className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors rounded-md hover:bg-indigo-50"
+                                                title={showInviteCode ? "隱藏" : "顯示"}
+                                            >
+                                                {showInviteCode ? <EyeOff size={18} /> : <Eye size={18} />}
+                                            </button>
+                                            <button 
+                                                onClick={handleCopyCode} 
+                                                className={`p-1.5 transition-colors rounded-md ${isCopied ? 'text-emerald-500 bg-emerald-50' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'}`}
+                                                title="複製"
+                                            >
+                                                {isCopied ? <Check size={18} /> : <Copy size={18} />}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <button 
+                                    onClick={handleUpdateInviteCode} 
+                                    disabled={isLoading} 
+                                    className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-medium py-3.5 rounded-lg shadow-button hover:-translate-y-0.5 transition-all duration-200 active:scale-95 disabled:opacity-50"
+                                >
+                                    {isLoading ? '儲存中...' : '儲存更新'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {/* ================================== */}
 
                 {isHolidayManagerOpen && isAdmin && (
                     <div className="fixed inset-0 z-[100] flex flex-col justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm">
