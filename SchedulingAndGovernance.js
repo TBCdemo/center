@@ -153,10 +153,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
         setEditPositions(updated);
     };
 
-    const handleAddPosition = () => {
-        setEditPositions([...editPositions, { temp_id: `NEW_${Date.now()}`, name: '', min_people: 1, max_people: 1 }]);
-    };
-
     const handleSavePositions = async () => {
         setIsSavingPositions(true);
         try {
@@ -862,57 +858,57 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
             
             {isPositionsPanelOpen && (
                 <div className="p-5 border-t border-slate-200 bg-white animate-fade-in space-y-4">
-                    <div className="flex justify-end gap-3">
-                        <button 
-                            onClick={handleAddPosition}
-                            className="bg-indigo-50 text-indigo-600 border border-indigo-100 px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-100 transition-colors flex items-center gap-1.5"
-                            title="新增崗位"
-                        >
-                            <Plus size={16} strokeWidth={3} /> 新增
-                        </button>
-                        <button 
-                            onClick={handleSavePositions} 
-                            disabled={isSavingPositions}
-                            className="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors flex items-center gap-2 disabled:opacity-50"
-                        >
-                            {isSavingPositions ? <RefreshCw className="animate-spin" size={16}/> : <Save size={16}/>}
-                            儲存
-                        </button>
+                    {/* 表頭區塊 */}
+                    <div className="flex items-center gap-3 px-2 pb-2 border-b border-slate-100">
+                        <div className="flex-1 text-[13px] font-bold text-slate-500 pl-1">崗位</div>
+                        <div className="flex items-center gap-4 shrink-0 text-center pr-1">
+                            <div className="w-14 text-[13px] font-bold text-slate-500">最少</div>
+                            <div className="w-14 text-[13px] font-bold text-slate-500">最多</div>
+                        </div>
                     </div>
-                    <div className="space-y-3 max-h-64 overflow-y-auto custom-scrollbar pr-2">
-                        {editPositions.map((pos, idx) => (
-                            <div key={pos.id || pos.temp_id} className="flex flex-col sm:flex-row sm:items-center gap-3">
-                                <input 
-                                    type="text" 
-                                    value={pos.name || ''} 
-                                    onChange={e => handlePositionChange(idx, 'name', e.target.value)}
-                                    placeholder="崗位名稱"
-                                    className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-500 transition-all font-medium text-slate-700"
-                                />
-                                <div className="flex items-center gap-2 shrink-0">
-                                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 shrink-0">
-                                        <span className="text-slate-500 text-[13px] font-medium">最少</span>
+                    
+                    {/* 崗位清單 */}
+                    <div className="space-y-3 max-h-64 overflow-y-auto custom-scrollbar px-1">
+                        {editPositions.map((pos, idx) => {
+                            // 隱藏固定不需調整的崗位
+                            if (['司會', '執事輪值', 'PPT'].includes(pos.name)) return null;
+                            
+                            return (
+                                <div key={pos.id || pos.temp_id} className="flex items-center gap-3">
+                                    <div className="flex-1 px-3 py-2 text-sm font-bold text-slate-700 bg-slate-50 border border-slate-100 rounded-lg select-none">
+                                        {pos.name}
+                                    </div>
+                                    <div className="flex items-center gap-3 shrink-0">
                                         <input 
                                             type="number" 
                                             min="0"
                                             value={pos.min_people !== undefined ? pos.min_people : 1} 
                                             onChange={e => handlePositionChange(idx, 'min_people', e.target.value)}
-                                            className="w-10 text-center text-sm font-bold text-slate-900 bg-transparent outline-none"
+                                            className="w-16 bg-white border border-slate-200 rounded-lg py-2 text-center text-sm font-bold text-slate-900 outline-none focus:border-indigo-500 shadow-sm transition-colors"
                                         />
-                                    </div>
-                                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 shrink-0">
-                                        <span className="text-slate-500 text-[13px] font-medium">最多</span>
                                         <input 
                                             type="number" 
                                             min="1"
                                             value={pos.max_people !== undefined ? pos.max_people : 1} 
                                             onChange={e => handlePositionChange(idx, 'max_people', e.target.value)}
-                                            className="w-10 text-center text-sm font-bold text-slate-900 bg-transparent outline-none"
+                                            className="w-16 bg-white border border-slate-200 rounded-lg py-2 text-center text-sm font-bold text-slate-900 outline-none focus:border-indigo-500 shadow-sm transition-colors"
                                         />
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
+                    </div>
+
+                    {/* 儲存按鈕置底 */}
+                    <div className="pt-5 border-t border-slate-100 flex justify-center">
+                        <button 
+                            onClick={handleSavePositions} 
+                            disabled={isSavingPositions}
+                            className="w-full sm:w-auto bg-slate-900 text-white px-10 py-3 rounded-xl text-sm font-medium hover:bg-slate-800 transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-sm hover:shadow active:scale-95"
+                        >
+                            {isSavingPositions ? <RefreshCw className="animate-spin" size={18}/> : <Save size={18}/>}
+                            儲存
+                        </button>
                     </div>
                 </div>
             )}
