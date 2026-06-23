@@ -183,7 +183,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
     }, [dbData, availableQuarters]);
 
     // ==========================================
-    // 計算 2：單季操作洞察 (動態連動 requirements 沙盤設定)
+    // 計算 2：單季操作洞察 (含 FTE 與相容群組精算)
     // ==========================================
     const insights = useMemo(() => {
         const { members, positions, memberPositions, quarterSettings } = dbData;
@@ -199,6 +199,40 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             }
         });
 
+        // ----------------------------------------------------------------
+        // [核心邏輯] 預先計算每位同工的 FTE 權重 (套用「相容群組」同堂雙開規則)
+        // ----------------------------------------------------------------
+        const memberWeights = {};
+        const COMPATIBLE_GROUP = ['新朋友關懷', '主餐', '接待', '收奉獻'];
+
+        realMembers.forEach(m => {
+            if (!activeMemberIds.has(m.id)) return;
+            
+            // 取出該同工所有的有效崗位 ID
+            const activePosIds = memberPositions
+                .filter(mp => mp.member_id === m.id && mp.is_active !== false)
+                .map(mp => mp.position_id);
+            
+            let compatCount = 0;
+            let incompatCount = 0;
+            
+            activePosIds.forEach(pId => {
+                const pName = positions.find(p => p.id === pId)?.name;
+                if (COMPATIBLE_GROUP.includes(pName)) {
+                    compatCount++;
+                } else {
+                    incompatCount++;
+                }
+            });
+            
+            // 相容群組的崗位：每 2 個折算為 1 次主日出勤消耗 (向上取整)
+            // 一般群組的崗位：每 1 個折算為 1 次主日出勤消耗
+            const effectiveSessionsNeeded = Math.ceil(compatCount / 2) + incompatCount;
+            
+            // 將總貢獻力 1 攤提給實際需要的出勤次數，得出每個崗位的 FTE 權重
+            memberWeights[m.id] = 1 / (effectiveSessionsNeeded || 1);
+        });
+
         // 崗位人力分布試算
         const positionDistribution = positions.map(pos => {
             let s1Count = 0, s2Count = 0, bothCount = 0;
@@ -209,8 +243,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                 const hasPos = memberPositions.some(mp => mp.member_id === m.id && mp.position_id === pos.id && mp.is_active !== false);
                 
                 if (hasPos) {
-                    const activePosCount = memberPositions.filter(mp => mp.member_id === m.id && mp.is_active !== false).length;
-                    const weight = 1 / (activePosCount || 1);
+                    const weight = memberWeights[m.id] || 0;
                     const pref = qsMap[m.id]?.preferred_session || '第一堂';
 
                     if (pref === '第一堂') { s1Count++; s1FTE += weight; }
@@ -229,7 +262,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             // 取得目前的動態沙盤設定
             const req = requirements[pos.name] || { singleSession: 0, freq: 'weekly' };
             let sessionQuarterDemand = req.freq === 'monthly' ? req.singleSession * 3 : req.singleSession * 13; 
-            const sessionMinRequired = Math.ceil(sessionQuarterDemand / 6);
+            const sessionMinRequired = Math.ceil(sessionQuarterDemand / 6); // 在背景做為健康度判定低標
 
             // 精算整體人力缺口 (總有效戰力 - 兩堂總需求)
             const totalRequirement = sessionMinRequired * 2;
@@ -398,17 +431,16 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                         <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between gap-2">
                                             <div className="flex items-center gap-2">
                                                 <LayoutList className="text-indigo-500" size={20} />
-                                                <h3 className="text-lg font-bold text-slate-800">人力需求分析 <span className="text-xs text-slate-400 font-normal ml-2">可動態點擊數值進行排班沙盤推演</span></h3>
+                                                <h3 className="text-lg font-bold text-slate-800">人力需求分析</h3>
                                             </div>
                                         </div>
                                         <div className="overflow-x-auto flex-1">
-                                            <table className="w-full text-left border-collapse min-w-[750px]">
+                                            <table className="w-full text-left border-collapse min-w-[700px]">
                                                 <thead>
                                                     {/* 第一層大區塊 */}
                                                     <tr>
                                                         <th rowSpan="2" className="py-2 px-4 font-semibold text-slate-500 text-sm border-b border-slate-200 bg-slate-50 align-middle">崗位</th>
-                                                        <th rowSpan="2" className="py-2 px-2 font-semibold text-indigo-600 text-[13px] border-b border-slate-200 bg-indigo-50/30 text-center align-middle">每堂所需</th>
-                                                        <th rowSpan="2" className="py-2 px-2 font-semibold text-slate-500 text-[13px] border-b border-slate-200 bg-slate-50 text-center align-middle tracking-tight">安全低標</th>
+                                                        <th rowSpan="2" className="py-2 px-2 font-semibold text-indigo-600 text-[13px] border-b border-slate-200 bg-indigo-50/30 text-center align-middle">人數(堂)</th>
                                                         <th colSpan="2" className="py-2 px-3 font-bold text-slate-700 text-sm border-b border-slate-200 bg-indigo-50/60 text-center">第一堂</th>
                                                         <th colSpan="2" className="py-2 px-3 font-bold text-slate-700 text-sm border-b border-slate-200 bg-indigo-50/60 text-center">第二堂</th>
                                                         <th colSpan="2" className="py-2 px-3 font-bold text-slate-600 text-sm border-b border-slate-200 bg-slate-100/50 text-center">皆可</th>
@@ -432,7 +464,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                             <tr key={pos.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'} hover:bg-slate-50 transition-colors`}>
                                                                 <td className="py-3.5 px-4 font-bold text-slate-700 border-b border-slate-100">{pos.name}</td>
                                                                 
-                                                                {/* 動態調整：每堂所需 */}
+                                                                {/* 動態調整：人數(堂) */}
                                                                 <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-indigo-50/10">
                                                                     <div className="flex items-center justify-center gap-2">
                                                                         <button 
@@ -446,11 +478,6 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                                             className="w-6 h-6 flex items-center justify-center bg-white hover:bg-slate-200 text-slate-500 rounded border border-slate-200 transition-colors"
                                                                         >+</button>
                                                                     </div>
-                                                                </td>
-
-                                                                {/* 自動換算：安全低標 */}
-                                                                <td className="py-3.5 px-2 text-center border-b border-slate-100 font-bold text-slate-400">
-                                                                    {pos.sessionMinRequired > 0 ? `${pos.sessionMinRequired}` : '-'}
                                                                 </td>
 
                                                                 {/* 第一堂：若 FTE 不足，則人數與 FTE 兩格皆亮紅字紅底 */}
