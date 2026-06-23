@@ -49,6 +49,32 @@ const DiffCell = ({ diff }) => {
     return <td className={`${baseClass} text-slate-400 font-medium`}>- 0 人</td>;
 };
 
+// ==========================================
+// 視覺元件：FTE 懸浮提示框 (Tooltip)
+// ==========================================
+const FteTooltip = () => (
+    <div className="relative group cursor-help ml-1 inline-flex items-center">
+        <span className="text-[10px] text-slate-400 font-normal border border-slate-300 rounded-full w-3.5 h-3.5 flex items-center justify-center group-hover:bg-indigo-100 group-hover:text-indigo-600 group-hover:border-indigo-300 transition-colors">?</span>
+        <div className="absolute z-50 hidden group-hover:block w-[320px] p-4 bg-slate-800 text-slate-50 text-[12px] leading-relaxed rounded-xl shadow-2xl bottom-full left-1/2 -translate-x-1/2 mb-2 text-left font-normal normal-case pointer-events-none border border-slate-700">
+            <div className="font-bold text-white mb-2 pb-2 border-b border-slate-600">
+                FTE (有效人力) ：同工對單一崗位的實際貢獻度
+            </div>
+            <div className="mb-3 space-y-1">
+                <div className="font-bold text-rose-300">🛡️ 【專任崗位】司會、PPT、執事輪值</div>
+                <div className="text-slate-300">無法崗位兼任，FTE被崗位數平分</div>
+                <div className="text-slate-400 text-[11px] bg-slate-900/50 p-1.5 rounded">範例：具備司會、PPT技能的同工，兩個崗位的FTE=1/2=0.5</div>
+            </div>
+            <div className="space-y-1">
+                <div className="font-bold text-amber-300">⚡ 【崗位兼任】接待、收奉獻、主餐、新朋友關懷</div>
+                <div className="text-slate-300">支援崗位兼任，FTE不被崗位數影響</div>
+                <div className="text-slate-400 text-[11px] bg-slate-900/50 p-1.5 rounded">範例：具備接待、收奉獻技能的同工，兩個崗位的FTE=1</div>
+            </div>
+            {/* 小箭頭 */}
+            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
+        </div>
+    </div>
+);
+
 const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, utils }) => {
     const { fetchAllData, getCurrentQuarter } = utils;
     
@@ -204,7 +230,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
     }, [dbData, availableQuarters]);
 
     // ==========================================
-    // 計算 2：單季操作洞察 (已修正崩潰 Bug)
+    // 計算 2：單季操作洞察 (含魔術棒連動)
     // ==========================================
     const insights = useMemo(() => {
         const { members, positions, memberPositions, quarterSettings } = dbData;
@@ -283,7 +309,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                 displayS1Gap, displayS2Gap,
                 sessionMinRequired,
                 activeWands, currentPool,
-                currentReq: req.singleSession // 傳遞給 Drawer 使用
+                currentReq: req.singleSession
             };
         });
 
@@ -302,7 +328,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
     }, [dbData, viewQuarter, requirements, wandState]);
 
     // ==========================================
-    // 計算 3：動態側邊欄內容渲染引擎 (更新：方案動態編號與過濾)
+    // 計算 3：動態側邊欄內容渲染引擎
     // ==========================================
     const renderDrawerContent = () => {
         if (!drawerPos) return null;
@@ -330,10 +356,8 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             });
         }
 
-        // 動態生成建議方案清單
         const actionPlans = [];
 
-        // 方案：崗位兼任 (僅相容群組顯示)
         if (isCompat) {
             actionPlans.push({
                 title: "啟動「崗位兼任」",
@@ -341,51 +365,49 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                 isPriority: potentialHelpersCount > 0,
                 content: (
                     <div className="text-sm text-slate-600 space-y-2">
-                        <p><strong className="text-slate-700">📍 數據支持：</strong>目前共有 <strong className="text-amber-600 text-base">{potentialHelpersCount} 位</strong> 同工屬於單一崗位</p>
-                        <p><strong className="text-slate-700">👉 具體行動：</strong>培訓{potentialHelpersCount} 位同工兼任「{drawerPos}」</p>
-                        <p className="text-amber-700 bg-amber-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>不增加同工服事天數，100%高效率轉換補齊缺口</p>
+                        <p><strong className="text-slate-700">📍 數據支持：</strong>目前共有 <strong className="text-amber-600 text-base">{potentialHelpersCount} 位</strong> 同工屬於單一崗位同工。</p>
+                        <p><strong className="text-slate-700">👉 具體行動：</strong>培訓{potentialHelpersCount} 位同工，兼任「{drawerPos}」。</p>
+                        <p className="text-amber-700 bg-amber-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>不增加同工服事天數，100%高效率轉換率補齊缺口。</p>
                     </div>
                 )
             });
         }
 
-        // 方案：調高服事上限 (通用)
         actionPlans.push({
             title: "調高服事上限",
             icon: <TrendingUp size={16} className="text-indigo-500" />,
             isPriority: false,
             content: (
                 <div className="text-sm text-slate-600 space-y-2">
-                    <p><strong className="text-slate-700">📍 數據支持：</strong>將服事上限從 {req.maxLimit} 次適度調高</p>
-                    <p className="text-indigo-700 bg-indigo-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>缺口縮小或歸零，但同工可能隨時會累垮</p>
+                    <p><strong className="text-slate-700">📍 數據支持：</strong>若您將本崗位的上限從 {req.maxLimit} 次適度調高。</p>
+                    <p className="text-indigo-700 bg-indigo-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>缺口將瞬間縮小或歸零！請在會議中評估同工的疲勞度。</p>
                 </div>
             )
         });
 
-        // 方案：減少服事人數 (僅單堂需求大於 1 且缺口小於 0 時顯示)
         if (posData.currentReq > 1) {
             actionPlans.push({
-                title: "減少崗位人數",
+                title: "減少服事人數",
                 icon: <UsersRound size={16} className="text-cyan-500" />,
                 isPriority: false,
                 content: (
                     <div className="text-sm text-slate-600 space-y-2">
-                        <p><strong className="text-slate-700">📍 數據支持：</strong>每堂安排 <strong className="text-slate-800">{posData.currentReq} 人</strong></p>
-                        <p><strong className="text-slate-700">👉 具體行動：</strong>將單堂需求人數縮減至 <strong className="text-cyan-600">{posData.currentReq - 1} 人</strong></p>
-                        <p className="text-cyan-800 bg-cyan-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>降低整體人力負擔，有效緩解缺口壓力</p>
+                        <p><strong className="text-slate-700">📍 數據支持：</strong>本崗位目前設定每堂需安排 <strong className="text-slate-800">{posData.currentReq} 人</strong>。</p>
+                        <p><strong className="text-slate-700">👉 具體行動：</strong>評估是否能將單堂需求人數縮減至 <strong className="text-cyan-600">{posData.currentReq - 1} 人</strong>（可在左側點擊 - 推演）。</p>
+                        <p className="text-cyan-800 bg-cyan-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>立即降低整體人力負擔，有效緩解缺口壓力。</p>
                     </div>
                 )
             });
         }
 
-        // 方案：招募新人 (通用)
         actionPlans.push({
             title: "招募新人",
             icon: <UserPlus size={16} className="text-emerald-500" />,
             isPriority: false,
             content: (
                 <div className="text-sm text-slate-600 space-y-2">
-               <p><strong className="text-slate-700">👉 具體行動：</strong>招募 <strong className="text-emerald-600 text-base">{Math.abs(gap)} 位</strong> 新血</p>
+                    <p><strong className="text-slate-700">📍 數據支持：</strong>若不希望現有同工違規加班。</p>
+                    <p><strong className="text-slate-700">👉 具體行動：</strong>請針對本崗位啟動招募新人計畫，預計需要招募 <strong className="text-emerald-600 text-base">{Math.abs(gap)} 位</strong> 新血。</p>
                 </div>
             )
         });
@@ -412,7 +434,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                     <AlertCircle size={22} />人力短缺 ({gap} FTE)
                                 </div>
                                 <p className="text-sm text-slate-600 leading-relaxed mt-2">
-                                    每季服事上限 <strong className="text-slate-800">{req.maxLimit} 次</strong>，尚缺 <strong className="text-rose-600 bg-rose-50 px-1 rounded">{missingSessions} 次</strong> 
+                                    每季服事上限 <strong className="text-slate-800">{req.maxLimit} 次</strong>，共缺 <strong className="text-rose-600 bg-rose-50 px-1 rounded">{missingSessions} 次</strong> 的服事次數。
                                 </p>
                             </div>
                         ) : gap === 0 ? (
@@ -430,7 +452,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                     <CheckCircle2 size={22} />人力充足 (+{gap} FTE)
                                 </div>
                                 <p className="text-sm text-slate-600 leading-relaxed mt-2">
-                                    人手充足！可以將「服事上限」調降，或進行崗位兼任。
+                                    人手充足！可以將「服事上限」調降，或進行崗位兼任計畫。
                                 </p>
                             </div>
                         )}
@@ -452,7 +474,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                             ))}
                             {!isCompat && (
                                 <div className="text-xs text-slate-400 italic px-2">
-                                    *備註：專任崗位無法啟動「崗位兼任」。
+                                    *備註：此崗位屬專任崗位，無法啟動「崗位兼任」策略。
                                 </div>
                             )}
                         </div>
@@ -635,15 +657,21 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                             </tr>
                                             <tr>
                                                 <th className="py-1.5 px-2 font-semibold text-slate-400 text-[11px] border-b-2 border-slate-200 bg-sky-50/30 text-center">人數</th>
-                                                <th className="py-1.5 px-2 font-bold text-sky-700 text-[11px] border-b-2 border-slate-200 bg-sky-50/30 text-center">FTE</th>
+                                                <th className="py-1.5 px-2 font-bold text-sky-700 text-[11px] border-b-2 border-slate-200 bg-sky-50/30 text-center">
+                                                    <div className="flex items-center justify-center">FTE <FteTooltip /></div>
+                                                </th>
                                                 <th className="py-1.5 px-2 font-bold text-sky-800 text-[11px] border-b-2 border-slate-200 bg-sky-50/30 text-center border-r-2 border-slate-200">缺口</th>
                                                 
                                                 <th className="py-1.5 px-2 font-semibold text-slate-400 text-[11px] border-b-2 border-slate-200 bg-violet-50/30 text-center">人數</th>
-                                                <th className="py-1.5 px-2 font-bold text-violet-700 text-[11px] border-b-2 border-slate-200 bg-violet-50/30 text-center">FTE</th>
+                                                <th className="py-1.5 px-2 font-bold text-violet-700 text-[11px] border-b-2 border-slate-200 bg-violet-50/30 text-center">
+                                                    <div className="flex items-center justify-center">FTE <FteTooltip /></div>
+                                                </th>
                                                 <th className="py-1.5 px-2 font-bold text-violet-800 text-[11px] border-b-2 border-slate-200 bg-violet-50/30 text-center border-r-2 border-slate-200">缺口</th>
                                                 
                                                 <th className="py-1.5 px-2 font-semibold text-slate-400 text-[11px] border-b-2 border-slate-200 bg-slate-50 text-center">人數</th>
-                                                <th className="py-1.5 px-2 font-bold text-slate-700 text-[11px] border-b-2 border-slate-200 bg-slate-50 text-center border-r-2 border-slate-200">FTE</th>
+                                                <th className="py-1.5 px-2 font-bold text-slate-700 text-[11px] border-b-2 border-slate-200 bg-slate-50 text-center border-r-2 border-slate-200">
+                                                    <div className="flex items-center justify-center">FTE <FteTooltip /></div>
+                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody>
