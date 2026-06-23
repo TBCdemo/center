@@ -250,7 +250,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             
             const sessionMinRequired = Math.ceil(sessionQuarterDemand / req.maxLimit);
             
-            // 計算嚴格專職缺口
+            // 計算原始未調度的專職缺口
             const baseS1Gap = req.singleSession > 0 ? Math.round((s1FTE - sessionMinRequired) * 10) / 10 : 0;
             const baseS2Gap = req.singleSession > 0 ? Math.round((s2FTE - sessionMinRequired) * 10) / 10 : 0;
             
@@ -258,7 +258,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             const totalRequirement = sessionMinRequired * 2;
             const gap = req.singleSession > 0 ? Math.round((totalFTE - totalRequirement) * 10) / 10 : 0;
 
-            // 處理魔術棒調度邏輯
+            // 處理魔術棒調度邏輯 (方案 A 核心：調度後 pool 遞減並直接呈現在畫面上)
             let currentPool = bothFTE;
             let displayS1Gap = baseS1Gap;
             let displayS2Gap = baseS2Gap;
@@ -289,8 +289,9 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
 
         const concurrencyMap = {};
         realMembers.forEach(m => {
-            const posCount = memberPositions.filter(mp => mp.member_id === m.id).length;
-            concurrencyMap[posCount] = (concurrencyMap[posCount] || 0) + 1;
+            const posCount = memberPositions.filter(m.id === m.id).length; // fallback
+            const realCount = memberPositions.filter(mp => mp.member_id === m.id && mp.is_active !== false).length;
+            concurrencyMap[realCount] = (concurrencyMap[realCount] || 0) + 1;
         });
 
         const concurrencyData = Object.keys(concurrencyMap).map(Number).sort((a, b) => a - b).map(count => ({
@@ -314,7 +315,6 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
         const missingSessions = gap < 0 ? Math.round(Math.abs(gap) * req.maxLimit) : 0;
         const isCompat = COMPATIBLE_GROUP.includes(drawerPos);
 
-        // 即時掃描「可以被挖角的單一崗位同工」
         let potentialHelpersCount = 0;
         if (isCompat) {
             const { members, memberPositions, positions } = dbData;
@@ -342,7 +342,6 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                    {/* Header 狀態診斷 */}
                     <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
                         <div className="flex items-center gap-2 mb-3">
                             <Target size={18} className="text-slate-500" />
@@ -378,12 +377,10 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                         )}
                     </div>
 
-                    {/* 行動方案區 */}
                     {gap < 0 && (
                         <div className="space-y-4">
                             <h4 className="font-bold text-slate-800 border-b border-slate-100 pb-2">🎯 營運調度建議作法：</h4>
                             
-                            {/* 方案一：崗位兼任 */}
                             <div className={`p-4 rounded-xl border ${isCompat && potentialHelpersCount > 0 ? 'bg-amber-50/50 border-amber-200' : 'bg-slate-50 border-slate-200'}`}>
                                 <h5 className="font-bold text-sm text-slate-800 flex items-center gap-2 mb-2">
                                     <Zap size={16} className={isCompat && potentialHelpersCount > 0 ? "text-amber-500" : "text-slate-400"} /> 
@@ -391,7 +388,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                 </h5>
                                 {isCompat ? (
                                     <div className="text-sm text-slate-600 space-y-2">
-                                        <p><strong className="text-slate-700">📍 數據支持：</strong>本崗位屬相容群組。目前在其他相容崗位中，共有 <strong className="text-amber-600 text-base">{potentialHelpersCount} 位</strong> 屬於「單一崗位」同工。</p>
+                                        <p><strong className="text-slate-700">📍 數據支持：</strong>本崗位屬相容群組。目前在其他相容崗位中，共有 <strong className="text-amber-600 text-base">{potentialHelpersCount} 位</strong> 同工屬於單一崗位同工。</p>
                                         <p><strong className="text-slate-700">👉 具體行動：</strong>優先詢問這 {potentialHelpersCount} 位同工是否願意在當天服事時，順便兼任「{drawerPos}」。</p>
                                         <p className="text-amber-700 bg-amber-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>不增加同工出勤天數，卻能以 100% 的高效率轉換率補齊戰力。</p>
                                     </div>
@@ -402,25 +399,23 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                 )}
                             </div>
 
-                            {/* 方案二：政策微調 */}
                             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
                                 <h5 className="font-bold text-sm text-slate-800 flex items-center gap-2 mb-2">
                                     <TrendingUp size={16} className="text-indigo-500" /> 方案二：調高服事上限
                                 </h5>
                                 <div className="text-sm text-slate-600 space-y-2">
-                                    <p><strong className="text-slate-700">📍 數據支持：</strong>若您將本崗位的上限從 {req.maxLimit} 次 <strong className="text-indigo-600">適度調高</strong> (可在左側推演)。</p>
+                                    <p><strong className="text-slate-700">📍 數據支持：</strong>若您將本崗位的上限從 {req.maxLimit} 次適度調高。</p>
                                     <p className="text-indigo-700 bg-indigo-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>缺口將瞬間縮小或歸零！請在會議中評估同工的疲勞度。</p>
                                 </div>
                             </div>
 
-                            {/* 方案三：招募新人 */}
                             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
                                 <h5 className="font-bold text-sm text-slate-800 flex items-center gap-2 mb-2">
                                     <UserPlus size={16} className="text-emerald-500" /> 方案三：招募新人
                                 </h5>
                                 <div className="text-sm text-slate-600 space-y-2">
                                     <p><strong className="text-slate-700">📍 數據支持：</strong>若不希望現有同工違規加班。</p>
-                                    <p><strong className="text-slate-700">👉 具體行動：</strong>請針對本崗位啟動「招募新人」計畫，預計需要招募 <strong className="text-emerald-600 text-base">{Math.abs(gap)} 位</strong> 新血。</p>
+                                    <p><strong className="text-slate-700">👉 具體行動：</strong>請針對本崗位啟動招募新人計畫，預計需要招募 <strong className="text-emerald-600 text-base">{Math.abs(gap)} 位</strong> 新血。</p>
                                 </div>
                             </div>
                         </div>
@@ -575,7 +570,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                 </div>
                             </div>
 
-                            {/* 下半部全寬：人力需求分析 */}
+                            {/* 下半部全寬：人力需求分析 (極度優化、降噪、分區清晰) */}
                             <div className="bg-white rounded-xl shadow-soft border border-slate-100 overflow-hidden flex flex-col w-full">
                                 <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between gap-2">
                                     <div className="flex items-center gap-2">
@@ -587,27 +582,33 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                     </div>
                                 </div>
                                 <div className="overflow-x-auto w-full">
-                                    <table className="w-full text-left border-collapse min-w-[1000px]">
+                                    <table className="w-full text-left border-collapse min-w-[1050px]">
                                         <thead>
                                             <tr>
                                                 <th rowSpan="2" className="py-2 px-4 font-semibold text-slate-500 text-sm border-b border-slate-200 bg-slate-50 align-middle">崗位</th>
                                                 <th rowSpan="2" className="py-2 px-2 font-semibold text-indigo-600 text-[13px] border-b border-slate-200 bg-indigo-50/30 text-center align-middle">人數(堂)</th>
                                                 <th rowSpan="2" className="py-2 px-2 font-semibold text-emerald-700 text-[13px] border-b border-slate-200 bg-emerald-50/50 text-center align-middle">服事上限<br/><span className="text-[10px] font-normal text-emerald-600">(次/季)</span></th>
-                                                <th colSpan="3" className="py-2 px-3 font-bold text-slate-700 text-sm border-b border-slate-200 bg-indigo-50/60 text-center">第一堂</th>
-                                                <th colSpan="3" className="py-2 px-3 font-bold text-slate-700 text-sm border-b border-slate-200 bg-indigo-50/60 text-center">第二堂</th>
-                                                <th colSpan="2" className="py-2 px-3 font-bold text-slate-600 text-sm border-b border-slate-200 bg-slate-100/50 text-center">皆可</th>
-                                                <th rowSpan="2" className="py-2 px-3 font-extrabold text-slate-800 text-sm border-b border-slate-200 bg-slate-100/80 text-center align-middle">總計人數</th>
-                                                <th rowSpan="2" className="py-2 px-4 font-extrabold text-slate-800 text-sm border-b border-slate-200 bg-slate-100/80 text-center align-middle">智能策略分析</th>
+                                                
+                                                {/* 建議一：頂層表頭色塊分區 + 粗邊框 */}
+                                                <th colSpan="3" className="py-2 px-3 font-bold text-sky-900 text-sm border-b border-slate-200 bg-sky-50/60 text-center border-r-2 border-slate-200">第一堂 (晨光藍)</th>
+                                                <th colSpan="3" className="py-2 px-3 font-bold text-violet-900 text-sm border-b border-slate-200 bg-violet-50/60 text-center border-r-2 border-slate-200">第二堂 (暖陽紫)</th>
+                                                <th colSpan="2" className="py-2 px-3 font-bold text-slate-700 text-sm border-b border-slate-200 bg-slate-100/80 text-center border-r-2 border-slate-200">皆可 (中性灰)</th>
+                                                
+                                                <th rowSpan="2" className="py-2 px-3 font-extrabold text-slate-800 text-sm border-b border-slate-200 bg-slate-100/50 text-center align-middle">總計人數</th>
+                                                <th rowSpan="2" className="py-2 px-4 font-extrabold text-slate-800 text-sm border-b border-slate-200 bg-slate-100/50 text-center align-middle">智能策略分析</th>
                                             </tr>
                                             <tr>
-                                                <th className="py-1.5 px-2 font-semibold text-slate-500 text-[11px] border-b-2 border-slate-200 bg-indigo-50/30 text-center">人數</th>
-                                                <th className="py-1.5 px-2 font-semibold text-slate-500 text-[11px] border-b-2 border-slate-200 bg-indigo-50/30 text-center">FTE</th>
-                                                <th className="py-1.5 px-2 font-semibold text-slate-500 text-[11px] border-b-2 border-slate-200 bg-indigo-50/30 text-center">缺口</th>
-                                                <th className="py-1.5 px-2 font-semibold text-slate-500 text-[11px] border-b-2 border-slate-200 bg-indigo-50/30 text-center">人數</th>
-                                                <th className="py-1.5 px-2 font-semibold text-slate-500 text-[11px] border-b-2 border-slate-200 bg-indigo-50/30 text-center">FTE</th>
-                                                <th className="py-1.5 px-2 font-semibold text-slate-500 text-[11px] border-b-2 border-slate-200 bg-indigo-50/30 text-center">缺口</th>
-                                                <th className="py-1.5 px-2 font-semibold text-slate-500 text-[11px] border-b-2 border-slate-200 bg-slate-50/80 text-center">人數</th>
-                                                <th className="py-1.5 px-2 font-semibold text-slate-500 text-[11px] border-b-2 border-slate-200 bg-slate-50/80 text-center">FTE</th>
+                                                {/* 建議三：次級表頭對應變淡 */}
+                                                <th className="py-1.5 px-2 font-semibold text-slate-400 text-[11px] border-b-2 border-slate-200 bg-sky-50/30 text-center">人數</th>
+                                                <th className="py-1.5 px-2 font-bold text-sky-700 text-[11px] border-b-2 border-slate-200 bg-sky-50/30 text-center">FTE</th>
+                                                <th className="py-1.5 px-2 font-bold text-sky-800 text-[11px] border-b-2 border-slate-200 bg-sky-50/30 text-center border-r-2 border-slate-200">缺口</th>
+                                                
+                                                <th className="py-1.5 px-2 font-semibold text-slate-400 text-[11px] border-b-2 border-slate-200 bg-violet-50/30 text-center">人數</th>
+                                                <th className="py-1.5 px-2 font-bold text-violet-700 text-[11px] border-b-2 border-slate-200 bg-violet-50/30 text-center">FTE</th>
+                                                <th className="py-1.5 px-2 font-bold text-violet-800 text-[11px] border-b-2 border-slate-200 bg-violet-50/30 text-center border-r-2 border-slate-200">缺口</th>
+                                                
+                                                <th className="py-1.5 px-2 font-semibold text-slate-400 text-[11px] border-b-2 border-slate-200 bg-slate-50 text-center">人數</th>
+                                                <th className="py-1.5 px-2 font-bold text-slate-700 text-[11px] border-b-2 border-slate-200 bg-slate-50 text-center border-r-2 border-slate-200">FTE</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -640,73 +641,75 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                             </div>
                                                         </td>
 
-                                                        {/* 第一堂：人數、FTE、缺口 */}
-                                                        <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-indigo-50/10">
-                                                            <div className="font-bold text-base leading-none text-slate-700">{pos.s1Count}</div>
+                                                        {/* 第一堂區塊：淡藍底 bg-sky-50/20 + 建議三降噪 */}
+                                                        <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-sky-50/20">
+                                                            <div className="text-slate-400 font-normal text-xs">{pos.s1Count}人</div>
                                                         </td>
-                                                        <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-indigo-50/10">
-                                                            <div className="font-semibold text-sm leading-none text-indigo-600">{pos.s1FTE}</div>
+                                                        <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-sky-50/20">
+                                                            <div className="font-bold text-sm text-sky-700">{pos.s1FTE}</div>
                                                         </td>
-                                                        <td className="py-3.5 px-1 text-center border-b border-slate-100 bg-indigo-50/10">
+                                                        <td className="py-3.5 px-1 text-center border-b border-slate-100 bg-sky-50/20 border-r-2 border-slate-200">
                                                             {currentReq > 0 ? (
                                                                 <div className="flex items-center justify-center gap-1.5">
-                                                                    <span className={`font-bold text-[13px] ${pos.displayS1Gap < 0 ? 'text-rose-600' : pos.displayS1Gap > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                                                    <span className={`font-extrabold text-[13px] ${pos.displayS1Gap < 0 ? 'text-rose-600' : pos.displayS1Gap > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
                                                                         {pos.displayS1Gap > 0 ? `+${pos.displayS1Gap}` : pos.displayS1Gap === 0 ? '0.0' : pos.displayS1Gap}
                                                                     </span>
                                                                     {showS1Wand && (
                                                                         <button 
                                                                             onClick={() => toggleWand(pos.name, 's1')}
-                                                                            className={`p-1 rounded transition-colors ${pos.activeWands.includes('s1') ? 'bg-indigo-100 text-indigo-600 hover:bg-indigo-200' : 'bg-white text-slate-400 hover:text-indigo-500 shadow-sm border border-slate-200'}`}
-                                                                            title={pos.activeWands.includes('s1') ? '復原資源' : '從皆可池智能補血'}
+                                                                            className={`p-1 rounded transition-colors ${pos.activeWands.includes('s1') ? 'bg-sky-100 text-sky-700 hover:bg-sky-200' : 'bg-white text-slate-400 hover:text-sky-600 shadow-sm border border-slate-200'}`}
+                                                                            title={pos.activeWands.includes('s1') ? '復原資源' : '由皆可池智能支援'}
                                                                         >
-                                                                            {pos.activeWands.includes('s1') ? <Undo2 size={12} /> : <Wand2 size={12} />}
+                                                                            {pos.activeWands.includes('s1') ? <Undo2 size={11} /> : <Wand2 size={11} />}
                                                                         </button>
                                                                     )}
                                                                 </div>
                                                             ) : <span className="text-slate-300">-</span>}
                                                         </td>
 
-                                                        {/* 第二堂：人數、FTE、缺口 */}
-                                                        <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-indigo-50/10">
-                                                            <div className="font-bold text-base leading-none text-slate-700">{pos.s2Count}</div>
+                                                        {/* 第二堂區塊：淡紫底 bg-violet-50/20 + 建議三降噪 */}
+                                                        <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-violet-50/20">
+                                                            <div className="text-slate-400 font-normal text-xs">{pos.s2Count}人</div>
                                                         </td>
-                                                        <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-indigo-50/10">
-                                                            <div className="font-semibold text-sm leading-none text-indigo-600">{pos.s2FTE}</div>
+                                                        <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-violet-50/20">
+                                                            <div className="font-bold text-sm text-violet-700">{pos.s2FTE}</div>
                                                         </td>
-                                                        <td className="py-3.5 px-1 text-center border-b border-slate-100 bg-indigo-50/10">
+                                                        <td className="py-3.5 px-1 text-center border-b border-slate-100 bg-violet-50/20 border-r-2 border-slate-200">
                                                             {currentReq > 0 ? (
                                                                 <div className="flex items-center justify-center gap-1.5">
-                                                                    <span className={`font-bold text-[13px] ${pos.displayS2Gap < 0 ? 'text-rose-600' : pos.displayS2Gap > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                                                    <span className={`font-extrabold text-[13px] ${pos.displayS2Gap < 0 ? 'text-rose-600' : pos.displayS2Gap > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
                                                                         {pos.displayS2Gap > 0 ? `+${pos.displayS2Gap}` : pos.displayS2Gap === 0 ? '0.0' : pos.displayS2Gap}
                                                                     </span>
                                                                     {showS2Wand && (
                                                                         <button 
                                                                             onClick={() => toggleWand(pos.name, 's2')}
-                                                                            className={`p-1 rounded transition-colors ${pos.activeWands.includes('s2') ? 'bg-indigo-100 text-indigo-600 hover:bg-indigo-200' : 'bg-white text-slate-400 hover:text-indigo-500 shadow-sm border border-slate-200'}`}
-                                                                            title={pos.activeWands.includes('s2') ? '復原資源' : '從皆可池智能補血'}
+                                                                            className={`p-1 rounded transition-colors ${pos.activeWands.includes('s2') ? 'bg-violet-100 text-violet-700 hover:bg-violet-200' : 'bg-white text-slate-400 hover:text-violet-600 shadow-sm border border-slate-200'}`}
+                                                                            title={pos.activeWands.includes('s2') ? '復原資源' : '由皆可池智能支援'}
                                                                         >
-                                                                            {pos.activeWands.includes('s2') ? <Undo2 size={12} /> : <Wand2 size={12} />}
+                                                                            {pos.activeWands.includes('s2') ? <Undo2 size={11} /> : <Wand2 size={11} />}
                                                                         </button>
                                                                     )}
                                                                 </div>
                                                             ) : <span className="text-slate-300">-</span>}
                                                         </td>
 
-                                                        {/* 皆可：人數、FTE (顯示原始不變) */}
-                                                        <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-slate-50">
-                                                            <div className="font-bold text-base leading-none text-slate-600">{pos.bothCount}</div>
+                                                        {/* 皆可區塊：中性灰底 bg-slate-100/40 + 方案 A 直接取代連動減少 */}
+                                                        <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-slate-100/40">
+                                                            <div className="text-slate-400 font-normal text-xs">{pos.bothCount}人</div>
                                                         </td>
-                                                        <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-slate-50">
-                                                            <div className="font-semibold text-sm leading-none text-slate-500">{pos.bothFTE}</div>
+                                                        <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-slate-100/40 border-r-2 border-slate-200">
+                                                            <div className={`font-bold text-sm ${pos.currentPool !== pos.bothFTE ? 'text-amber-600 animate-pulse' : 'text-slate-700'}`}>
+                                                                {pos.currentPool}
+                                                            </div>
                                                         </td>
                                                         
                                                         {/* 總計人數 */}
-                                                        <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-slate-100/30 font-extrabold text-base text-slate-800">
-                                                            {pos.totalCount}
+                                                        <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-slate-50 font-bold text-sm text-slate-500">
+                                                            {pos.totalCount}人
                                                         </td>
 
-                                                        {/* 智能策略分析 (純燈號 💡) */}
-                                                        <td className="py-3.5 px-4 text-center border-b border-slate-100">
+                                                        {/* 智能策略分析 (純變色燈號 💡) */}
+                                                        <td className="py-3.5 px-4 text-center border-b border-slate-100 bg-slate-50">
                                                             {currentReq > 0 ? (
                                                                 <button 
                                                                     onClick={() => toggleDrawer(pos.name)}
@@ -715,9 +718,9 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                                         ${pos.gap < 0 ? 'bg-rose-50 text-rose-500 hover:bg-rose-100' : 
                                                                           pos.gap === 0 ? 'bg-slate-100 text-slate-400 hover:bg-slate-200' : 
                                                                           'bg-emerald-50 text-emerald-500 hover:bg-emerald-100'}`}
-                                                                    title="點擊查看智能策略分析"
+                                                                    title="點擊展開智能策略決策面板"
                                                                 >
-                                                                    <Lightbulb size={18} className={drawerPos === pos.name ? 'fill-current' : ''} />
+                                                                    <Lightbulb size={17} className={drawerPos === pos.name ? 'fill-current' : ''} />
                                                                 </button>
                                                             ) : (
                                                                 <span className="text-slate-300">-</span>
