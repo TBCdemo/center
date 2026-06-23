@@ -5,9 +5,9 @@ import {
 } from 'lucide-react';
 
 // ==========================================
-// 崗位需求設定參數 (單堂需求人數)
+// 崗位需求預設設定參數 (初始沙盤數值)
 // ==========================================
-const POSITION_REQUIREMENTS = {
+const INITIAL_REQUIREMENTS = {
     '司會': { singleSession: 1, freq: 'weekly' },
     '執事輪值': { singleSession: 1, freq: 'weekly' },
     'PPT': { singleSession: 1, freq: 'weekly' },
@@ -51,6 +51,18 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
     const [availableQuarters, setAvailableQuarters] = useState([]);
     const [viewQuarter, setViewQuarter] = useState('');
     const [dbData, setDbData] = useState({ members: [], positions: [], memberPositions: [], quarterSettings: [] });
+
+    // 沙盤推演狀態：可動態調整的單堂需求人數
+    const [requirements, setRequirements] = useState(INITIAL_REQUIREMENTS);
+
+    // 處理沙盤數值微調
+    const handleUpdateReq = (posName, delta) => {
+        setRequirements(prev => {
+            const current = prev[posName] || { singleSession: 0, freq: 'weekly' };
+            const newValue = Math.max(0, current.singleSession + delta);
+            return { ...prev, [posName]: { ...current, singleSession: newValue } };
+        });
+    };
 
     // 1. 初始化：取得所有季度
     useEffect(() => {
@@ -171,7 +183,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
     }, [dbData, availableQuarters]);
 
     // ==========================================
-    // 計算 2：單季操作洞察 (含 FTE 與人力缺口精算)
+    // 計算 2：單季操作洞察 (動態連動 requirements 沙盤設定)
     // ==========================================
     const insights = useMemo(() => {
         const { members, positions, memberPositions, quarterSettings } = dbData;
@@ -214,7 +226,8 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             const totalCount = s1Count + s2Count + bothCount;
             const totalFTE = Math.round((s1FTE + s2FTE + bothFTE) * 10) / 10;
 
-            const req = POSITION_REQUIREMENTS[pos.name] || { singleSession: 0, freq: 'weekly' };
+            // 取得目前的動態沙盤設定
+            const req = requirements[pos.name] || { singleSession: 0, freq: 'weekly' };
             let sessionQuarterDemand = req.freq === 'monthly' ? req.singleSession * 3 : req.singleSession * 13; 
             const sessionMinRequired = Math.ceil(sessionQuarterDemand / 6);
 
@@ -222,7 +235,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             const totalRequirement = sessionMinRequired * 2;
             const gap = req.singleSession > 0 ? Math.round((totalFTE - totalRequirement) * 10) / 10 : 0;
 
-            // 判斷單堂健康度 (以 FTE 為硬性指標)
+            // 判斷單堂健康度 (以動態 FTE 為硬性指標)
             let s1Health = 'gray';
             let s2Health = 'gray';
 
@@ -252,7 +265,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
         const maxConcurrencyPeople = Math.max(0, ...concurrencyData.map(d => d.people));
 
         return { positionDistribution, concurrencyData, maxConcurrencyPeople };
-    }, [dbData, viewQuarter]);
+    }, [dbData, viewQuarter, requirements]);
 
     return (
         <div className="flex h-screen w-full bg-slate-50 overflow-hidden relative">
@@ -380,21 +393,22 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                 </div>
                                 
                                 <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-                                    {/* 左側：人力分布 */}
+                                    {/* 左側：人力需求分析 */}
                                     <div className="xl:col-span-3 bg-white rounded-xl shadow-soft border border-slate-100 overflow-hidden flex flex-col">
                                         <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between gap-2">
                                             <div className="flex items-center gap-2">
                                                 <LayoutList className="text-indigo-500" size={20} />
-                                                <h3 className="text-lg font-bold text-slate-800">人力需求分析</h3>
+                                                <h3 className="text-lg font-bold text-slate-800">人力需求分析 <span className="text-xs text-slate-400 font-normal ml-2">可動態點擊數值進行排班沙盤推演</span></h3>
                                             </div>
                                         </div>
                                         <div className="overflow-x-auto flex-1">
-                                            <table className="w-full text-left border-collapse min-w-[700px]">
+                                            <table className="w-full text-left border-collapse min-w-[750px]">
                                                 <thead>
                                                     {/* 第一層大區塊 */}
                                                     <tr>
                                                         <th rowSpan="2" className="py-2 px-4 font-semibold text-slate-500 text-sm border-b border-slate-200 bg-slate-50 align-middle">崗位</th>
-                                                        <th rowSpan="2" className="py-2 px-2 font-semibold text-slate-500 text-[13px] border-b border-slate-200 bg-slate-50 text-center align-middle">單堂最低人數</th>
+                                                        <th rowSpan="2" className="py-2 px-2 font-semibold text-indigo-600 text-[13px] border-b border-slate-200 bg-indigo-50/30 text-center align-middle">每堂所需</th>
+                                                        <th rowSpan="2" className="py-2 px-2 font-semibold text-slate-500 text-[13px] border-b border-slate-200 bg-slate-50 text-center align-middle tracking-tight">安全低標</th>
                                                         <th colSpan="2" className="py-2 px-3 font-bold text-slate-700 text-sm border-b border-slate-200 bg-indigo-50/60 text-center">第一堂</th>
                                                         <th colSpan="2" className="py-2 px-3 font-bold text-slate-700 text-sm border-b border-slate-200 bg-indigo-50/60 text-center">第二堂</th>
                                                         <th colSpan="2" className="py-2 px-3 font-bold text-slate-600 text-sm border-b border-slate-200 bg-slate-100/50 text-center">皆可</th>
@@ -412,65 +426,85 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {insights.positionDistribution.map((pos, idx) => (
-                                                        <tr key={pos.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'} hover:bg-slate-50 transition-colors`}>
-                                                            <td className="py-3.5 px-4 font-bold text-slate-700 border-b border-slate-100">{pos.name}</td>
-                                                            
-                                                            <td className="py-3.5 px-2 text-center border-b border-slate-100 font-bold text-slate-400">
-                                                                {pos.sessionMinRequired > 0 ? `${pos.sessionMinRequired}` : '-'}
-                                                            </td>
+                                                    {insights.positionDistribution.map((pos, idx) => {
+                                                        const currentReq = requirements[pos.name]?.singleSession || 0;
+                                                        return (
+                                                            <tr key={pos.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'} hover:bg-slate-50 transition-colors`}>
+                                                                <td className="py-3.5 px-4 font-bold text-slate-700 border-b border-slate-100">{pos.name}</td>
+                                                                
+                                                                {/* 動態調整：每堂所需 */}
+                                                                <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-indigo-50/10">
+                                                                    <div className="flex items-center justify-center gap-2">
+                                                                        <button 
+                                                                            onClick={() => handleUpdateReq(pos.name, -1)} 
+                                                                            disabled={currentReq <= 0}
+                                                                            className="w-6 h-6 flex items-center justify-center bg-white hover:bg-slate-200 text-slate-500 rounded border border-slate-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                                                        >-</button>
+                                                                        <span className="font-extrabold text-indigo-700 w-4 text-center">{currentReq}</span>
+                                                                        <button 
+                                                                            onClick={() => handleUpdateReq(pos.name, 1)} 
+                                                                            className="w-6 h-6 flex items-center justify-center bg-white hover:bg-slate-200 text-slate-500 rounded border border-slate-200 transition-colors"
+                                                                        >+</button>
+                                                                    </div>
+                                                                </td>
 
-                                                            {/* 第一堂：若 FTE 不足，則人數與 FTE 兩格皆亮紅字紅底 */}
-                                                            <td className={`py-3.5 px-2 text-center border-b border-slate-100 ${pos.s1Health === 'red' ? 'bg-rose-50/70 text-rose-600' : 'bg-indigo-50/10 text-slate-700'}`}>
-                                                                <div className="font-bold text-base leading-none">{pos.s1Count}</div>
-                                                            </td>
-                                                            <td className={`py-3.5 px-2 text-center border-b border-slate-100 ${pos.s1Health === 'red' ? 'bg-rose-50/70 text-rose-600' : 'bg-indigo-50/10 text-indigo-600'}`}>
-                                                                <div className="font-semibold text-sm leading-none">{pos.s1FTE}</div>
-                                                            </td>
+                                                                {/* 自動換算：安全低標 */}
+                                                                <td className="py-3.5 px-2 text-center border-b border-slate-100 font-bold text-slate-400">
+                                                                    {pos.sessionMinRequired > 0 ? `${pos.sessionMinRequired}` : '-'}
+                                                                </td>
 
-                                                            {/* 第二堂：若 FTE 不足，則人數與 FTE 兩格皆亮紅字紅底 */}
-                                                            <td className={`py-3.5 px-2 text-center border-b border-slate-100 ${pos.s2Health === 'red' ? 'bg-rose-50/70 text-rose-600' : 'bg-indigo-50/10 text-slate-700'}`}>
-                                                                <div className="font-bold text-base leading-none">{pos.s2Count}</div>
-                                                            </td>
-                                                            <td className={`py-3.5 px-2 text-center border-b border-slate-100 ${pos.s2Health === 'red' ? 'bg-rose-50/70 text-rose-600' : 'bg-indigo-50/10 text-indigo-600'}`}>
-                                                                <div className="font-semibold text-sm leading-none">{pos.s2FTE}</div>
-                                                            </td>
+                                                                {/* 第一堂：若 FTE 不足，則人數與 FTE 兩格皆亮紅字紅底 */}
+                                                                <td className={`py-3.5 px-2 text-center border-b border-slate-100 ${pos.s1Health === 'red' ? 'bg-rose-50/70 text-rose-600' : 'bg-indigo-50/10 text-slate-700'}`}>
+                                                                    <div className="font-bold text-base leading-none">{pos.s1Count}</div>
+                                                                </td>
+                                                                <td className={`py-3.5 px-2 text-center border-b border-slate-100 ${pos.s1Health === 'red' ? 'bg-rose-50/70 text-rose-600' : 'bg-indigo-50/10 text-indigo-600'}`}>
+                                                                    <div className="font-semibold text-sm leading-none">{pos.s1FTE}</div>
+                                                                </td>
 
-                                                            {/* 皆可 */}
-                                                            <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-slate-50">
-                                                                <div className="font-bold text-base leading-none text-slate-600">{pos.bothCount}</div>
-                                                            </td>
-                                                            <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-slate-50">
-                                                                <div className="font-semibold text-sm leading-none text-slate-500">{pos.bothFTE}</div>
-                                                            </td>
-                                                            
-                                                            {/* 總計：純人數計數 */}
-                                                            <td className="py-3.5 px-3 text-center border-b border-slate-100 bg-slate-100/30 font-extrabold text-base text-slate-800">
-                                                                {pos.totalCount}
-                                                            </td>
+                                                                {/* 第二堂：若 FTE 不足，則人數與 FTE 兩格皆亮紅字紅底 */}
+                                                                <td className={`py-3.5 px-2 text-center border-b border-slate-100 ${pos.s2Health === 'red' ? 'bg-rose-50/70 text-rose-600' : 'bg-indigo-50/10 text-slate-700'}`}>
+                                                                    <div className="font-bold text-base leading-none">{pos.s2Count}</div>
+                                                                </td>
+                                                                <td className={`py-3.5 px-2 text-center border-b border-slate-100 ${pos.s2Health === 'red' ? 'bg-rose-50/70 text-rose-600' : 'bg-indigo-50/10 text-indigo-600'}`}>
+                                                                    <div className="font-semibold text-sm leading-none">{pos.s2FTE}</div>
+                                                                </td>
 
-                                                            {/* 人力缺口：正數綠字、負數紅字、零灰字 */}
-                                                            <td className="py-3.5 px-3 text-center border-b border-slate-100 font-bold text-base">
-                                                                {pos.sessionMinRequired > 0 ? (
-                                                                    pos.gap > 0 ? (
-                                                                        <span className="text-emerald-600">+{pos.gap}</span>
-                                                                    ) : pos.gap < 0 ? (
-                                                                        <span className="text-rose-600">{pos.gap}</span>
+                                                                {/* 皆可 */}
+                                                                <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-slate-50">
+                                                                    <div className="font-bold text-base leading-none text-slate-600">{pos.bothCount}</div>
+                                                                </td>
+                                                                <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-slate-50">
+                                                                    <div className="font-semibold text-sm leading-none text-slate-500">{pos.bothFTE}</div>
+                                                                </td>
+                                                                
+                                                                {/* 總計：純人數計數 */}
+                                                                <td className="py-3.5 px-3 text-center border-b border-slate-100 bg-slate-100/30 font-extrabold text-base text-slate-800">
+                                                                    {pos.totalCount}
+                                                                </td>
+
+                                                                {/* 人力缺口：正數綠字、負數紅字、零灰字 */}
+                                                                <td className="py-3.5 px-3 text-center border-b border-slate-100 font-bold text-base">
+                                                                    {currentReq > 0 ? (
+                                                                        pos.gap > 0 ? (
+                                                                            <span className="text-emerald-600">+{pos.gap}</span>
+                                                                        ) : pos.gap < 0 ? (
+                                                                            <span className="text-rose-600">{pos.gap}</span>
+                                                                        ) : (
+                                                                            <span className="text-slate-400">0.0</span>
+                                                                        )
                                                                     ) : (
-                                                                        <span className="text-slate-400">0.0</span>
-                                                                    )
-                                                                ) : (
-                                                                    <span className="text-slate-300">-</span>
-                                                                )}
-                                                            </td>
-                                                        </tr>
-                                                    ))}
+                                                                        <span className="text-slate-300">-</span>
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
                                                 </tbody>
                                             </table>
                                         </div>
                                     </div>
 
-                                    {/* 右側：崗位分析長條圖 */}
+                                    {/* 右側：崗位技能分布長條圖 */}
                                     <div className="xl:col-span-2 bg-white rounded-xl shadow-soft border border-slate-100 overflow-hidden flex flex-col">
                                         <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
                                             <UserCheck className="text-violet-500" size={20} />
