@@ -733,7 +733,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                                         <button 
                                                                             onClick={() => toggleWand(pos.name, 's1')}
                                                                             className={`p-1 rounded transition-colors ${pos.activeWands.includes('s1') ? 'bg-sky-100 text-sky-700 hover:bg-sky-200' : 'bg-white text-slate-400 hover:text-sky-600 shadow-sm border border-slate-200'}`}
-                                                                            title={pos.activeWands.includes('s1') ? '復原資源' : '由皆可池智能支援'}
+                                                                            title={pos.activeWands.includes('s1') ? '復原資源' : '人力調度'}
                                                                         >
                                                                             {pos.activeWands.includes('s1') ? <Undo2 size={11} /> : <Wand2 size={11} />}
                                                                         </button>
@@ -759,7 +759,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                                         <button 
                                                                             onClick={() => toggleWand(pos.name, 's2')}
                                                                             className={`p-1 rounded transition-colors ${pos.activeWands.includes('s2') ? 'bg-violet-100 text-violet-700 hover:bg-violet-200' : 'bg-white text-slate-400 hover:text-violet-600 shadow-sm border border-slate-200'}`}
-                                                                            title={pos.activeWands.includes('s2') ? '復原資源' : '由皆可池智能支援'}
+                                                                            title={pos.activeWands.includes('s2') ? '復原資源' : '人力調度'}
                                                                         >
                                                                             {pos.activeWands.includes('s2') ? <Undo2 size={11} /> : <Wand2 size={11} />}
                                                                         </button>
