@@ -50,13 +50,13 @@ const DiffCell = ({ diff }) => {
 };
 
 // ==========================================
-// 視覺元件：FTE 懸浮提示框 (Tooltip)
+// 視覺元件：FTE 懸浮提示框 (Tooltip) - 向下展開
 // ==========================================
 const FteTooltip = () => (
     <div className="relative group cursor-help ml-1 inline-flex items-center">
         <span className="text-[10px] text-slate-400 font-normal border border-slate-300 rounded-full w-3.5 h-3.5 flex items-center justify-center group-hover:bg-indigo-100 group-hover:text-indigo-600 group-hover:border-indigo-300 transition-colors">?</span>
         <div className="absolute z-50 hidden group-hover:block w-[320px] p-4 bg-slate-800 text-slate-50 text-[12px] leading-relaxed rounded-xl shadow-2xl top-full left-1/2 -translate-x-1/2 mt-2 text-left font-normal normal-case pointer-events-none border border-slate-700">
-            {/* 小箭頭 */}
+            {/* 小箭頭 (朝上) */}
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-800"></div>
             
             <div className="font-bold text-white mb-2 pb-2 border-b border-slate-600">
@@ -314,14 +314,17 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             };
         });
 
-        // 🌟 強制初始化 0，確保「0 個崗位」柱子永遠存在
-        const concurrencyMap = { 0: 0 };
+        const concurrencyMap = {};
         realMembers.forEach(m => {
-            // 🌟 核心修正：只統計上線服事人員
+            // 只統計上線服事人員
             if (!activeMemberIds.has(m.id)) return;
             
             const realCount = memberPositions.filter(mp => mp.member_id === m.id && mp.is_active !== false).length;
-            concurrencyMap[realCount] = (concurrencyMap[realCount] || 0) + 1;
+            
+            // 🌟 不強制顯示 0 崗位：只統計有實際掛名 1 個崗位(含)以上的同工
+            if (realCount > 0) {
+                concurrencyMap[realCount] = (concurrencyMap[realCount] || 0) + 1;
+            }
         });
 
         const concurrencyData = Object.keys(concurrencyMap).map(Number).sort((a, b) => a - b).map(count => ({
