@@ -385,7 +385,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                         <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between gap-2">
                                             <div className="flex items-center gap-2">
                                                 <LayoutList className="text-indigo-500" size={20} />
-                                                <h3 className="text-lg font-bold text-slate-800">人力分布</h3>
+                                                <h3 className="text-lg font-bold text-slate-800">人力需求分析</h3>
                                             </div>
                                         </div>
                                         <div className="overflow-x-auto flex-1">
@@ -474,7 +474,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                     <div className="xl:col-span-2 bg-white rounded-xl shadow-soft border border-slate-100 overflow-hidden flex flex-col">
                                         <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
                                             <UserCheck className="text-violet-500" size={20} />
-                                            <h3 className="text-lg font-bold text-slate-800">崗位分析</h3>
+                                            <h3 className="text-lg font-bold text-slate-800">崗位技能分布</h3>
                                         </div>
                                         <div className="p-6 flex-1 flex flex-col justify-center min-h-[300px]">
                                             <div className="flex items-end gap-3 sm:gap-6 h-64 border-b border-slate-200 pb-2 relative px-2">
