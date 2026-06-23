@@ -5,16 +5,16 @@ import {
 } from 'lucide-react';
 
 // ==========================================
-// 崗位需求預設設定參數 (初始沙盤數值)
+// 崗位需求預設設定參數 (初始沙盤數值，加入 maxLimit 預設值)
 // ==========================================
 const INITIAL_REQUIREMENTS = {
-    '司會': { singleSession: 1, freq: 'weekly' },
-    '執事輪值': { singleSession: 1, freq: 'weekly' },
-    'PPT': { singleSession: 1, freq: 'weekly' },
-    '新朋友關懷': { singleSession: 3, freq: 'weekly' },
-    '接待': { singleSession: 4, freq: 'weekly' },
-    '收奉獻': { singleSession: 5, freq: 'weekly' },
-    '主餐': { singleSession: 6, freq: 'monthly' }
+    '司會': { singleSession: 1, freq: 'weekly', maxLimit: 6 },
+    '執事輪值': { singleSession: 1, freq: 'weekly', maxLimit: 6 },
+    'PPT': { singleSession: 1, freq: 'weekly', maxLimit: 6 },
+    '新朋友關懷': { singleSession: 3, freq: 'weekly', maxLimit: 6 },
+    '接待': { singleSession: 4, freq: 'weekly', maxLimit: 6 },
+    '收奉獻': { singleSession: 5, freq: 'weekly', maxLimit: 6 },
+    '主餐': { singleSession: 6, freq: 'monthly', maxLimit: 3 }
 };
 
 // ==========================================
@@ -52,15 +52,24 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
     const [viewQuarter, setViewQuarter] = useState('');
     const [dbData, setDbData] = useState({ members: [], positions: [], memberPositions: [], quarterSettings: [] });
 
-    // 沙盤推演狀態：可動態調整的單堂需求人數
+    // 沙盤推演狀態：可動態調整的【人數(堂)】與【服事上限】
     const [requirements, setRequirements] = useState(INITIAL_REQUIREMENTS);
 
-    // 處理沙盤數值微調
+    // 處理人數(堂)沙盤微調
     const handleUpdateReq = (posName, delta) => {
         setRequirements(prev => {
-            const current = prev[posName] || { singleSession: 0, freq: 'weekly' };
+            const current = prev[posName] || { singleSession: 0, freq: 'weekly', maxLimit: 6 };
             const newValue = Math.max(0, current.singleSession + delta);
             return { ...prev, [posName]: { ...current, singleSession: newValue } };
+        });
+    };
+
+    // 處理服事上限沙盤微調
+    const handleUpdateLimit = (posName, delta) => {
+        setRequirements(prev => {
+            const current = prev[posName] || { singleSession: 0, freq: 'weekly', maxLimit: 6 };
+            const newValue = Math.max(1, current.maxLimit + delta); // 上限最少為 1
+            return { ...prev, [posName]: { ...current, maxLimit: newValue } };
         });
     };
 
@@ -183,7 +192,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
     }, [dbData, availableQuarters]);
 
     // ==========================================
-    // 計算 2：單季操作洞察 (含 FTE 與相容群組精算)
+    // 計算 2：單季操作洞察 (硬性防呆：嚴格按次數扣除 FTE)
     // ==========================================
     const insights = useMemo(() => {
         const { members, positions, memberPositions, quarterSettings } = dbData;
@@ -199,40 +208,6 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             }
         });
 
-        // ----------------------------------------------------------------
-        // [核心邏輯] 預先計算每位同工的 FTE 權重 (套用「相容群組」同堂雙開規則)
-        // ----------------------------------------------------------------
-        const memberWeights = {};
-        const COMPATIBLE_GROUP = ['新朋友關懷', '主餐', '接待', '收奉獻'];
-
-        realMembers.forEach(m => {
-            if (!activeMemberIds.has(m.id)) return;
-            
-            // 取出該同工所有的有效崗位 ID
-            const activePosIds = memberPositions
-                .filter(mp => mp.member_id === m.id && mp.is_active !== false)
-                .map(mp => mp.position_id);
-            
-            let compatCount = 0;
-            let incompatCount = 0;
-            
-            activePosIds.forEach(pId => {
-                const pName = positions.find(p => p.id === pId)?.name;
-                if (COMPATIBLE_GROUP.includes(pName)) {
-                    compatCount++;
-                } else {
-                    incompatCount++;
-                }
-            });
-            
-            // 相容群組的崗位：每 2 個折算為 1 次主日出勤消耗 (向上取整)
-            // 一般群組的崗位：每 1 個折算為 1 次主日出勤消耗
-            const effectiveSessionsNeeded = Math.ceil(compatCount / 2) + incompatCount;
-            
-            // 將總貢獻力 1 攤提給實際需要的出勤次數，得出每個崗位的 FTE 權重
-            memberWeights[m.id] = 1 / (effectiveSessionsNeeded || 1);
-        });
-
         // 崗位人力分布試算
         const positionDistribution = positions.map(pos => {
             let s1Count = 0, s2Count = 0, bothCount = 0;
@@ -243,7 +218,9 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                 const hasPos = memberPositions.some(mp => mp.member_id === m.id && mp.position_id === pos.id && mp.is_active !== false);
                 
                 if (hasPos) {
-                    const weight = memberWeights[m.id] || 0;
+                    // 硬性防呆：只要掛了 N 個崗位，貢獻力就是嚴格除以 N，取消所有兼容優惠
+                    const activePosCount = memberPositions.filter(mp => mp.member_id === m.id && mp.is_active !== false).length;
+                    const weight = 1 / (activePosCount || 1);
                     const pref = qsMap[m.id]?.preferred_session || '第一堂';
 
                     if (pref === '第一堂') { s1Count++; s1FTE += weight; }
@@ -259,16 +236,18 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             const totalCount = s1Count + s2Count + bothCount;
             const totalFTE = Math.round((s1FTE + s2FTE + bothFTE) * 10) / 10;
 
-            // 取得目前的動態沙盤設定
-            const req = requirements[pos.name] || { singleSession: 0, freq: 'weekly' };
+            // 取得目前的動態沙盤設定 (包含服事上限)
+            const req = requirements[pos.name] || { singleSession: 0, freq: 'weekly', maxLimit: 6 };
             let sessionQuarterDemand = req.freq === 'monthly' ? req.singleSession * 3 : req.singleSession * 13; 
-            const sessionMinRequired = Math.ceil(sessionQuarterDemand / 6); // 在背景做為健康度判定低標
+            
+            // 安全防線精算 = 單堂季總需求次數 / 服事上限次數
+            const sessionMinRequired = Math.ceil(sessionQuarterDemand / req.maxLimit);
 
             // 精算整體人力缺口 (總有效戰力 - 兩堂總需求)
             const totalRequirement = sessionMinRequired * 2;
             const gap = req.singleSession > 0 ? Math.round((totalFTE - totalRequirement) * 10) / 10 : 0;
 
-            // 判斷單堂健康度 (以動態 FTE 為硬性指標)
+            // 判斷單堂健康度 (以 FTE 為硬性指標)
             let s1Health = 'gray';
             let s2Health = 'gray';
 
@@ -435,17 +414,18 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                             </div>
                                         </div>
                                         <div className="overflow-x-auto flex-1">
-                                            <table className="w-full text-left border-collapse min-w-[700px]">
+                                            <table className="w-full text-left border-collapse min-w-[850px]">
                                                 <thead>
                                                     {/* 第一層大區塊 */}
                                                     <tr>
                                                         <th rowSpan="2" className="py-2 px-4 font-semibold text-slate-500 text-sm border-b border-slate-200 bg-slate-50 align-middle">崗位</th>
                                                         <th rowSpan="2" className="py-2 px-2 font-semibold text-indigo-600 text-[13px] border-b border-slate-200 bg-indigo-50/30 text-center align-middle">人數(堂)</th>
+                                                        <th rowSpan="2" className="py-2 px-2 font-semibold text-emerald-700 text-[13px] border-b border-slate-200 bg-emerald-50/50 text-center align-middle">服事上限<br/><span className="text-[10px] font-normal text-emerald-600">(次/季)</span></th>
                                                         <th colSpan="2" className="py-2 px-3 font-bold text-slate-700 text-sm border-b border-slate-200 bg-indigo-50/60 text-center">第一堂</th>
                                                         <th colSpan="2" className="py-2 px-3 font-bold text-slate-700 text-sm border-b border-slate-200 bg-indigo-50/60 text-center">第二堂</th>
                                                         <th colSpan="2" className="py-2 px-3 font-bold text-slate-600 text-sm border-b border-slate-200 bg-slate-100/50 text-center">皆可</th>
-                                                        <th rowSpan="2" className="py-2 px-4 font-extrabold text-slate-800 text-sm border-b border-slate-200 bg-slate-100/80 text-center align-middle">總計</th>
-                                                        <th rowSpan="2" className="py-2 px-4 font-extrabold text-slate-800 text-sm border-b border-slate-200 bg-slate-100/80 text-center align-middle">人力缺口</th>
+                                                        <th rowSpan="2" className="py-2 px-3 font-extrabold text-slate-800 text-sm border-b border-slate-200 bg-slate-100/80 text-center align-middle">總計</th>
+                                                        <th rowSpan="2" className="py-2 px-3 font-extrabold text-slate-800 text-sm border-b border-slate-200 bg-slate-100/80 text-center align-middle">人力缺口</th>
                                                     </tr>
                                                     {/* 第二層細部指標 */}
                                                     <tr>
@@ -460,22 +440,39 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                 <tbody>
                                                     {insights.positionDistribution.map((pos, idx) => {
                                                         const currentReq = requirements[pos.name]?.singleSession || 0;
+                                                        const currentMaxLimit = requirements[pos.name]?.maxLimit || 6;
                                                         return (
                                                             <tr key={pos.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'} hover:bg-slate-50 transition-colors`}>
                                                                 <td className="py-3.5 px-4 font-bold text-slate-700 border-b border-slate-100">{pos.name}</td>
                                                                 
                                                                 {/* 動態調整：人數(堂) */}
-                                                                <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-indigo-50/10">
-                                                                    <div className="flex items-center justify-center gap-2">
+                                                                <td className="py-3.5 px-1 text-center border-b border-slate-100 bg-indigo-50/10">
+                                                                    <div className="flex items-center justify-center gap-1.5">
                                                                         <button 
                                                                             onClick={() => handleUpdateReq(pos.name, -1)} 
                                                                             disabled={currentReq <= 0}
-                                                                            className="w-6 h-6 flex items-center justify-center bg-white hover:bg-slate-200 text-slate-500 rounded border border-slate-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                                                            className="w-5 h-5 flex items-center justify-center bg-white hover:bg-slate-200 text-slate-500 rounded border border-slate-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed leading-none pb-0.5"
                                                                         >-</button>
-                                                                        <span className="font-extrabold text-indigo-700 w-4 text-center">{currentReq}</span>
+                                                                        <span className="font-extrabold text-indigo-700 w-3 text-center">{currentReq}</span>
                                                                         <button 
                                                                             onClick={() => handleUpdateReq(pos.name, 1)} 
-                                                                            className="w-6 h-6 flex items-center justify-center bg-white hover:bg-slate-200 text-slate-500 rounded border border-slate-200 transition-colors"
+                                                                            className="w-5 h-5 flex items-center justify-center bg-white hover:bg-slate-200 text-slate-500 rounded border border-slate-200 transition-colors leading-none pb-0.5"
+                                                                        >+</button>
+                                                                    </div>
+                                                                </td>
+
+                                                                {/* 動態調整：服事上限(次/季) */}
+                                                                <td className="py-3.5 px-1 text-center border-b border-slate-100 bg-emerald-50/30">
+                                                                    <div className="flex items-center justify-center gap-1.5">
+                                                                        <button 
+                                                                            onClick={() => handleUpdateLimit(pos.name, -1)} 
+                                                                            disabled={currentMaxLimit <= 1}
+                                                                            className="w-5 h-5 flex items-center justify-center bg-white hover:bg-slate-200 text-slate-500 rounded border border-slate-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed leading-none pb-0.5"
+                                                                        >-</button>
+                                                                        <span className="font-extrabold text-emerald-700 w-4 text-center">{currentMaxLimit}</span>
+                                                                        <button 
+                                                                            onClick={() => handleUpdateLimit(pos.name, 1)} 
+                                                                            className="w-5 h-5 flex items-center justify-center bg-white hover:bg-slate-200 text-slate-500 rounded border border-slate-200 transition-colors leading-none pb-0.5"
                                                                         >+</button>
                                                                     </div>
                                                                 </td>
@@ -505,7 +502,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                                 </td>
                                                                 
                                                                 {/* 總計：純人數計數 */}
-                                                                <td className="py-3.5 px-3 text-center border-b border-slate-100 bg-slate-100/30 font-extrabold text-base text-slate-800">
+                                                                <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-slate-100/30 font-extrabold text-base text-slate-800">
                                                                     {pos.totalCount}
                                                                 </td>
 
