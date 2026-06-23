@@ -309,7 +309,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                 <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
                                     <div className="flex items-center gap-2">
                                         <TrendingUp className="text-indigo-600" size={20} />
-                                        <h3 className="text-lg font-extrabold text-slate-800 tracking-tight">人力資源分析</h3>
+                                        <h3 className="text-lg font-extrabold text-slate-800 tracking-tight">人力總覽</h3>
                                     </div>
                                 </div>
                                 <div className="overflow-x-auto">
