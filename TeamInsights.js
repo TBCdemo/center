@@ -38,7 +38,7 @@ const getYoYQuarter = (qStr) => {
 };
 
 // ==========================================
-// 視覺元件：歷史趨勢儲存格
+// 視覺元件：歷史趨勢儲格
 // ==========================================
 const DiffCell = ({ diff }) => {
     const baseClass = "px-2 py-2.5 text-center text-[12px] font-bold border-b border-slate-100/50";
@@ -203,7 +203,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
     }, [dbData, availableQuarters]);
 
     // ==========================================
-    // 計算 2：單季操作洞察 (含嚴格 FTE 扣減與魔術棒連動)
+    // 計算 2：單季操作洞察 (已修正崩潰 Bug)
     // ==========================================
     const insights = useMemo(() => {
         const { members, positions, memberPositions, quarterSettings } = dbData;
@@ -229,7 +229,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                 
                 if (hasPos) {
                     const activePosCount = memberPositions.filter(mp => mp.member_id === m.id && mp.is_active !== false).length;
-                    const weight = 1 / (activePosCount || 1); // 嚴格 FTE 規則
+                    const weight = 1 / (activePosCount || 1); 
                     const pref = qsMap[m.id]?.preferred_session || '第一堂';
 
                     if (pref === '第一堂') { s1Count++; s1FTE += weight; }
@@ -250,15 +250,13 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             
             const sessionMinRequired = Math.ceil(sessionQuarterDemand / req.maxLimit);
             
-            // 計算原始未調度的專職缺口
             const baseS1Gap = req.singleSession > 0 ? Math.round((s1FTE - sessionMinRequired) * 10) / 10 : 0;
             const baseS2Gap = req.singleSession > 0 ? Math.round((s2FTE - sessionMinRequired) * 10) / 10 : 0;
             
-            // 系統全域總缺口
             const totalRequirement = sessionMinRequired * 2;
             const gap = req.singleSession > 0 ? Math.round((totalFTE - totalRequirement) * 10) / 10 : 0;
 
-            // 處理魔術棒調度邏輯 (方案 A 核心：調度後 pool 遞減並直接呈現在畫面上)
+            // 魔術棒調度邏輯
             let currentPool = bothFTE;
             let displayS1Gap = baseS1Gap;
             let displayS2Gap = baseS2Gap;
@@ -287,9 +285,9 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             };
         });
 
+        // 修正後的技能分布統計，移除了崩潰行
         const concurrencyMap = {};
         realMembers.forEach(m => {
-            const posCount = memberPositions.filter(m.id === m.id).length; // fallback
             const realCount = memberPositions.filter(mp => mp.member_id === m.id && mp.is_active !== false).length;
             concurrencyMap[realCount] = (concurrencyMap[realCount] || 0) + 1;
         });
@@ -570,7 +568,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                 </div>
                             </div>
 
-                            {/* 下半部全寬：人力需求分析 (極度優化、降噪、分區清晰) */}
+                            {/* 下半部全寬：人力需求分析 */}
                             <div className="bg-white rounded-xl shadow-soft border border-slate-100 overflow-hidden flex flex-col w-full">
                                 <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between gap-2">
                                     <div className="flex items-center gap-2">
@@ -589,7 +587,6 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                 <th rowSpan="2" className="py-2 px-2 font-semibold text-indigo-600 text-[13px] border-b border-slate-200 bg-indigo-50/30 text-center align-middle">人數(堂)</th>
                                                 <th rowSpan="2" className="py-2 px-2 font-semibold text-emerald-700 text-[13px] border-b border-slate-200 bg-emerald-50/50 text-center align-middle">服事上限<br/><span className="text-[10px] font-normal text-emerald-600">(次/季)</span></th>
                                                 
-                                                {/* 建議一：頂層表頭色塊分區 + 粗邊框 */}
                                                 <th colSpan="3" className="py-2 px-3 font-bold text-sky-900 text-sm border-b border-slate-200 bg-sky-50/60 text-center border-r-2 border-slate-200">第一堂 (晨光藍)</th>
                                                 <th colSpan="3" className="py-2 px-3 font-bold text-violet-900 text-sm border-b border-slate-200 bg-violet-50/60 text-center border-r-2 border-slate-200">第二堂 (暖陽紫)</th>
                                                 <th colSpan="2" className="py-2 px-3 font-bold text-slate-700 text-sm border-b border-slate-200 bg-slate-100/80 text-center border-r-2 border-slate-200">皆可 (中性灰)</th>
@@ -598,7 +595,6 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                 <th rowSpan="2" className="py-2 px-4 font-extrabold text-slate-800 text-sm border-b border-slate-200 bg-slate-100/50 text-center align-middle">智能策略分析</th>
                                             </tr>
                                             <tr>
-                                                {/* 建議三：次級表頭對應變淡 */}
                                                 <th className="py-1.5 px-2 font-semibold text-slate-400 text-[11px] border-b-2 border-slate-200 bg-sky-50/30 text-center">人數</th>
                                                 <th className="py-1.5 px-2 font-bold text-sky-700 text-[11px] border-b-2 border-slate-200 bg-sky-50/30 text-center">FTE</th>
                                                 <th className="py-1.5 px-2 font-bold text-sky-800 text-[11px] border-b-2 border-slate-200 bg-sky-50/30 text-center border-r-2 border-slate-200">缺口</th>
@@ -641,7 +637,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                             </div>
                                                         </td>
 
-                                                        {/* 第一堂區塊：淡藍底 bg-sky-50/20 + 建議三降噪 */}
+                                                        {/* 第一堂區塊 */}
                                                         <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-sky-50/20">
                                                             <div className="text-slate-400 font-normal text-xs">{pos.s1Count}人</div>
                                                         </td>
@@ -667,7 +663,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                             ) : <span className="text-slate-300">-</span>}
                                                         </td>
 
-                                                        {/* 第二堂區塊：淡紫底 bg-violet-50/20 + 建議三降噪 */}
+                                                        {/* 第二堂區塊 */}
                                                         <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-violet-50/20">
                                                             <div className="text-slate-400 font-normal text-xs">{pos.s2Count}人</div>
                                                         </td>
@@ -693,7 +689,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                             ) : <span className="text-slate-300">-</span>}
                                                         </td>
 
-                                                        {/* 皆可區塊：中性灰底 bg-slate-100/40 + 方案 A 直接取代連動減少 */}
+                                                        {/* 皆可區塊：方案 A 直接取代 */}
                                                         <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-slate-100/40">
                                                             <div className="text-slate-400 font-normal text-xs">{pos.bothCount}人</div>
                                                         </td>
@@ -708,7 +704,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                             {pos.totalCount}人
                                                         </td>
 
-                                                        {/* 智能策略分析 (純變色燈號 💡) */}
+                                                        {/* 智能策略分析 */}
                                                         <td className="py-3.5 px-4 text-center border-b border-slate-100 bg-slate-50">
                                                             {currentReq > 0 ? (
                                                                 <button 
