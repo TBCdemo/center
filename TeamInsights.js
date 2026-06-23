@@ -341,9 +341,9 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                 isPriority: potentialHelpersCount > 0,
                 content: (
                     <div className="text-sm text-slate-600 space-y-2">
-                        <p><strong className="text-slate-700">📍 數據支持：</strong>目前共有 <strong className="text-amber-600 text-base">{potentialHelpersCount} 位</strong> 同工屬於單一崗位同工。</p>
-                        <p><strong className="text-slate-700">👉 具體行動：</strong>培訓{potentialHelpersCount} 位同工，兼任「{drawerPos}」。</p>
-                        <p className="text-amber-700 bg-amber-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>不增加同工服事天數，100%高效率轉換率補齊缺口。</p>
+                        <p><strong className="text-slate-700">📍 數據支持：</strong>目前共有 <strong className="text-amber-600 text-base">{potentialHelpersCount} 位</strong> 同工屬於單一崗位</p>
+                        <p><strong className="text-slate-700">👉 具體行動：</strong>培訓{potentialHelpersCount} 位同工兼任「{drawerPos}」</p>
+                        <p className="text-amber-700 bg-amber-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>不增加同工服事天數，100%高效率轉換補齊缺口</p>
                     </div>
                 )
             });
@@ -356,8 +356,8 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             isPriority: false,
             content: (
                 <div className="text-sm text-slate-600 space-y-2">
-                    <p><strong className="text-slate-700">📍 數據支持：</strong>將服事上限從 {req.maxLimit} 次適度調高。</p>
-                    <p className="text-indigo-700 bg-indigo-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>缺口縮小或歸零，但同工可能隨時會累垮。</p>
+                    <p><strong className="text-slate-700">📍 數據支持：</strong>將服事上限從 {req.maxLimit} 次適度調高</p>
+                    <p className="text-indigo-700 bg-indigo-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>缺口縮小或歸零，但同工可能隨時會累垮</p>
                 </div>
             )
         });
@@ -385,7 +385,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             isPriority: false,
             content: (
                 <div className="text-sm text-slate-600 space-y-2">
-               <p><strong className="text-slate-700">👉 具體行動：</strong>啟動招募新人，預計招募 <strong className="text-emerald-600 text-base">{Math.abs(gap)} 位</strong> 新血。</p>
+               <p><strong className="text-slate-700">👉 具體行動：</strong>招募 <strong className="text-emerald-600 text-base">{Math.abs(gap)} 位</strong> 新血</p>
                 </div>
             )
         });
