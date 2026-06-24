@@ -384,9 +384,10 @@
         // 主應用框架 (分流與路由守衛)
         // ==========================================
         const MainApp = ({ session }) => {
-            const currentUserEmail = session.user?.email;
-            const currentUserAccount = extractAccountFromEmail(currentUserEmail);
-            const isAdmin = currentUserAccount === constants.ADMIN_ACCOUNT || currentUserEmail === constants.ADMIN_ACCOUNT;
+            // 新寫法
+const currentUserEmail = session.user?.email;
+// 檢查使用者的 app_metadata 中是否有 role: 'admin'
+const isAdmin = session.user?.app_metadata?.role === 'admin';
 
             // 狀態加入 insights 路由
             const [currentApp, setCurrentApp] = useState(isAdmin ? 'home' : 'members'); 
