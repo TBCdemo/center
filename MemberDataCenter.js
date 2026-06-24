@@ -20,7 +20,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
 
     const currentUserEmail = session.user.email;
     const currentUserAccount = extractAccountFromEmail(currentUserEmail);
-    const isAdmin = currentUserAccount === ADMIN_ACCOUNT || currentUserEmail === ADMIN_ACCOUNT;
+    const isAdmin = session.user?.app_metadata?.role === 'admin';
 
     const [isSubmissionOpen, setIsSubmissionOpen] = useState(false);
     const [isLargeFont, setIsLargeFont] = useState(false); 
