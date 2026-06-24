@@ -195,7 +195,6 @@
             const [account, setAccount] = useState('');
             const [password, setPassword] = useState('');
             const [confirmPassword, setConfirmPassword] = useState(''); 
-            const [inviteCode, setInviteCode] = useState(''); 
             const [loading, setLoading] = useState(false);
             const [isSignUp, setIsSignUp] = useState(false);
             const [errorMsg, setErrorMsg] = useState('');
@@ -217,21 +216,19 @@
                         if (password !== confirmPassword) throw new Error('兩次輸入的密碼不同');
 
                         // ==========================================
-                        // 2. 註冊邏輯：後端雙重驗證 (邀請碼 + 白名單)
+                        // 2. 註冊邏輯：純白名單驗證
                         // ==========================================
                         const { data: isValid, error: checkError } = await supabase.rpc('check_member_exists', { 
-                            p_account: account,
-                            p_invite_code: inviteCode
+                            p_account: account
                         });
 
                         if (checkError) {
                             console.error("驗證錯誤:", checkError);
-                            throw new Error('驗證時發生錯誤，聯絡行政辦公室或稍後再試');
+                            throw new Error('系統驗證時發生錯誤。請確認網路狀態後再試一次；若持續失敗，請聯絡行政辦公室協助處理。');
                         }
 
-                        // 根據後端回傳的結果判斷
                         if (!isValid) {
-                            throw new Error('邀請碼或帳號錯誤');
+                            throw new Error('查無此帳號！請確認後再試，或聯絡行政辦公室。');
                         }
 
                         // ==========================================
@@ -239,7 +236,6 @@
                         // ==========================================
                         const { data, error } = await supabase.auth.signUp({ email: loginEmail, password });
                         
-                        // 【防呆】偵測 Supabase 是否在「假裝註冊成功」
                         const isFakeSuccess = data?.user && data.user.identities && data.user.identities.length === 0;
                         const isCompletelyNull = !error && (!data || !data.user);
                         
@@ -249,9 +245,8 @@
 
                         if (error) throw error;
                         
-                        alert('註冊成功');
+                        alert('註冊成功！請使用新密碼登入。');
                         setIsSignUp(false);
-                        setInviteCode('');
                         setConfirmPassword('');
                         setShowPassword(false);
                         setShowConfirmPassword(false);
@@ -264,14 +259,12 @@
                         if (error) throw error;
                     }
                 } catch (error) {
-                    // ==========================================
-                    // 錯誤訊息轉換
-                    // ==========================================
                     let msg = error.message;
                     if (msg.includes('Invalid login credentials')) msg = '登入失敗：帳號或密碼錯誤';
                     if (msg.includes('User already registered')) msg = 'Oops！此帳號已經註冊過了';
                     if (msg.includes('Password should be at least')) msg = '密碼長度至少需 6 個字元';
-                    if (msg.includes('邀請碼或帳號錯誤')) msg = error.message; 
+                    if (msg.includes('查無此帳號')) msg = error.message; 
+                    if (msg.includes('系統驗證時發生錯誤')) msg = error.message; 
                     if (msg.includes('兩次輸入的密碼不同')) msg = error.message; 
                     setErrorMsg(msg);
                 } finally {
@@ -353,19 +346,9 @@
                                 )}
 
                                 {isSignUp && (
-                                    <div className="space-y-1.5 animate-fade-in">
-                                        <label className="text-xs font-bold text-indigo-500 uppercase tracking-wider ml-1">邀請碼 <span className="text-red-500">*</span></label>
-                                        <div className="relative">
-                                            <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-400" size={18} />
-                                            <input type="text" value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} className="w-full bg-indigo-50/50 border border-indigo-200 rounded-xl pl-11 pr-4 py-3.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all font-semibold text-slate-700" placeholder="輸入本會提供的邀請碼" required={isSignUp} />
-                                        </div>
-                                    </div>
-                                )}
-
-                                {isSignUp && (
                                     <div className="bg-amber-50 text-amber-700 text-xs font-bold p-3 rounded-xl border border-amber-100 flex items-start gap-2 leading-relaxed mt-2">
                                         <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                                        聯絡行政辦公室，確認已建立帳號並索取邀請碼。
+                                        僅限本會同工註冊。請先確認已向行政辦公室提交您的聯絡方式，方可完成註冊。
                                     </div>
                                 )}
 
@@ -377,11 +360,11 @@
                             <div className="mt-6 flex flex-col gap-4 text-center">
                                 {isSignUp ? (
                                     <div className="text-sm font-medium text-slate-500">
-                                        已有帳號？ <button type="button" onClick={() => { setIsSignUp(false); setErrorMsg(''); setConfirmPassword(''); setInviteCode(''); setShowPassword(false); setShowConfirmPassword(false); }} className="font-bold text-indigo-600 hover:text-indigo-700 transition-colors py-1">登入</button>
+                                        已有帳號？ <button type="button" onClick={() => { setIsSignUp(false); setErrorMsg(''); setConfirmPassword(''); setShowPassword(false); setShowConfirmPassword(false); }} className="font-bold text-indigo-600 hover:text-indigo-700 transition-colors py-1">登入</button>
                                     </div>
                                 ) : (
                                     <div className="text-sm font-medium text-slate-500">
-                                        沒有帳號？ <button type="button" onClick={() => { setIsSignUp(true); setErrorMsg(''); setConfirmPassword(''); setInviteCode(''); setShowPassword(false); setShowConfirmPassword(false); }} className="font-bold text-indigo-600 hover:text-indigo-700 transition-colors py-1">建立一個吧！</button>
+                                        沒有帳號？ <button type="button" onClick={() => { setIsSignUp(true); setErrorMsg(''); setConfirmPassword(''); setShowPassword(false); setShowConfirmPassword(false); }} className="font-bold text-indigo-600 hover:text-indigo-700 transition-colors py-1">建立一個吧！</button>
                                     </div>
                                 )}
                                 
