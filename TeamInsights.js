@@ -3,28 +3,29 @@ import {
     Home, Users, Calendar, LogOut, BarChart3, ChevronLeft, 
     UserCheck, LayoutList, TrendingUp, Lightbulb, X, Target, 
     Zap, UserPlus, AlertCircle, CheckCircle2, Wand2, Undo2,
-    UsersRound, Sparkles
+    UsersRound, Sparkles, Settings
 } from 'lucide-react';
 
 // ==========================================
-// 崗位需求預設設定參數 (初始沙盤數值)
+// 崗位需求預設設定參數
 // ==========================================
 const INITIAL_REQUIREMENTS = {
-    '司會': { singleSession: 1, freq: 'weekly', maxLimit: 6 },
-    '執事輪值': { singleSession: 1, freq: 'weekly', maxLimit: 6 },
-    'PPT': { singleSession: 1, freq: 'weekly', maxLimit: 6 },
-    '新朋友關懷': { singleSession: 3, freq: 'weekly', maxLimit: 6 },
-    '接待': { singleSession: 4, freq: 'weekly', maxLimit: 6 },
-    '收奉獻': { singleSession: 5, freq: 'weekly', maxLimit: 6 },
-    '主餐': { singleSession: 6, freq: 'monthly', maxLimit: 3 }
+    '司會': { singleSession: 1, freq: 'weekly' },
+    '執事輪值': { singleSession: 1, freq: 'weekly' },
+    'PPT': { singleSession: 1, freq: 'weekly' },
+    '新朋友關懷': { singleSession: 3, freq: 'weekly' },
+    '接待': { singleSession: 4, freq: 'weekly' },
+    '收奉獻': { singleSession: 5, freq: 'weekly' },
+    '主餐': { singleSession: 6, freq: 'monthly' }
 };
 
-// 宣告相容群組常數
+const INITIAL_POLICY_LIMITS = {
+    '司會': 6, '執事輪值': 6, 'PPT': 6,
+    '新朋友關懷': 6, '接待': 6, '收奉獻': 6, '主餐': 3
+};
+
 const COMPATIBLE_GROUP = ['新朋友關懷', '主餐', '接待', '收奉獻'];
 
-// ==========================================
-// 輔助函式：計算歷史季度
-// ==========================================
 const getPrevQuarter = (qStr) => {
     if (!qStr || qStr === 'BASE' || qStr === 'SYSTEM') return null;
     let [y, q] = qStr.split('-Q').map(Number);
@@ -38,9 +39,6 @@ const getYoYQuarter = (qStr) => {
     return `${y - 1}-Q${q}`;
 };
 
-// ==========================================
-// 視覺元件：歷史趨勢儲格
-// ==========================================
 const DiffCell = ({ diff }) => {
     const baseClass = "px-2 py-2.5 text-center text-[12px] font-bold border-b border-slate-100/50";
     if (diff === null || diff === undefined) return <td className={`${baseClass} text-slate-300`}>-</td>;
@@ -49,9 +47,6 @@ const DiffCell = ({ diff }) => {
     return <td className={`${baseClass} text-slate-400 font-medium`}>- 0 人</td>;
 };
 
-// ==========================================
-// 視覺元件：FTE 懸浮提示框 (Tooltip) 
-// ==========================================
 const FteTooltip = () => (
     <div className="relative group cursor-help ml-1 inline-flex items-center">
         <span className="text-[10px] text-slate-400 font-normal border border-slate-300 rounded-full w-3.5 h-3.5 flex items-center justify-center group-hover:bg-indigo-100 group-hover:text-indigo-600 group-hover:border-indigo-300 transition-colors">?</span>
@@ -82,23 +77,25 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
     const [viewQuarter, setViewQuarter] = useState('');
     const [dbData, setDbData] = useState({ members: [], positions: [], memberPositions: [], quarterSettings: [] });
 
-    // 沙盤推演狀態
+    // 狀態管理
     const [requirements, setRequirements] = useState(INITIAL_REQUIREMENTS);
+    const [policyLimits, setPolicyLimits] = useState(INITIAL_POLICY_LIMITS);
     const [drawerPos, setDrawerPos] = useState(null);
     const [wandState, setWandState] = useState({});
+    
+    // 設定 Modal 狀態
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [tempLimits, setTempLimits] = useState(INITIAL_POLICY_LIMITS);
 
-    // 處理人數(堂)沙盤微調 (取消了上限的微調按鈕)
     const handleUpdateReq = (posName, delta) => {
         setRequirements(prev => {
-            const current = prev[posName] || { singleSession: 0, freq: 'weekly', maxLimit: 6 };
+            const current = prev[posName] || { singleSession: 0, freq: 'weekly' };
             const newValue = Math.max(0, current.singleSession + delta);
             return { ...prev, [posName]: { ...current, singleSession: newValue } };
         });
     };
 
-    const toggleDrawer = (posName) => {
-        setDrawerPos(prev => prev === posName ? null : posName);
-    };
+    const toggleDrawer = (posName) => setDrawerPos(prev => prev === posName ? null : posName);
 
     const toggleWand = (posName, sessionType) => {
         setWandState(prev => {
@@ -111,51 +108,15 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
         });
     };
 
-    // 🌟 一鍵自動補平演算法
-    const handleAutoBalance = () => {
-        const newWandState = {};
-        insights.positionDistribution.forEach(pos => {
-            const req = requirements[pos.name]?.singleSession || 0;
-            if (req > 0) {
-                const wands = [];
-                let pool = pos.bothFTE;
-                let s1Gap = pos.baseS1Gap;
-                let s2Gap = pos.baseS2Gap;
-
-                if (s1Gap < 0 && pool > 0) {
-                    wands.push('s1');
-                    pool -= Math.min(Math.abs(s1Gap), pool);
-                }
-                if (s2Gap < 0 && pool > 0) {
-                    wands.push('s2');
-                    pool -= Math.min(Math.abs(s2Gap), pool);
-                }
-                
-                if (wands.length > 0) {
-                    newWandState[pos.name] = wands;
-                }
-            }
-        });
-        setWandState(newWandState);
-    };
-
+    // 初始化與載入資料
     useEffect(() => {
         const fetchQuarters = async () => {
             try {
                 const { data } = await supabase.from('member_quarter_settings').select('quarter');
                 if (data) {
-                    const qs = [...new Set(data.map(d => d.quarter))]
-                        .filter(q => q !== 'SYSTEM' && q !== 'BASE')
-                        .sort()
-                        .reverse();
-                    if (qs.length > 0) {
-                        setAvailableQuarters(qs);
-                        setViewQuarter(qs[0]); 
-                    } else {
-                        const currentQ = getCurrentQuarter();
-                        setAvailableQuarters([currentQ]);
-                        setViewQuarter(currentQ);
-                    }
+                    const qs = [...new Set(data.map(d => d.quarter))].filter(q => q !== 'SYSTEM' && q !== 'BASE').sort().reverse();
+                    if (qs.length > 0) { setAvailableQuarters(qs); setViewQuarter(qs[0]); } 
+                    else { const currentQ = getCurrentQuarter(); setAvailableQuarters([currentQ]); setViewQuarter(currentQ); }
                 }
             } catch (err) { console.error('抓取季度失敗', err); }
         };
@@ -166,15 +127,12 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
         const loadQuarterData = async () => {
             setIsLoading(true);
             try {
-                const [
-                    { data: mData }, { data: pData }, { data: mpData }, { data: qsData }
-                ] = await Promise.all([
+                const [ { data: mData }, { data: pData }, { data: mpData }, { data: qsData } ] = await Promise.all([
                     fetchAllData(() => supabase.from('members').select('*').order('name')),
                     fetchAllData(() => supabase.from('positions').select('*').order('id')),
                     fetchAllData(() => supabase.from('member_positions').select('*').eq('quarter', viewQuarter)),
                     fetchAllData(() => supabase.from('member_quarter_settings').select('*')) 
                 ]);
-
                 setDbData({ members: mData || [], positions: pData || [], memberPositions: mpData || [], quarterSettings: qsData || [] });
             } catch (err) { console.error('載入洞察資料失敗', err); } 
             finally { setIsLoading(false); }
@@ -182,6 +140,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
         loadQuarterData();
     }, [viewQuarter]);
 
+    // 計算 1：全年度戰略矩陣
     const matrixStats = useMemo(() => {
         if (dbData.members.length === 0 || availableQuarters.length === 0) return [];
         const realMembers = dbData.members.filter(m => !m.name.startsWith('SYSTEM_'));
@@ -202,17 +161,13 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                 else if (status === '安息季') sabbatical++;
             });
 
-            const total = realMembers.length;
-            const active = total - suspended - sabbatical;
-            return { total, active, suspended, sabbatical };
+            return { total: realMembers.length, active: realMembers.length - suspended - sabbatical, suspended, sabbatical };
         };
 
         return availableQuarters.map(qStr => {
             const current = getQuarterStat(qStr) || { total: 0, active: 0, suspended: 0, sabbatical: 0 };
-            const prevQ = getPrevQuarter(qStr);
-            const yoyQ = getYoYQuarter(qStr);
-            const qoqStat = getQuarterStat(prevQ);
-            const yoyStat = getQuarterStat(yoyQ);
+            const qoqStat = getQuarterStat(getPrevQuarter(qStr));
+            const yoyStat = getQuarterStat(getYoYQuarter(qStr));
             const calcDiff = (currVal, pastStat, key) => pastStat ? (currVal - pastStat[key]) : null;
 
             return {
@@ -225,6 +180,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
         });
     }, [dbData, availableQuarters]);
 
+    // 🌟 終極版計算 2：底層大重構 (全域水庫 + 招募精算)
     const insights = useMemo(() => {
         const { members, positions, memberPositions, quarterSettings } = dbData;
         const realMembers = members.filter(m => !m.name.startsWith('SYSTEM_'));
@@ -234,24 +190,22 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
         const activeMemberIds = new Set();
         realMembers.forEach(m => {
             const status = qsMap[m.id]?.availability_status || '穩定服事';
-            if (status !== '暫停服事' && status !== '安息季') {
-                activeMemberIds.add(m.id);
-            }
+            if (status !== '暫停服事' && status !== '安息季') activeMemberIds.add(m.id);
         });
 
-        const positionDistribution = positions.map(pos => {
+        let globalDemandSessions = 0;
+
+        const rawPositions = positions.map(pos => {
             let s1Count = 0, s2Count = 0, bothCount = 0;
             let s1FTE = 0, s2FTE = 0, bothFTE = 0;
             
             realMembers.forEach(m => {
                 if (!activeMemberIds.has(m.id)) return; 
                 const hasPos = memberPositions.some(mp => mp.member_id === m.id && mp.position_id === pos.id && mp.is_active !== false);
-                
                 if (hasPos) {
                     const activePosCount = memberPositions.filter(mp => mp.member_id === m.id && mp.is_active !== false).length;
                     const weight = 1 / (activePosCount || 1); 
                     const pref = qsMap[m.id]?.preferred_session || '第一堂';
-
                     if (pref === '第一堂') { s1Count++; s1FTE += weight; }
                     else if (pref === '第二堂') { s2Count++; s2FTE += weight; }
                     else { bothCount++; bothFTE += weight; }
@@ -264,70 +218,82 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             const totalCount = s1Count + s2Count + bothCount;
             const totalFTE = Math.round((s1FTE + s2FTE + bothFTE) * 10) / 10;
 
-            const reqObj = requirements[pos.name] || { singleSession: 0, freq: 'weekly', maxLimit: 6 };
+            const reqObj = requirements[pos.name] || { singleSession: 0, freq: 'weekly' };
             const currentReq = reqObj.singleSession;
-            let sessionQuarterDemand = reqObj.freq === 'monthly' ? currentReq * 3 : currentReq * 13; 
-            const sessionMinRequired = Math.ceil(sessionQuarterDemand / reqObj.maxLimit);
+            const policyLimit = policyLimits[pos.name] || 6;
             
-            const baseS1Gap = currentReq > 0 ? Math.round((s1FTE - sessionMinRequired) * 10) / 10 : 0;
-            const baseS2Gap = currentReq > 0 ? Math.round((s2FTE - sessionMinRequired) * 10) / 10 : 0;
-            const totalRequirement = sessionMinRequired * 2;
-            const gap = currentReq > 0 ? Math.round((totalFTE - totalRequirement) * 10) / 10 : 0;
+            // 需求總次數
+            const demandSessions = currentReq * (reqObj.freq === 'monthly' ? 3 : 13) * 2; 
+            globalDemandSessions += demandSessions;
 
-            // 🌟 動態壓力表：計算實際「服事次數 (季)」
-            const totalQuarterSlots = sessionQuarterDemand * 2;
-            const avgBurden = totalFTE > 0 ? (totalQuarterSlots / totalFTE) : totalQuarterSlots;
-            const displayAvgBurden = Math.round(avgBurden * 10) / 10;
-            const isOverloaded = displayAvgBurden > reqObj.maxLimit;
+            const requiredTotalFTE = demandSessions / policyLimit;
+            const gap = currentReq > 0 ? Math.round((totalFTE - requiredTotalFTE) * 10) / 10 : Math.round(totalFTE * 10) / 10;
 
-            // 魔術棒調度邏輯
-            let currentPool = bothFTE;
-            let displayS1Gap = baseS1Gap;
-            let displayS2Gap = baseS2Gap;
-            const activeWands = wandState[pos.name] || [];
+            // 精確計算招募人數
+            const shortageSessions = demandSessions - (totalFTE * policyLimit);
+            const recruitCount = shortageSessions > 0 ? Math.ceil(shortageSessions / policyLimit) : 0;
 
-            activeWands.forEach(session => {
-                if (session === 's1' && displayS1Gap < 0 && currentPool > 0) {
-                    const transfer = Math.min(Math.abs(displayS1Gap), currentPool);
-                    displayS1Gap = Math.round((displayS1Gap + transfer) * 10) / 10;
-                    currentPool = Math.round((currentPool - transfer) * 10) / 10;
-                } else if (session === 's2' && displayS2Gap < 0 && currentPool > 0) {
-                    const transfer = Math.min(Math.abs(displayS2Gap), currentPool);
-                    displayS2Gap = Math.round((displayS2Gap + transfer) * 10) / 10;
-                    currentPool = Math.round((currentPool - transfer) * 10) / 10;
-                }
-            });
+            // 分配基礎 S1/S2 缺口 (假設 bothFTE 平均分擔)
+            const requiredPerSession = requiredTotalFTE / 2;
+            const baseS1Gap = currentReq > 0 ? Math.round((s1FTE + (bothFTE / 2) - requiredPerSession) * 10) / 10 : 0;
+            const baseS2Gap = currentReq > 0 ? Math.round((s2FTE + (bothFTE / 2) - requiredPerSession) * 10) / 10 : 0;
 
             return { 
-                id: pos.id, name: pos.name, 
-                s1Count, s2Count, bothCount, totalCount,
-                s1FTE, s2FTE, bothFTE, gap, totalFTE,
-                baseS1Gap, baseS2Gap,
-                displayS1Gap, displayS2Gap,
-                sessionMinRequired,
-                activeWands, currentPool,
-                currentReq, displayAvgBurden, isOverloaded, reqLimit: reqObj.maxLimit
+                id: pos.id, name: pos.name, s1Count, s2Count, bothCount, totalCount,
+                s1FTE, s2FTE, bothFTE, gap, totalFTE, baseS1Gap, baseS2Gap,
+                currentReq, policyLimit, demandSessions, shortageSessions, recruitCount
             };
         });
 
+        // 🌊 建立全域大水庫：匯集所有正向多餘的人力
+        let globalSurplus = rawPositions.reduce((sum, p) => sum + (p.gap > 0 ? p.gap : 0), 0);
+        globalSurplus = Math.round(globalSurplus * 10) / 10;
+
+        // 🪄 全域魔術棒扣減邏輯
+        const positionDistribution = rawPositions.map(pos => {
+            let displayS1Gap = pos.baseS1Gap;
+            let displayS2Gap = pos.baseS2Gap;
+            const activeWands = wandState[pos.name] || [];
+
+            activeWands.forEach(session => {
+                if (session === 's1' && displayS1Gap < 0 && globalSurplus > 0) {
+                    const transfer = Math.min(Math.abs(displayS1Gap), globalSurplus);
+                    displayS1Gap = Math.round((displayS1Gap + transfer) * 10) / 10;
+                    globalSurplus = Math.round((globalSurplus - transfer) * 10) / 10;
+                }
+                if (session === 's2' && displayS2Gap < 0 && globalSurplus > 0) {
+                    const transfer = Math.min(Math.abs(displayS2Gap), globalSurplus);
+                    displayS2Gap = Math.round((displayS2Gap + transfer) * 10) / 10;
+                    globalSurplus = Math.round((globalSurplus - transfer) * 10) / 10;
+                }
+            });
+
+            return { ...pos, displayS1Gap, displayS2Gap, activeWands };
+        });
+
+        // 📊 全教會健康大盤數據
+        const activeMembersCount = activeMemberIds.size;
+        const globalAvgBurden = activeMembersCount > 0 ? Math.round((globalDemandSessions / activeMembersCount) * 10) / 10 : 0;
+
+        // 🎯 招募清單
+        const recruitmentList = rawPositions.filter(p => p.recruitCount > 0);
+
+        // 圖表數據 (排除 0 崗位)
         const concurrencyMap = {};
         realMembers.forEach(m => {
             if (!activeMemberIds.has(m.id)) return;
             const realCount = memberPositions.filter(mp => mp.member_id === m.id && mp.is_active !== false).length;
-            if (realCount > 0) {
-                concurrencyMap[realCount] = (concurrencyMap[realCount] || 0) + 1;
-            }
+            if (realCount > 0) concurrencyMap[realCount] = (concurrencyMap[realCount] || 0) + 1;
         });
-
-        const concurrencyData = Object.keys(concurrencyMap).map(Number).sort((a, b) => a - b).map(count => ({
-            roles: count, people: concurrencyMap[count]
-        }));
+        const concurrencyData = Object.keys(concurrencyMap).map(Number).sort((a, b) => a - b).map(count => ({ roles: count, people: concurrencyMap[count] }));
         const maxConcurrencyPeople = Math.max(0, ...concurrencyData.map(d => d.people));
 
-        return { positionDistribution, concurrencyData, maxConcurrencyPeople, activeMemberIds };
-    }, [dbData, viewQuarter, requirements, wandState]);
+        return { 
+            positionDistribution, concurrencyData, maxConcurrencyPeople, activeMemberIds,
+            globalAvgBurden, recruitmentList, remainingGlobalSurplus: globalSurplus 
+        };
+    }, [dbData, viewQuarter, requirements, policyLimits, wandState]);
 
-    // 🌟 全域總缺口運算
     const globalGap = useMemo(() => {
         let gap = 0;
         insights.positionDistribution.forEach(p => {
@@ -336,6 +302,36 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
         });
         return Math.round(gap * 10) / 10;
     }, [insights]);
+
+    // 🌟 一鍵全域自動補平
+    const handleAutoBalance = () => {
+        let tempSurplus = 0;
+        insights.positionDistribution.forEach(p => { if (p.gap > 0) tempSurplus += p.gap; });
+        tempSurplus = Math.round(tempSurplus * 10) / 10;
+
+        const newWandState = {};
+        insights.positionDistribution.forEach(pos => {
+            if (pos.currentReq > 0) {
+                const wands = [];
+                if (pos.baseS1Gap < 0 && tempSurplus > 0) {
+                    wands.push('s1');
+                    tempSurplus -= Math.min(Math.abs(pos.baseS1Gap), tempSurplus);
+                }
+                if (pos.baseS2Gap < 0 && tempSurplus > 0) {
+                    wands.push('s2');
+                    tempSurplus -= Math.min(Math.abs(pos.baseS2Gap), tempSurplus);
+                }
+                if (wands.length > 0) newWandState[pos.name] = wands;
+            }
+        });
+        setWandState(newWandState);
+    };
+
+    // 儲存參數設定
+    const saveSettings = () => {
+        setPolicyLimits(tempLimits);
+        setIsSettingsOpen(false);
+    };
 
     const renderDrawerContent = () => {
         if (!drawerPos) return null;
@@ -365,9 +361,9 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                 isPriority: true,
                 content: (
                     <div className="text-sm text-slate-600 space-y-2">
-                        <p><strong className="text-slate-700">📍 數據支持：</strong>目前平均服事次數達 <strong className="text-rose-600">{posData.displayAvgBurden} 次</strong>，負擔過重。</p>
+                        <p><strong className="text-slate-700">📍 數據支持：</strong>單堂安排 {posData.currentReq} 人，對整體戰力負擔過大。</p>
                         <p><strong className="text-slate-700">👉 具體行動：</strong>將單堂需求縮減至 <strong className="text-cyan-600">{posData.currentReq - 1} 人</strong> (左側點擊 - 推演)。</p>
-                        <p className="text-cyan-800 bg-cyan-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>釋放人力至皆可池，瞬間降低全域缺口壓力。</p>
+                        <p className="text-cyan-800 bg-cyan-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>釋放多餘人力至【全域水庫】，瞬間降低全教會大盤壓力。</p>
                     </div>
                 )
             });
@@ -388,16 +384,20 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             });
         }
 
-        actionPlans.push({
-            title: "招募新人",
-            icon: <UserPlus size={16} className="text-emerald-500" />,
-            isPriority: false,
-            content: (
-                <div className="text-sm text-slate-600 space-y-2">
-               <p><strong className="text-slate-700">👉 具體行動：</strong>招募新血加入此崗位，分攤長期服事壓力。</p>
-                </div>
-            )
-        });
+        // 🎯 招募文案精確化
+        if (posData.recruitCount > 0) {
+            actionPlans.push({
+                title: "招募新人",
+                icon: <UserPlus size={16} className="text-emerald-500" />,
+                isPriority: false,
+                content: (
+                    <div className="text-sm text-slate-600 space-y-2">
+                        <p><strong className="text-slate-700">📍 數據支持：</strong>目前本崗位總計短缺 <strong className="text-rose-600">{posData.shortageSessions} 次</strong> 服事額度。以每人每季服事 {posData.policyLimit} 次為健康基準計算。</p>
+                        <p><strong className="text-slate-700">👉 具體行動：</strong>請針對本崗位啟動招募計畫，精準目標為招募 <strong className="text-emerald-600 text-base">{posData.recruitCount} 位</strong> 新血。</p>
+                    </div>
+                )
+            });
+        }
 
         return (
             <div className="h-full flex flex-col">
@@ -421,7 +421,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                     <AlertCircle size={22} />人力短缺 ({posData.gap} FTE)
                                 </div>
                                 <p className="text-sm text-slate-600 leading-relaxed mt-2">
-                                    健康服事基準為每季 <strong className="text-slate-800">{posData.reqLimit} 次</strong>。目前平均服事已達 <strong className="text-rose-600 bg-rose-50 px-1 rounded">{posData.displayAvgBurden} 次</strong>，整體戰力嚴重過載。
+                                    依健康防線 <strong className="text-slate-800">{posData.policyLimit} 次/季</strong> 計算，整體戰力目前處於過載短缺狀態。
                                 </p>
                             </div>
                         ) : posData.gap === 0 ? (
@@ -430,7 +430,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                     <CheckCircle2 size={22} />人力平衡 (0.0 FTE)
                                 </div>
                                 <p className="text-sm text-slate-600 leading-relaxed mt-2">
-                                    目前平均服事次數為 <strong className="text-slate-800">{posData.displayAvgBurden} 次</strong>，人力供需達成緊繃平衡。
+                                    人力供需達成緊繃平衡。
                                 </p>
                             </div>
                         ) : (
@@ -439,7 +439,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                     <CheckCircle2 size={22} />人力充足 (+{posData.gap} FTE)
                                 </div>
                                 <p className="text-sm text-slate-600 leading-relaxed mt-2">
-                                    目前平均服事次數僅 <strong className="text-emerald-600">{posData.displayAvgBurden} 次</strong>。戰力充足，適合支援其他崗位。
+                                    戰力充足！多餘的 FTE 將自動流入「全域水庫」，供其他崗位調度。
                                 </p>
                             </div>
                         )}
@@ -471,6 +471,41 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
 
     return (
         <div className="flex h-screen w-full bg-slate-50 overflow-hidden relative">
+            
+            {/* ⚙️ 系統參數設定 Modal */}
+            {isSettingsOpen && (
+                <div className="fixed inset-0 bg-slate-900/40 z-[100] backdrop-blur-sm flex items-center justify-center p-4 transition-opacity">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in">
+                        <div className="p-5 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                            <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
+                                <Settings className="text-indigo-600" size={20} /> 崗位健康服事上限設定
+                            </h3>
+                            <button onClick={() => setIsSettingsOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+                        </div>
+                        <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+                            <p className="text-xs text-slate-500 mb-4 bg-amber-50 p-3 rounded-lg border border-amber-100">
+                                💡 <b>提示：</b>此設定作為全域健康防線基準，修改後將連動影響整體的紅綠燈警示與招募人頭精算結果。
+                            </p>
+                            {Object.keys(INITIAL_POLICY_LIMITS).map(posName => (
+                                <div key={posName} className="flex items-center justify-between p-3 bg-slate-50/50 rounded-xl border border-slate-100">
+                                    <span className="font-bold text-slate-700 text-sm">{posName}</span>
+                                    <div className="flex items-center gap-3">
+                                        <button onClick={() => setTempLimits(p => ({...p, [posName]: Math.max(1, p[posName] - 1)}))} className="w-7 h-7 flex items-center justify-center bg-white rounded-md border border-slate-200 text-slate-500 hover:bg-slate-100">-</button>
+                                        <span className="w-12 text-center font-extrabold text-indigo-700">{tempLimits[posName]} <span className="text-[10px] font-normal text-slate-400">次/季</span></span>
+                                        <button onClick={() => setTempLimits(p => ({...p, [posName]: p[posName] + 1}))} className="w-7 h-7 flex items-center justify-center bg-white rounded-md border border-slate-200 text-slate-500 hover:bg-slate-100">+</button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+                            <button onClick={() => setIsSettingsOpen(false)} className="px-5 py-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-200 transition-colors">取消</button>
+                            <button onClick={saveSettings} className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-sm">儲存設定並重算大盤</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 側邊導覽列 */}
             <div className="hidden md:flex inset-y-0 left-0 w-64 bg-slate-900 flex-col justify-between shrink-0 border-r border-slate-800 z-30 h-full">
                 <div className="flex flex-col">
                     <div className="p-6 border-b border-slate-800 flex items-center justify-between gap-3 relative overflow-hidden">
@@ -494,6 +529,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                 </div>
             </div>
 
+            {/* 主要內容區 */}
             <div className="flex-1 flex flex-col relative bg-slate-50 overflow-hidden animate-fade-in">
                 <div className="bg-white px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0 shadow-sm z-20">
                     <div className="flex items-center gap-3">
@@ -576,7 +612,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                 <div className="xl:col-span-1 bg-white rounded-xl shadow-soft border border-slate-100 overflow-hidden flex flex-col h-full">
                                     <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
                                         <UserCheck className="text-violet-500" size={20} />
-                                        <h3 className="text-lg font-bold text-slate-800">上線服事人員崗位技能分布</h3>
+                                        <h3 className="text-lg font-bold text-slate-800">上線服事人員技能分布</h3>
                                     </div>
                                     <div className="p-6 flex flex-col justify-center flex-1">
                                         <div className="flex items-end gap-3 sm:gap-4 h-36 border-b border-slate-200 pb-2 relative px-2">
@@ -605,17 +641,64 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                 </div>
                             </div>
 
+                            {/* 📊 頂部大盤：全域健康指標與招募精算清單 */}
+                            <div className="bg-white rounded-xl shadow-soft border border-slate-100 p-5 flex flex-col xl:flex-row gap-5 items-start xl:items-center justify-between">
+                                <div className="flex items-center gap-4 w-full xl:w-auto">
+                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-inner ${insights.globalAvgBurden > 6 ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                                        <TrendingUp size={28} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-sm font-bold text-slate-500 mb-0.5">全教會平均服事負載</h3>
+                                        <div className="flex items-baseline gap-2">
+                                            <span className={`text-2xl font-black tracking-tight ${insights.globalAvgBurden > 6 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                                {insights.globalAvgBurden} <span className="text-sm font-bold text-slate-500">次/季</span>
+                                            </span>
+                                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${insights.globalAvgBurden > 6 ? 'bg-rose-50 text-rose-500 border border-rose-200' : 'bg-emerald-50 text-emerald-500 border border-emerald-200'}`}>
+                                                {insights.globalAvgBurden > 6 ? '整體超載' : '健康狀態'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div className="w-full h-px xl:w-px xl:h-12 bg-slate-200"></div>
+                                
+                                <div className="flex-1 w-full flex flex-col justify-center">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h3 className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+                                            <Target size={16} className="text-indigo-500"/> 🚨 本季急缺招募目標 <span className="text-[10px] text-slate-400 font-normal ml-1">(基於健康防線精算)</span>
+                                        </h3>
+                                        <button onClick={() => setIsSettingsOpen(true)} className="flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 px-2 py-1 rounded transition-colors">
+                                            <Settings size={12}/> 參數設定
+                                        </button>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {insights.recruitmentList.length > 0 ? (
+                                            insights.recruitmentList.map(r => (
+                                                <span key={r.name} className="px-3 py-1 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold rounded-full shadow-sm flex items-center gap-1.5">
+                                                    {r.name} <span className="bg-amber-500 text-white px-1.5 rounded text-[10px]">需招募 {r.count} 人</span>
+                                                </span>
+                                            ))
+                                        ) : (
+                                            <span className="px-3 py-1 bg-slate-50 border border-slate-200 text-slate-500 text-xs font-medium rounded-full flex items-center gap-1.5">
+                                                <CheckCircle2 size={14} className="text-emerald-500"/> 目前全域人力充足，無招募急需
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 下半部全寬：人力需求推演大表 */}
                             <div className="bg-white rounded-xl shadow-soft border border-slate-100 overflow-hidden flex flex-col w-full">
                                 <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                     <div className="flex items-center flex-wrap gap-2">
                                         <LayoutList className="text-indigo-500" size={20} />
                                         <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                                            人力需求分析
+                                            人力推演與調度
                                             <span className="text-sm font-normal text-slate-500 bg-slate-200/60 px-2 py-0.5 rounded-full ml-1">{viewQuarter.replace('-', '')}</span>
                                         </h3>
                                         
-                                        {/* 🌟 全域總缺口燈號 */}
-                                        <div className={`ml-2 flex items-center gap-1.5 px-3 py-1 rounded-full border ${globalGap < 0 ? 'bg-rose-50 border-rose-200' : 'bg-emerald-50 border-emerald-200'}`}>
+                                        {/* 全域總缺口燈號 */}
+                                        <div className={`ml-2 flex items-center gap-1.5 px-3 py-1 rounded-full border shadow-sm ${globalGap < 0 ? 'bg-rose-50 border-rose-200' : 'bg-emerald-50 border-emerald-200'}`}>
                                             {globalGap < 0 ? <AlertCircle size={14} className="text-rose-500"/> : <CheckCircle2 size={14} className="text-emerald-500"/>}
                                             <span className={`text-xs font-extrabold ${globalGap < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                                                 全域總缺口 {globalGap < 0 ? globalGap : '0.0'} FTE
@@ -623,11 +706,11 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                         </div>
                                     </div>
 
-                                    {/* 🌟 一鍵最佳化操作區 */}
+                                    {/* 操作區 */}
                                     <div className="flex items-center gap-2">
                                         {globalGap < 0 && (
                                             <button onClick={handleAutoBalance} className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-400 to-amber-500 text-white text-xs font-bold rounded-lg shadow-sm hover:from-amber-500 hover:to-amber-600 transition-all transform hover:scale-105 active:scale-95">
-                                                <Sparkles size={14} /> 一鍵自動補平
+                                                <Sparkles size={14} /> 一鍵跨域補平
                                             </button>
                                         )}
                                         {Object.keys(wandState).length > 0 && (
@@ -638,49 +721,50 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                     </div>
                                 </div>
                                 <div className="overflow-x-auto w-full">
-                                    <table className="w-full text-left border-collapse min-w-[1050px]">
+                                    <table className="w-full text-left border-collapse min-w-[950px]">
                                         <thead>
                                             <tr>
-                                                <th rowSpan="2" className="py-2 px-4 font-semibold text-slate-500 text-sm border-b border-slate-200 bg-slate-50 align-middle">崗位</th>
-                                                <th rowSpan="2" className="py-2 px-2 font-semibold text-indigo-600 text-[13px] border-b border-slate-200 bg-indigo-50/30 text-center align-middle">人數(堂)</th>
-                                                
-                                                {/* 🌟 拔除原本的「服事上限」，改為「服事次數 (季)」 */}
-                                                <th rowSpan="2" className="py-2 px-2 font-semibold text-emerald-700 text-[13px] border-b border-slate-200 bg-emerald-50/50 text-center align-middle leading-tight">服事次數<br/><span className="text-[10px] font-normal text-emerald-600">(季)</span></th>
+                                                <th rowSpan="2" className="py-2 px-4 font-semibold text-slate-500 text-sm border-b border-slate-200 bg-slate-50 align-middle w-28">崗位</th>
+                                                <th rowSpan="2" className="py-2 px-2 font-semibold text-indigo-600 text-[13px] border-b border-slate-200 bg-indigo-50/30 text-center align-middle">人數需求<br/><span className="text-[10px] font-normal text-indigo-500">(單堂)</span></th>
                                                 
                                                 <th colSpan="3" className="py-2 px-3 font-bold text-sky-900 text-sm border-b border-slate-200 bg-sky-50/60 text-center border-r-2 border-slate-200">第一堂</th>
                                                 <th colSpan="3" className="py-2 px-3 font-bold text-violet-900 text-sm border-b border-slate-200 bg-violet-50/60 text-center border-r-2 border-slate-200">第二堂</th>
-                                                <th colSpan="2" className="py-2 px-3 font-bold text-slate-700 text-sm border-b border-slate-200 bg-slate-100/80 text-center border-r-2 border-slate-200">皆可</th>
+                                                <th colSpan="2" className="py-2 px-3 font-bold text-slate-700 text-sm border-b border-slate-200 bg-slate-100/80 text-center border-r-2 border-slate-200">一二堂皆可</th>
                                                 
-                                                <th rowSpan="2" className="py-2 px-3 font-extrabold text-slate-800 text-sm border-b border-slate-200 bg-slate-100/50 text-center align-middle">總人數</th>
+                                                <th rowSpan="2" className="py-2 px-3 font-extrabold text-slate-800 text-sm border-b border-slate-200 bg-slate-100/50 text-center align-middle">崗位總人力</th>
                                                 <th rowSpan="2" className="py-2 px-4 font-extrabold text-slate-800 text-sm border-b border-slate-200 bg-slate-100/50 text-center align-middle">智能策略</th>
                                             </tr>
                                             <tr>
                                                 <th className="py-1.5 px-2 font-semibold text-slate-400 text-[11px] border-b-2 border-slate-200 bg-sky-50/30 text-center">人數</th>
                                                 <th className="py-1.5 px-2 font-bold text-sky-700 text-[11px] border-b-2 border-slate-200 bg-sky-50/30 text-center">
-                                                    <div className="flex items-center justify-center">FTE <FteTooltip /></div>
+                                                    <div className="flex items-center justify-center">現有 FTE <FteTooltip /></div>
                                                 </th>
-                                                <th className="py-1.5 px-2 font-bold text-sky-800 text-[11px] border-b-2 border-slate-200 bg-sky-50/30 text-center border-r-2 border-slate-200">缺口</th>
+                                                <th className="py-1.5 px-2 font-bold text-sky-800 text-[11px] border-b-2 border-slate-200 bg-sky-50/30 text-center border-r-2 border-slate-200">FTE 缺口</th>
                                                 
                                                 <th className="py-1.5 px-2 font-semibold text-slate-400 text-[11px] border-b-2 border-slate-200 bg-violet-50/30 text-center">人數</th>
                                                 <th className="py-1.5 px-2 font-bold text-violet-700 text-[11px] border-b-2 border-slate-200 bg-violet-50/30 text-center">
-                                                    <div className="flex items-center justify-center">FTE <FteTooltip /></div>
+                                                    <div className="flex items-center justify-center">現有 FTE <FteTooltip /></div>
                                                 </th>
-                                                <th className="py-1.5 px-2 font-bold text-violet-800 text-[11px] border-b-2 border-slate-200 bg-violet-50/30 text-center border-r-2 border-slate-200">缺口</th>
+                                                <th className="py-1.5 px-2 font-bold text-violet-800 text-[11px] border-b-2 border-slate-200 bg-violet-50/30 text-center border-r-2 border-slate-200">FTE 缺口</th>
                                                 
                                                 <th className="py-1.5 px-2 font-semibold text-slate-400 text-[11px] border-b-2 border-slate-200 bg-slate-50 text-center">人數</th>
                                                 <th className="py-1.5 px-2 font-bold text-slate-700 text-[11px] border-b-2 border-slate-200 bg-slate-50 text-center border-r-2 border-slate-200">
-                                                    <div className="flex items-center justify-center">FTE <FteTooltip /></div>
+                                                    <div className="flex items-center justify-center">現有 FTE <FteTooltip /></div>
                                                 </th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {insights.positionDistribution.map((pos, idx) => {
-                                                const showS1Wand = pos.currentReq > 0 && ((pos.baseS1Gap < 0 && pos.currentPool > 0) || pos.activeWands.includes('s1'));
-                                                const showS2Wand = pos.currentReq > 0 && ((pos.baseS2Gap < 0 && pos.currentPool > 0) || pos.activeWands.includes('s2'));
+                                                // 魔術棒啟動條件：該堂缺人，且全域水庫有水 (或已啟動)
+                                                const showS1Wand = pos.currentReq > 0 && ((pos.baseS1Gap < 0 && insights.remainingGlobalSurplus > 0) || pos.activeWands.includes('s1'));
+                                                const showS2Wand = pos.currentReq > 0 && ((pos.baseS2Gap < 0 && insights.remainingGlobalSurplus > 0) || pos.activeWands.includes('s2'));
 
                                                 return (
                                                     <tr key={pos.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'} hover:bg-slate-50 transition-colors`}>
-                                                        <td className="py-3.5 px-4 font-bold text-slate-700 border-b border-slate-100">{pos.name}</td>
+                                                        <td className="py-3.5 px-4 font-bold text-slate-700 border-b border-slate-100 flex items-center justify-between h-full">
+                                                            <span>{pos.name}</span>
+                                                            <span className="text-[9px] text-slate-400 font-normal bg-slate-100 px-1.5 py-0.5 rounded" title="健康基準">上限{pos.policyLimit}</span>
+                                                        </td>
                                                         
                                                         {/* 人數(堂)微調 */}
                                                         <td className="py-3.5 px-1 text-center border-b border-slate-100 bg-indigo-50/10">
@@ -688,18 +772,6 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                                 <button onClick={() => handleUpdateReq(pos.name, -1)} disabled={pos.currentReq <= 0} className="w-5 h-5 flex items-center justify-center bg-white hover:bg-slate-200 text-slate-500 rounded border border-slate-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed leading-none pb-0.5">-</button>
                                                                 <span className="font-extrabold text-indigo-700 w-3 text-center">{pos.currentReq}</span>
                                                                 <button onClick={() => handleUpdateReq(pos.name, 1)} className="w-5 h-5 flex items-center justify-center bg-white hover:bg-slate-200 text-slate-500 rounded border border-slate-200 transition-colors leading-none pb-0.5">+</button>
-                                                            </div>
-                                                        </td>
-
-                                                        {/* 🌟 動態壓力儀表板 */}
-                                                        <td className={`py-3.5 px-2 text-center border-b border-slate-100 ${pos.isOverloaded ? 'bg-rose-50/40' : 'bg-emerald-50/30'}`}>
-                                                            <div className="flex flex-col items-center justify-center">
-                                                                <span className={`font-extrabold text-sm ${pos.isOverloaded ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                                                    {pos.currentReq > 0 ? `${pos.displayAvgBurden}` : '-'}
-                                                                </span>
-                                                                {pos.currentReq > 0 && pos.isOverloaded && (
-                                                                    <span className="text-[10px] text-rose-500 font-bold mt-0.5 leading-none tracking-wider">超載</span>
-                                                                )}
                                                             </div>
                                                         </td>
 
@@ -717,7 +789,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                                         {pos.displayS1Gap > 0 ? `+${pos.displayS1Gap}` : pos.displayS1Gap === 0 ? '0.0' : pos.displayS1Gap}
                                                                     </span>
                                                                     {showS1Wand && (
-                                                                        <button onClick={() => toggleWand(pos.name, 's1')} className={`p-1 rounded transition-colors ${pos.activeWands.includes('s1') ? 'bg-sky-100 text-sky-700 hover:bg-sky-200' : 'bg-white text-slate-400 hover:text-sky-600 shadow-sm border border-slate-200'}`} title={pos.activeWands.includes('s1') ? '人力復原' : '人力調度'}>
+                                                                        <button onClick={() => toggleWand(pos.name, 's1')} className={`p-1 rounded transition-colors ${pos.activeWands.includes('s1') ? 'bg-sky-100 text-sky-700 hover:bg-sky-200' : 'bg-white text-slate-400 hover:text-sky-600 shadow-sm border border-slate-200'}`} title={pos.activeWands.includes('s1') ? '復原資源至大水庫' : '從大水庫調度人力'}>
                                                                             {pos.activeWands.includes('s1') ? <Undo2 size={11} /> : <Wand2 size={11} />}
                                                                         </button>
                                                                     )}
@@ -739,7 +811,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                                         {pos.displayS2Gap > 0 ? `+${pos.displayS2Gap}` : pos.displayS2Gap === 0 ? '0.0' : pos.displayS2Gap}
                                                                     </span>
                                                                     {showS2Wand && (
-                                                                        <button onClick={() => toggleWand(pos.name, 's2')} className={`p-1 rounded transition-colors ${pos.activeWands.includes('s2') ? 'bg-violet-100 text-violet-700 hover:bg-violet-200' : 'bg-white text-slate-400 hover:text-violet-600 shadow-sm border border-slate-200'}`} title={pos.activeWands.includes('s2') ? '人力復原' : '人力調度'}>
+                                                                        <button onClick={() => toggleWand(pos.name, 's2')} className={`p-1 rounded transition-colors ${pos.activeWands.includes('s2') ? 'bg-violet-100 text-violet-700 hover:bg-violet-200' : 'bg-white text-slate-400 hover:text-violet-600 shadow-sm border border-slate-200'}`} title={pos.activeWands.includes('s2') ? '復原資源至大水庫' : '從大水庫調度人力'}>
                                                                             {pos.activeWands.includes('s2') ? <Undo2 size={11} /> : <Wand2 size={11} />}
                                                                         </button>
                                                                     )}
@@ -752,8 +824,8 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                             <div className="text-slate-400 font-normal text-xs">{pos.bothCount}人</div>
                                                         </td>
                                                         <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-slate-100/40 border-r-2 border-slate-200">
-                                                            <div className={`font-bold text-sm ${pos.currentPool !== pos.bothFTE ? 'text-amber-600 animate-pulse' : 'text-slate-700'}`}>
-                                                                {pos.currentPool}
+                                                            <div className="font-bold text-sm text-slate-700">
+                                                                {pos.bothFTE}
                                                             </div>
                                                         </td>
                                                         
