@@ -3,7 +3,7 @@ import {
     Home, Users, Calendar, LogOut, BarChart3, ChevronLeft, 
     UserCheck, LayoutList, TrendingUp, Lightbulb, X, Target, 
     Zap, UserPlus, AlertCircle, CheckCircle2, Wand2, Undo2,
-    UsersRound
+    UsersRound, Sparkles
 } from 'lucide-react';
 
 // ==========================================
@@ -50,15 +50,13 @@ const DiffCell = ({ diff }) => {
 };
 
 // ==========================================
-// 視覺元件：FTE 懸浮提示框 (Tooltip) - 向下展開
+// 視覺元件：FTE 懸浮提示框 (Tooltip) 
 // ==========================================
 const FteTooltip = () => (
     <div className="relative group cursor-help ml-1 inline-flex items-center">
         <span className="text-[10px] text-slate-400 font-normal border border-slate-300 rounded-full w-3.5 h-3.5 flex items-center justify-center group-hover:bg-indigo-100 group-hover:text-indigo-600 group-hover:border-indigo-300 transition-colors">?</span>
         <div className="absolute z-50 hidden group-hover:block w-[320px] p-4 bg-slate-800 text-slate-50 text-[12px] leading-relaxed rounded-xl shadow-2xl top-full left-1/2 -translate-x-1/2 mt-2 text-left font-normal normal-case pointer-events-none border border-slate-700">
-            {/* 小箭頭 (朝上) */}
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-800"></div>
-            
             <div className="font-bold text-white mb-2 pb-2 border-b border-slate-600">
                 FTE (有效人力) ：同工對單一崗位的實際貢獻度
             </div>
@@ -87,11 +85,9 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
     // 沙盤推演狀態
     const [requirements, setRequirements] = useState(INITIAL_REQUIREMENTS);
     const [drawerPos, setDrawerPos] = useState(null);
-    
-    // 魔術棒狀態：紀錄各崗位調用的順序 { '接待': ['s1', 's2'] }
     const [wandState, setWandState] = useState({});
 
-    // 處理人數(堂)沙盤微調
+    // 處理人數(堂)沙盤微調 (取消了上限的微調按鈕)
     const handleUpdateReq = (posName, delta) => {
         setRequirements(prev => {
             const current = prev[posName] || { singleSession: 0, freq: 'weekly', maxLimit: 6 };
@@ -100,21 +96,10 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
         });
     };
 
-    // 處理服事上限沙盤微調
-    const handleUpdateLimit = (posName, delta) => {
-        setRequirements(prev => {
-            const current = prev[posName] || { singleSession: 0, freq: 'weekly', maxLimit: 6 };
-            const newValue = Math.max(1, current.maxLimit + delta); 
-            return { ...prev, [posName]: { ...current, maxLimit: newValue } };
-        });
-    };
-
-    // 切換智能面板
     const toggleDrawer = (posName) => {
         setDrawerPos(prev => prev === posName ? null : posName);
     };
 
-    // 切換魔術棒調度
     const toggleWand = (posName, sessionType) => {
         setWandState(prev => {
             const current = prev[posName] || [];
@@ -126,7 +111,34 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
         });
     };
 
-    // 1. 初始化
+    // 🌟 一鍵自動補平演算法
+    const handleAutoBalance = () => {
+        const newWandState = {};
+        insights.positionDistribution.forEach(pos => {
+            const req = requirements[pos.name]?.singleSession || 0;
+            if (req > 0) {
+                const wands = [];
+                let pool = pos.bothFTE;
+                let s1Gap = pos.baseS1Gap;
+                let s2Gap = pos.baseS2Gap;
+
+                if (s1Gap < 0 && pool > 0) {
+                    wands.push('s1');
+                    pool -= Math.min(Math.abs(s1Gap), pool);
+                }
+                if (s2Gap < 0 && pool > 0) {
+                    wands.push('s2');
+                    pool -= Math.min(Math.abs(s2Gap), pool);
+                }
+                
+                if (wands.length > 0) {
+                    newWandState[pos.name] = wands;
+                }
+            }
+        });
+        setWandState(newWandState);
+    };
+
     useEffect(() => {
         const fetchQuarters = async () => {
             try {
@@ -136,7 +148,6 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                         .filter(q => q !== 'SYSTEM' && q !== 'BASE')
                         .sort()
                         .reverse();
-                    
                     if (qs.length > 0) {
                         setAvailableQuarters(qs);
                         setViewQuarter(qs[0]); 
@@ -151,16 +162,12 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
         fetchQuarters();
     }, []);
 
-    // 2. 載入數據
     useEffect(() => {
         const loadQuarterData = async () => {
             setIsLoading(true);
             try {
                 const [
-                    { data: mData }, 
-                    { data: pData }, 
-                    { data: mpData }, 
-                    { data: qsData }
+                    { data: mData }, { data: pData }, { data: mpData }, { data: qsData }
                 ] = await Promise.all([
                     fetchAllData(() => supabase.from('members').select('*').order('name')),
                     fetchAllData(() => supabase.from('positions').select('*').order('id')),
@@ -168,24 +175,13 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                     fetchAllData(() => supabase.from('member_quarter_settings').select('*')) 
                 ]);
 
-                setDbData({
-                    members: mData || [],
-                    positions: pData || [],
-                    memberPositions: mpData || [],
-                    quarterSettings: qsData || []
-                });
-            } catch (err) {
-                console.error('載入洞察資料失敗', err);
-            } finally {
-                setIsLoading(false);
-            }
+                setDbData({ members: mData || [], positions: pData || [], memberPositions: mpData || [], quarterSettings: qsData || [] });
+            } catch (err) { console.error('載入洞察資料失敗', err); } 
+            finally { setIsLoading(false); }
         };
         loadQuarterData();
     }, [viewQuarter]);
 
-    // ==========================================
-    // 計算 1：全年度戰略矩陣
-    // ==========================================
     const matrixStats = useMemo(() => {
         if (dbData.members.length === 0 || availableQuarters.length === 0) return [];
         const realMembers = dbData.members.filter(m => !m.name.startsWith('SYSTEM_'));
@@ -196,8 +192,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             const hasData = quarterSettings.some(qs => qs.quarter === qStr);
             if (!hasData) return null;
 
-            let suspended = 0;
-            let sabbatical = 0;
+            let suspended = 0, sabbatical = 0;
             const qsMap = {};
             quarterSettings.forEach(qs => { if(qs.quarter === qStr) qsMap[qs.member_id] = qs; });
 
@@ -230,9 +225,6 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
         });
     }, [dbData, availableQuarters]);
 
-    // ==========================================
-    // 計算 2：單季操作洞察 (含魔術棒連動)
-    // ==========================================
     const insights = useMemo(() => {
         const { members, positions, memberPositions, quarterSettings } = dbData;
         const realMembers = members.filter(m => !m.name.startsWith('SYSTEM_'));
@@ -269,20 +261,24 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             s1FTE = Math.round(s1FTE * 10) / 10;
             s2FTE = Math.round(s2FTE * 10) / 10;
             bothFTE = Math.round(bothFTE * 10) / 10;
-            
             const totalCount = s1Count + s2Count + bothCount;
             const totalFTE = Math.round((s1FTE + s2FTE + bothFTE) * 10) / 10;
 
-            const req = requirements[pos.name] || { singleSession: 0, freq: 'weekly', maxLimit: 6 };
-            let sessionQuarterDemand = req.freq === 'monthly' ? req.singleSession * 3 : req.singleSession * 13; 
+            const reqObj = requirements[pos.name] || { singleSession: 0, freq: 'weekly', maxLimit: 6 };
+            const currentReq = reqObj.singleSession;
+            let sessionQuarterDemand = reqObj.freq === 'monthly' ? currentReq * 3 : currentReq * 13; 
+            const sessionMinRequired = Math.ceil(sessionQuarterDemand / reqObj.maxLimit);
             
-            const sessionMinRequired = Math.ceil(sessionQuarterDemand / req.maxLimit);
-            
-            const baseS1Gap = req.singleSession > 0 ? Math.round((s1FTE - sessionMinRequired) * 10) / 10 : 0;
-            const baseS2Gap = req.singleSession > 0 ? Math.round((s2FTE - sessionMinRequired) * 10) / 10 : 0;
-            
+            const baseS1Gap = currentReq > 0 ? Math.round((s1FTE - sessionMinRequired) * 10) / 10 : 0;
+            const baseS2Gap = currentReq > 0 ? Math.round((s2FTE - sessionMinRequired) * 10) / 10 : 0;
             const totalRequirement = sessionMinRequired * 2;
-            const gap = req.singleSession > 0 ? Math.round((totalFTE - totalRequirement) * 10) / 10 : 0;
+            const gap = currentReq > 0 ? Math.round((totalFTE - totalRequirement) * 10) / 10 : 0;
+
+            // 🌟 動態壓力表：計算實際「服事次數 (季)」
+            const totalQuarterSlots = sessionQuarterDemand * 2;
+            const avgBurden = totalFTE > 0 ? (totalQuarterSlots / totalFTE) : totalQuarterSlots;
+            const displayAvgBurden = Math.round(avgBurden * 10) / 10;
+            const isOverloaded = displayAvgBurden > reqObj.maxLimit;
 
             // 魔術棒調度邏輯
             let currentPool = bothFTE;
@@ -305,23 +301,19 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             return { 
                 id: pos.id, name: pos.name, 
                 s1Count, s2Count, bothCount, totalCount,
-                s1FTE, s2FTE, bothFTE, gap,
+                s1FTE, s2FTE, bothFTE, gap, totalFTE,
                 baseS1Gap, baseS2Gap,
                 displayS1Gap, displayS2Gap,
                 sessionMinRequired,
                 activeWands, currentPool,
-                currentReq: req.singleSession // 傳遞給 Drawer 使用
+                currentReq, displayAvgBurden, isOverloaded, reqLimit: reqObj.maxLimit
             };
         });
 
         const concurrencyMap = {};
         realMembers.forEach(m => {
-            // 只統計上線服事人員
             if (!activeMemberIds.has(m.id)) return;
-            
             const realCount = memberPositions.filter(mp => mp.member_id === m.id && mp.is_active !== false).length;
-            
-            // 🌟 不強制顯示 0 崗位：只統計有實際掛名 1 個崗位(含)以上的同工
             if (realCount > 0) {
                 concurrencyMap[realCount] = (concurrencyMap[realCount] || 0) + 1;
             }
@@ -335,91 +327,74 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
         return { positionDistribution, concurrencyData, maxConcurrencyPeople, activeMemberIds };
     }, [dbData, viewQuarter, requirements, wandState]);
 
-    // ==========================================
-    // 計算 3：動態側邊欄內容渲染引擎 
-    // ==========================================
+    // 🌟 全域總缺口運算
+    const globalGap = useMemo(() => {
+        let gap = 0;
+        insights.positionDistribution.forEach(p => {
+            if (p.displayS1Gap < 0) gap += p.displayS1Gap;
+            if (p.displayS2Gap < 0) gap += p.displayS2Gap;
+        });
+        return Math.round(gap * 10) / 10;
+    }, [insights]);
+
     const renderDrawerContent = () => {
         if (!drawerPos) return null;
         const posData = insights.positionDistribution.find(p => p.name === drawerPos);
         if (!posData) return null;
 
-        const req = requirements[drawerPos] || { maxLimit: 6 };
-        const gap = posData.gap;
-        const missingSessions = gap < 0 ? Math.round(Math.abs(gap) * req.maxLimit) : 0;
         const isCompat = COMPATIBLE_GROUP.includes(drawerPos);
-
         let potentialHelpersCount = 0;
         if (isCompat) {
             const { members, memberPositions, positions } = dbData;
             const realMembers = members.filter(m => !m.name.startsWith('SYSTEM_') && insights.activeMemberIds.has(m.id));
-            
             realMembers.forEach(m => {
                 const activePos = memberPositions.filter(mp => mp.member_id === m.id && mp.is_active !== false);
                 if (activePos.length === 1) {
                     const pName = positions.find(p => p.id === activePos[0].position_id)?.name;
-                    if (COMPATIBLE_GROUP.includes(pName) && pName !== drawerPos) {
-                        potentialHelpersCount++;
-                    }
+                    if (COMPATIBLE_GROUP.includes(pName) && pName !== drawerPos) potentialHelpersCount++;
                 }
             });
         }
 
-        // 動態生成建議方案清單
         const actionPlans = [];
 
-        // 方案：崗位兼任 (僅相容群組顯示)
-        if (isCompat) {
-            actionPlans.push({
-                title: "啟動「崗位兼任」",
-                icon: <Zap size={16} className={potentialHelpersCount > 0 ? "text-amber-500" : "text-slate-400"} />,
-                isPriority: potentialHelpersCount > 0,
-                content: (
-                    <div className="text-sm text-slate-600 space-y-2">
-                        <p><strong className="text-slate-700">📍 數據支持：</strong>目前共有 <strong className="text-amber-600 text-base">{potentialHelpersCount} 位</strong> 同工屬於單一崗位</p>
-                        <p><strong className="text-slate-700">👉 具體行動：</strong>培訓{potentialHelpersCount} 位同工兼任「{drawerPos}」</p>
-                        <p className="text-amber-700 bg-amber-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>不增加同工服事天數，100%高效率轉換補齊缺口</p>
-                    </div>
-                )
-            });
-        }
-
-        // 方案：調高服事上限 (通用)
-        actionPlans.push({
-            title: "調高服事上限",
-            icon: <TrendingUp size={16} className="text-indigo-500" />,
-            isPriority: false,
-            content: (
-                <div className="text-sm text-slate-600 space-y-2">
-                    <p><strong className="text-slate-700">📍 數據支持：</strong>將服事上限從 {req.maxLimit} 次適度調高</p>
-                    <p className="text-indigo-700 bg-indigo-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>缺口縮小或歸零，但同工可能隨時會累垮</p>
-                </div>
-            )
-        });
-
-        // 方案：減少服事人數 (僅單堂需求大於 1 且缺口小於 0 時顯示)
         if (posData.currentReq > 1) {
             actionPlans.push({
                 title: "減少崗位人數",
                 icon: <UsersRound size={16} className="text-cyan-500" />,
-                isPriority: false,
+                isPriority: true,
                 content: (
                     <div className="text-sm text-slate-600 space-y-2">
-                        <p><strong className="text-slate-700">📍 數據支持：</strong>每堂安排 <strong className="text-slate-800">{posData.currentReq} 人</strong></p>
-                        <p><strong className="text-slate-700">👉 具體行動：</strong>將單堂需求人數縮減至 <strong className="text-cyan-600">{posData.currentReq - 1} 人</strong></p>
-                        <p className="text-cyan-800 bg-cyan-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>降低整體人力負擔，有效緩解缺口壓力</p>
+                        <p><strong className="text-slate-700">📍 數據支持：</strong>目前平均服事次數達 <strong className="text-rose-600">{posData.displayAvgBurden} 次</strong>，負擔過重。</p>
+                        <p><strong className="text-slate-700">👉 具體行動：</strong>將單堂需求縮減至 <strong className="text-cyan-600">{posData.currentReq - 1} 人</strong> (左側點擊 - 推演)。</p>
+                        <p className="text-cyan-800 bg-cyan-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>釋放人力至皆可池，瞬間降低全域缺口壓力。</p>
                     </div>
                 )
             });
         }
 
-        // 方案：招募新人 (通用)
+        if (isCompat) {
+            actionPlans.push({
+                title: "啟動「崗位兼任」",
+                icon: <Zap size={16} className={potentialHelpersCount > 0 ? "text-amber-500" : "text-slate-400"} />,
+                isPriority: potentialHelpersCount > 0 && posData.currentReq <= 1,
+                content: (
+                    <div className="text-sm text-slate-600 space-y-2">
+                        <p><strong className="text-slate-700">📍 數據支持：</strong>目前共有 <strong className="text-amber-600 text-base">{potentialHelpersCount} 位</strong> 同工屬於單一崗位。</p>
+                        <p><strong className="text-slate-700">👉 具體行動：</strong>培訓這 {potentialHelpersCount} 位同工兼任「{drawerPos}」。</p>
+                        <p className="text-amber-700 bg-amber-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>不增加出勤天數，100% 高效率轉換補齊缺口。</p>
+                    </div>
+                )
+            });
+        }
+
         actionPlans.push({
             title: "招募新人",
             icon: <UserPlus size={16} className="text-emerald-500" />,
             isPriority: false,
             content: (
                 <div className="text-sm text-slate-600 space-y-2">
-               <p><strong className="text-slate-700">👉 具體行動：</strong>招募 <strong className="text-emerald-600 text-base">{Math.abs(gap)} 位</strong> 新血</p>
+               <p><strong className="text-slate-700">👉 具體行動：</strong>招募新血加入此崗位，分攤長期服事壓力。</p>
                 </div>
             )
         });
@@ -440,45 +415,43 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                             <Target size={18} className="text-slate-500" />
                             <h4 className="font-bold text-slate-700 text-sm">人力診斷：<span className="text-indigo-600 text-base ml-1">【{drawerPos}】</span></h4>
                         </div>
-                        {gap < 0 ? (
+                        {posData.gap < 0 ? (
                             <div>
                                 <div className="text-2xl font-extrabold text-rose-600 mb-1 flex items-center gap-2">
-                                    <AlertCircle size={22} />人力短缺 ({gap} FTE)
+                                    <AlertCircle size={22} />人力短缺 ({posData.gap} FTE)
                                 </div>
                                 <p className="text-sm text-slate-600 leading-relaxed mt-2">
-                                    每季服事上限 <strong className="text-slate-800">{req.maxLimit} 次</strong>，尚缺 <strong className="text-rose-600 bg-rose-50 px-1 rounded">{missingSessions} 次</strong> 
+                                    健康服事基準為每季 <strong className="text-slate-800">{posData.reqLimit} 次</strong>。目前平均服事已達 <strong className="text-rose-600 bg-rose-50 px-1 rounded">{posData.displayAvgBurden} 次</strong>，整體戰力嚴重過載。
                                 </p>
                             </div>
-                        ) : gap === 0 ? (
+                        ) : posData.gap === 0 ? (
                             <div>
                                 <div className="text-2xl font-extrabold text-slate-500 mb-1 flex items-center gap-2">
                                     <CheckCircle2 size={22} />人力平衡 (0.0 FTE)
                                 </div>
                                 <p className="text-sm text-slate-600 leading-relaxed mt-2">
-                                    每季服事上限 {req.maxLimit} 次，人力供需平衡。
+                                    目前平均服事次數為 <strong className="text-slate-800">{posData.displayAvgBurden} 次</strong>，人力供需達成緊繃平衡。
                                 </p>
                             </div>
                         ) : (
                             <div>
                                 <div className="text-2xl font-extrabold text-emerald-500 mb-1 flex items-center gap-2">
-                                    <CheckCircle2 size={22} />人力充足 (+{gap} FTE)
+                                    <CheckCircle2 size={22} />人力充足 (+{posData.gap} FTE)
                                 </div>
                                 <p className="text-sm text-slate-600 leading-relaxed mt-2">
-                                    人手充足！可以將「服事上限」調降，或進行崗位兼任。
+                                    目前平均服事次數僅 <strong className="text-emerald-600">{posData.displayAvgBurden} 次</strong>。戰力充足，適合支援其他崗位。
                                 </p>
                             </div>
                         )}
                     </div>
 
-                    {gap < 0 && (
+                    {posData.gap < 0 && (
                         <div className="space-y-4">
                             <h4 className="font-bold text-slate-800 border-b border-slate-100 pb-2">🎯 分析建議：</h4>
-                            
                             {actionPlans.map((plan, index) => (
                                 <div key={index} className={`p-4 rounded-xl border ${plan.isPriority ? 'bg-amber-50/50 border-amber-200' : 'bg-slate-50 border-slate-200'}`}>
                                     <h5 className="font-bold text-sm text-slate-800 flex items-center gap-2 mb-2">
-                                        {plan.icon}
-                                        方案{['一', '二', '三', '四'][index]}：{plan.title}
+                                        {plan.icon} 方案{['一', '二', '三'][index]}：{plan.title}
                                         {plan.isPriority && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-semibold ml-1">優先推薦</span>}
                                     </h5>
                                     {plan.content}
@@ -498,7 +471,6 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
 
     return (
         <div className="flex h-screen w-full bg-slate-50 overflow-hidden relative">
-            {/* 側邊導覽列 */}
             <div className="hidden md:flex inset-y-0 left-0 w-64 bg-slate-900 flex-col justify-between shrink-0 border-r border-slate-800 z-30 h-full">
                 <div className="flex flex-col">
                     <div className="p-6 border-b border-slate-800 flex items-center justify-between gap-3 relative overflow-hidden">
@@ -522,7 +494,6 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                 </div>
             </div>
 
-            {/* 主要內容區 */}
             <div className="flex-1 flex flex-col relative bg-slate-50 overflow-hidden animate-fade-in">
                 <div className="bg-white px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0 shadow-sm z-20">
                     <div className="flex items-center gap-3">
@@ -541,9 +512,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                     ) : (
                         <div className="max-w-7xl mx-auto space-y-6">
                             
-                            {/* 上半部：左右並排佈局 */}
                             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                                {/* 左側：人力總覽大表 */}
                                 <div className="xl:col-span-2 bg-white rounded-xl shadow-soft border border-slate-100 overflow-hidden flex flex-col">
                                     <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
                                         <div className="flex items-center gap-2">
@@ -580,11 +549,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                 {matrixStats.map((row) => {
                                                     const isSelected = viewQuarter === row.quarter;
                                                     return (
-                                                        <tr 
-                                                            key={row.quarter} 
-                                                            onClick={() => setViewQuarter(row.quarter)}
-                                                            className={`cursor-pointer transition-all duration-150 ${isSelected ? 'bg-indigo-50/60 shadow-[inset_3px_0_0_rgba(79,70,229,1)]' : 'hover:bg-slate-50 bg-white'}`}
-                                                        >
+                                                        <tr key={row.quarter} onClick={() => setViewQuarter(row.quarter)} className={`cursor-pointer transition-all duration-150 ${isSelected ? 'bg-indigo-50/60 shadow-[inset_3px_0_0_rgba(79,70,229,1)]' : 'hover:bg-slate-50 bg-white'}`}>
                                                             <td className={`py-3 px-4 font-extrabold text-[13px] border-b border-slate-100/50 shadow-[1px_0_0_rgba(226,232,240,1)] sticky left-0 z-10 ${isSelected ? 'text-indigo-700 bg-indigo-50/60' : 'text-slate-600 bg-inherit'}`}>
                                                                 {row.quarter.replace('-', '')}
                                                             </td>
@@ -608,7 +573,6 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                     </div>
                                 </div>
 
-                                {/* 右側：全域崗位技能分布圖 */}
                                 <div className="xl:col-span-1 bg-white rounded-xl shadow-soft border border-slate-100 overflow-hidden flex flex-col h-full">
                                     <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
                                         <UserCheck className="text-violet-500" size={20} />
@@ -641,15 +605,36 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                 </div>
                             </div>
 
-                            {/* 下半部全寬：人力需求分析 */}
                             <div className="bg-white rounded-xl shadow-soft border border-slate-100 overflow-hidden flex flex-col w-full">
-                                <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-2">
+                                <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                    <div className="flex items-center flex-wrap gap-2">
                                         <LayoutList className="text-indigo-500" size={20} />
                                         <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                                             人力需求分析
-                                            <span className="text-sm font-normal text-slate-500 bg-slate-200/60 px-2 py-0.5 rounded-full ml-2">{viewQuarter.replace('-', '')}</span>
+                                            <span className="text-sm font-normal text-slate-500 bg-slate-200/60 px-2 py-0.5 rounded-full ml-1">{viewQuarter.replace('-', '')}</span>
                                         </h3>
+                                        
+                                        {/* 🌟 全域總缺口燈號 */}
+                                        <div className={`ml-2 flex items-center gap-1.5 px-3 py-1 rounded-full border ${globalGap < 0 ? 'bg-rose-50 border-rose-200' : 'bg-emerald-50 border-emerald-200'}`}>
+                                            {globalGap < 0 ? <AlertCircle size={14} className="text-rose-500"/> : <CheckCircle2 size={14} className="text-emerald-500"/>}
+                                            <span className={`text-xs font-extrabold ${globalGap < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                                全域總缺口 {globalGap < 0 ? globalGap : '0.0'} FTE
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* 🌟 一鍵最佳化操作區 */}
+                                    <div className="flex items-center gap-2">
+                                        {globalGap < 0 && (
+                                            <button onClick={handleAutoBalance} className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-400 to-amber-500 text-white text-xs font-bold rounded-lg shadow-sm hover:from-amber-500 hover:to-amber-600 transition-all transform hover:scale-105 active:scale-95">
+                                                <Sparkles size={14} /> 一鍵自動補平
+                                            </button>
+                                        )}
+                                        {Object.keys(wandState).length > 0 && (
+                                            <button onClick={() => setWandState({})} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-bold rounded-lg shadow-sm transition-all">
+                                                <Undo2 size={14} /> 復原全域調度
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="overflow-x-auto w-full">
@@ -658,7 +643,9 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                             <tr>
                                                 <th rowSpan="2" className="py-2 px-4 font-semibold text-slate-500 text-sm border-b border-slate-200 bg-slate-50 align-middle">崗位</th>
                                                 <th rowSpan="2" className="py-2 px-2 font-semibold text-indigo-600 text-[13px] border-b border-slate-200 bg-indigo-50/30 text-center align-middle">人數(堂)</th>
-                                                <th rowSpan="2" className="py-2 px-2 font-semibold text-emerald-700 text-[13px] border-b border-slate-200 bg-emerald-50/50 text-center align-middle">服事上限<br/><span className="text-[10px] font-normal text-emerald-600">(次/季)</span></th>
+                                                
+                                                {/* 🌟 拔除原本的「服事上限」，改為「服事次數 (季)」 */}
+                                                <th rowSpan="2" className="py-2 px-2 font-semibold text-emerald-700 text-[13px] border-b border-slate-200 bg-emerald-50/50 text-center align-middle leading-tight">服事次數<br/><span className="text-[10px] font-normal text-emerald-600">(季)</span></th>
                                                 
                                                 <th colSpan="3" className="py-2 px-3 font-bold text-sky-900 text-sm border-b border-slate-200 bg-sky-50/60 text-center border-r-2 border-slate-200">第一堂</th>
                                                 <th colSpan="3" className="py-2 px-3 font-bold text-violet-900 text-sm border-b border-slate-200 bg-violet-50/60 text-center border-r-2 border-slate-200">第二堂</th>
@@ -688,31 +675,31 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                         </thead>
                                         <tbody>
                                             {insights.positionDistribution.map((pos, idx) => {
-                                                const currentReq = requirements[pos.name]?.singleSession || 0;
-                                                const currentMaxLimit = requirements[pos.name]?.maxLimit || 6;
-                                                
-                                                const showS1Wand = currentReq > 0 && ((pos.baseS1Gap < 0 && pos.currentPool > 0) || pos.activeWands.includes('s1'));
-                                                const showS2Wand = currentReq > 0 && ((pos.baseS2Gap < 0 && pos.currentPool > 0) || pos.activeWands.includes('s2'));
+                                                const showS1Wand = pos.currentReq > 0 && ((pos.baseS1Gap < 0 && pos.currentPool > 0) || pos.activeWands.includes('s1'));
+                                                const showS2Wand = pos.currentReq > 0 && ((pos.baseS2Gap < 0 && pos.currentPool > 0) || pos.activeWands.includes('s2'));
 
                                                 return (
                                                     <tr key={pos.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'} hover:bg-slate-50 transition-colors`}>
                                                         <td className="py-3.5 px-4 font-bold text-slate-700 border-b border-slate-100">{pos.name}</td>
                                                         
-                                                        {/* 動態調整：人數(堂) */}
+                                                        {/* 人數(堂)微調 */}
                                                         <td className="py-3.5 px-1 text-center border-b border-slate-100 bg-indigo-50/10">
                                                             <div className="flex items-center justify-center gap-1.5">
-                                                                <button onClick={() => handleUpdateReq(pos.name, -1)} disabled={currentReq <= 0} className="w-5 h-5 flex items-center justify-center bg-white hover:bg-slate-200 text-slate-500 rounded border border-slate-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed leading-none pb-0.5">-</button>
-                                                                <span className="font-extrabold text-indigo-700 w-3 text-center">{currentReq}</span>
+                                                                <button onClick={() => handleUpdateReq(pos.name, -1)} disabled={pos.currentReq <= 0} className="w-5 h-5 flex items-center justify-center bg-white hover:bg-slate-200 text-slate-500 rounded border border-slate-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed leading-none pb-0.5">-</button>
+                                                                <span className="font-extrabold text-indigo-700 w-3 text-center">{pos.currentReq}</span>
                                                                 <button onClick={() => handleUpdateReq(pos.name, 1)} className="w-5 h-5 flex items-center justify-center bg-white hover:bg-slate-200 text-slate-500 rounded border border-slate-200 transition-colors leading-none pb-0.5">+</button>
                                                             </div>
                                                         </td>
 
-                                                        {/* 動態調整：服事上限(次/季) */}
-                                                        <td className="py-3.5 px-1 text-center border-b border-slate-100 bg-emerald-50/30">
-                                                            <div className="flex items-center justify-center gap-1.5">
-                                                                <button onClick={() => handleUpdateLimit(pos.name, -1)} disabled={currentMaxLimit <= 1} className="w-5 h-5 flex items-center justify-center bg-white hover:bg-slate-200 text-slate-500 rounded border border-slate-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed leading-none pb-0.5">-</button>
-                                                                <span className="font-extrabold text-emerald-700 w-4 text-center">{currentMaxLimit}</span>
-                                                                <button onClick={() => handleUpdateLimit(pos.name, 1)} className="w-5 h-5 flex items-center justify-center bg-white hover:bg-slate-200 text-slate-500 rounded border border-slate-200 transition-colors leading-none pb-0.5">+</button>
+                                                        {/* 🌟 動態壓力儀表板 */}
+                                                        <td className={`py-3.5 px-2 text-center border-b border-slate-100 ${pos.isOverloaded ? 'bg-rose-50/40' : 'bg-emerald-50/30'}`}>
+                                                            <div className="flex flex-col items-center justify-center">
+                                                                <span className={`font-extrabold text-sm ${pos.isOverloaded ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                                                    {pos.currentReq > 0 ? `${pos.displayAvgBurden}` : '-'}
+                                                                </span>
+                                                                {pos.currentReq > 0 && pos.isOverloaded && (
+                                                                    <span className="text-[10px] text-rose-500 font-bold mt-0.5 leading-none tracking-wider">超載</span>
+                                                                )}
                                                             </div>
                                                         </td>
 
@@ -724,17 +711,13 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                             <div className="font-bold text-sm text-sky-700">{pos.s1FTE}</div>
                                                         </td>
                                                         <td className="py-3.5 px-1 text-center border-b border-slate-100 bg-sky-50/20 border-r-2 border-slate-200">
-                                                            {currentReq > 0 ? (
+                                                            {pos.currentReq > 0 ? (
                                                                 <div className="flex items-center justify-center gap-1.5">
                                                                     <span className={`font-extrabold text-[13px] ${pos.displayS1Gap < 0 ? 'text-rose-600' : pos.displayS1Gap > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
                                                                         {pos.displayS1Gap > 0 ? `+${pos.displayS1Gap}` : pos.displayS1Gap === 0 ? '0.0' : pos.displayS1Gap}
                                                                     </span>
                                                                     {showS1Wand && (
-                                                                        <button 
-                                                                            onClick={() => toggleWand(pos.name, 's1')}
-                                                                            className={`p-1 rounded transition-colors ${pos.activeWands.includes('s1') ? 'bg-sky-100 text-sky-700 hover:bg-sky-200' : 'bg-white text-slate-400 hover:text-sky-600 shadow-sm border border-slate-200'}`}
-                                                                            title={pos.activeWands.includes('s1') ? '人力復原' : '人力調度'}
-                                                                        >
+                                                                        <button onClick={() => toggleWand(pos.name, 's1')} className={`p-1 rounded transition-colors ${pos.activeWands.includes('s1') ? 'bg-sky-100 text-sky-700 hover:bg-sky-200' : 'bg-white text-slate-400 hover:text-sky-600 shadow-sm border border-slate-200'}`} title={pos.activeWands.includes('s1') ? '人力復原' : '人力調度'}>
                                                                             {pos.activeWands.includes('s1') ? <Undo2 size={11} /> : <Wand2 size={11} />}
                                                                         </button>
                                                                     )}
@@ -750,17 +733,13 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                             <div className="font-bold text-sm text-violet-700">{pos.s2FTE}</div>
                                                         </td>
                                                         <td className="py-3.5 px-1 text-center border-b border-slate-100 bg-violet-50/20 border-r-2 border-slate-200">
-                                                            {currentReq > 0 ? (
+                                                            {pos.currentReq > 0 ? (
                                                                 <div className="flex items-center justify-center gap-1.5">
                                                                     <span className={`font-extrabold text-[13px] ${pos.displayS2Gap < 0 ? 'text-rose-600' : pos.displayS2Gap > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
                                                                         {pos.displayS2Gap > 0 ? `+${pos.displayS2Gap}` : pos.displayS2Gap === 0 ? '0.0' : pos.displayS2Gap}
                                                                     </span>
                                                                     {showS2Wand && (
-                                                                        <button 
-                                                                            onClick={() => toggleWand(pos.name, 's2')}
-                                                                            className={`p-1 rounded transition-colors ${pos.activeWands.includes('s2') ? 'bg-violet-100 text-violet-700 hover:bg-violet-200' : 'bg-white text-slate-400 hover:text-violet-600 shadow-sm border border-slate-200'}`}
-                                                                            title={pos.activeWands.includes('s2') ? '人力復原' : '人力調度'}
-                                                                        >
+                                                                        <button onClick={() => toggleWand(pos.name, 's2')} className={`p-1 rounded transition-colors ${pos.activeWands.includes('s2') ? 'bg-violet-100 text-violet-700 hover:bg-violet-200' : 'bg-white text-slate-400 hover:text-violet-600 shadow-sm border border-slate-200'}`} title={pos.activeWands.includes('s2') ? '人力復原' : '人力調度'}>
                                                                             {pos.activeWands.includes('s2') ? <Undo2 size={11} /> : <Wand2 size={11} />}
                                                                         </button>
                                                                     )}
@@ -768,7 +747,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                             ) : <span className="text-slate-300">-</span>}
                                                         </td>
 
-                                                        {/* 皆可區塊：方案 A 直接取代 */}
+                                                        {/* 皆可區塊 */}
                                                         <td className="py-3.5 px-2 text-center border-b border-slate-100 bg-slate-100/40">
                                                             <div className="text-slate-400 font-normal text-xs">{pos.bothCount}人</div>
                                                         </td>
@@ -783,23 +762,12 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                             {pos.totalCount}人
                                                         </td>
 
-                                                        {/* 智能策略分析 */}
                                                         <td className="py-3.5 px-4 text-center border-b border-slate-100 bg-slate-50">
-                                                            {currentReq > 0 ? (
-                                                                <button 
-                                                                    onClick={() => toggleDrawer(pos.name)}
-                                                                    className={`flex items-center justify-center w-8 h-8 mx-auto rounded-full shadow-sm transition-all transform hover:scale-110 active:scale-95 
-                                                                        ${drawerPos === pos.name ? 'ring-2 ring-offset-1 ring-slate-300' : ''}
-                                                                        ${pos.gap < 0 ? 'bg-rose-50 text-rose-500 hover:bg-rose-100' : 
-                                                                          pos.gap === 0 ? 'bg-slate-100 text-slate-400 hover:bg-slate-200' : 
-                                                                          'bg-emerald-50 text-emerald-500 hover:bg-emerald-100'}`}
-                                                                    title="點擊展開智能策略面板"
-                                                                >
+                                                            {pos.currentReq > 0 ? (
+                                                                <button onClick={() => toggleDrawer(pos.name)} className={`flex items-center justify-center w-8 h-8 mx-auto rounded-full shadow-sm transition-all transform hover:scale-110 active:scale-95 ${drawerPos === pos.name ? 'ring-2 ring-offset-1 ring-slate-300' : ''} ${pos.gap < 0 ? 'bg-rose-50 text-rose-500 hover:bg-rose-100' : pos.gap === 0 ? 'bg-slate-100 text-slate-400 hover:bg-slate-200' : 'bg-emerald-50 text-emerald-500 hover:bg-emerald-100'}`} title="點擊展開智能策略面板">
                                                                     <Lightbulb size={17} className={drawerPos === pos.name ? 'fill-current' : ''} />
                                                                 </button>
-                                                            ) : (
-                                                                <span className="text-slate-300">-</span>
-                                                            )}
+                                                            ) : <span className="text-slate-300">-</span>}
                                                         </td>
                                                     </tr>
                                                 );
@@ -812,12 +780,8 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                     )}
                 </div>
 
-                {/* 右側滑出層 (AI 智能策略 Drawer) */}
                 {drawerPos && (
-                    <div 
-                        className="absolute inset-0 bg-slate-900/20 z-40 backdrop-blur-[1px] transition-opacity" 
-                        onClick={() => setDrawerPos(null)} 
-                    />
+                    <div className="absolute inset-0 bg-slate-900/20 z-40 backdrop-blur-[1px] transition-opacity" onClick={() => setDrawerPos(null)} />
                 )}
                 <div className={`absolute top-0 right-0 w-full max-w-[400px] h-full bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-out ${drawerPos ? 'translate-x-0' : 'translate-x-full'}`}>
                     {renderDrawerContent()}
