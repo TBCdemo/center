@@ -355,6 +355,14 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
         return Math.round(gap * 10) / 10;
     }, [insights]);
 
+    // 三段式健康狀態判定
+    const healthStatus = globalGap < 0 ? 'danger' : globalGap === 0 ? 'warning' : 'healthy';
+    const healthStyles = {
+        danger: { iconBg: 'bg-rose-100', iconText: 'text-rose-600', valText: 'text-rose-600', badge: 'bg-rose-50 text-rose-600 border border-rose-200', label: '危險' },
+        warning: { iconBg: 'bg-amber-100', iconText: 'text-amber-600', valText: 'text-amber-600', badge: 'bg-amber-50 text-amber-600 border border-amber-200', label: '警戒' },
+        healthy: { iconBg: 'bg-emerald-100', iconText: 'text-emerald-600', valText: 'text-emerald-600', badge: 'bg-emerald-50 text-emerald-600 border border-emerald-200', label: '健康' }
+    }[healthStatus];
+
     const handleAutoBalance = () => {
         let tempSurplus = 0;
         insights.positionDistribution.forEach(p => { 
@@ -558,7 +566,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                         </div>
                         <div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
                             <button onClick={() => setIsSettingsOpen(false)} className="px-5 py-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-200 transition-colors">取消</button>
-                            <button onClick={saveSettings} className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-sm">儲存設定並重算大盤</button>
+                            <button onClick={saveSettings} className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-sm">儲存</button>
                         </div>
                     </div>
                 </div>
@@ -701,17 +709,17 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                             {/* 📊 頂部大盤：全域健康指標與招募精算清單 */}
                             <div className="bg-white rounded-xl shadow-soft border border-slate-100 p-5 flex flex-col xl:flex-row gap-5 items-start xl:items-center justify-between">
                                 <div className="flex items-center gap-4 w-full xl:w-auto">
-                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-inner ${globalGap < 0 ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-inner ${healthStyles.iconBg} ${healthStyles.iconText}`}>
                                         <TrendingUp size={28} />
                                     </div>
                                     <div>
                                         <h3 className="text-sm font-bold text-slate-500 mb-0.5">平均服事次數</h3>
                                         <div className="flex items-baseline gap-2">
-                                            <span className={`text-2xl font-black tracking-tight ${globalGap < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                            <span className={`text-2xl font-black tracking-tight ${healthStyles.valText}`}>
                                                 {insights.globalAvgBurden} <span className="text-sm font-bold text-slate-500">次/季</span>
                                             </span>
-                                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${globalGap < 0 ? 'bg-rose-50 text-rose-500 border border-rose-200' : 'bg-emerald-50 text-emerald-500 border border-emerald-200'}`}>
-                                                {globalGap < 0 ? '整體超載' : '健康狀態'}
+                                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${healthStyles.badge}`}>
+                                                {healthStyles.label}
                                             </span>
                                         </div>
                                     </div>
@@ -730,9 +738,9 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                             insights.recruitmentList.map(r => (
                                                 <span key={r.name} className="px-3 py-1 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold rounded-full shadow-sm flex items-center gap-1.5">
                                                     {r.name} 
-                                                    <span className="bg-amber-500 text-white px-1.5 py-0.5 rounded text-[10px] font-bold flex items-center gap-1">
+                                                    <span className="bg-amber-500 text-white px-2 py-1 rounded text-[13px] font-bold flex items-center gap-1">
                                                         招募 {r.recruitCount} 人
-                                                        <span>
+                                                        <span className="text-[13px] font-bold">
                                                             ({r.s1RecruitCount > 0 && r.s2RecruitCount > 0 ? `第一堂 ${r.s1RecruitCount} / 第二堂 ${r.s2RecruitCount}` : r.s1RecruitCount > 0 ? `第一堂 ${r.s1RecruitCount}` : `第二堂 ${r.s2RecruitCount}`})
                                                         </span>
                                                     </span>
@@ -765,7 +773,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                         </div>
                                     </div>
 
-                                    {/* 🌟 操作區 (按鈕動態切換與設定) */}
+                                    {/* 🌟 操作區 */}
                                     <div className="flex items-center gap-2">
                                         {Object.keys(wandState).length > 0 ? (
                                             <button onClick={() => setWandState({})} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-bold rounded-lg shadow-sm transition-all">
