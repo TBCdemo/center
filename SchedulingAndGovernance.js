@@ -897,8 +897,8 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
             return a.date.localeCompare(b.date);
         });
 
-        const headerRow = `﻿日期,堂別,${dbData.positions.map(p => p.name).join(',')}
-`;
+        // 這裡改用安全的字串組合方式，避免轉譯器出錯
+        const headerRow = "\uFEFF日期,堂別," + dbData.positions.map(p => p.name).join(',') + "\n";
         let csvContent = headerRow;
         
         sortedRows.forEach(row => {
@@ -906,13 +906,17 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
             dbData.positions.forEach(pos => {
                 r.push((row.positions[pos.name] || []).join('、'));
             });
-            csvContent += r.map(v => `"${v}"`).join(',') + '
-';
+            // 確保換行符號不會被斷開
+            csvContent += r.map(v => `"${v}"`).join(',') + "\n";
         });
         
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `TBC_排班表_${year}Q${quarter}.csv`;
-        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        const link = document.createElement('a'); 
+        link.href = URL.createObjectURL(blob); 
+        link.download = `TBC_排班表_${year}Q${quarter}.csv`;
+        document.body.appendChild(link); 
+        link.click(); 
+        document.body.removeChild(link);
     };
 
     const dashboardData = useMemo(() => {
