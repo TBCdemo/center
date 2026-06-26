@@ -1382,7 +1382,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                                 強制人工指派 (無視排班規則限制)
                             </h4>
                             <p className="text-xs text-orange-600 mb-3 font-normal leading-relaxed">
-                                無推薦人選時，可搜尋全體同工進行人工指派，完全忽略請假與崗位技能
+                                無推薦人選時，搜尋全體同工進行人工指派，完全忽略請假與崗位技能
                             </p>
                             <div className="relative">
                                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-400" />
