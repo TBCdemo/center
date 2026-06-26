@@ -499,11 +499,31 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
     const handleCopyCoordinationText = (type, currentName, currentDate, currentRole, newName, newDate, newRole) => {
         let text = '';
         if (type === 'swap') {
-            text = `平安！因臨時有事，請問是否可以 ${currentDate} 的【${currentRole}】與你協調互換 ${newDate} 的【${newRole}】呢？（原排班：${currentName} ↔ ${newName}），謝謝您！`;
+           text = `平安！
+
+因同工臨時有事，是否可以協調互換以下班次：
+
+📌 （${currentName}）
+• ${currentDate}【${currentRole}】
+
+📌 （${newName}）
+• ${newDate}【${newRole}】
+
+若同意換班，請直接回覆，我們將協助完成換班登記
+
+謝謝你的協助！`;
         } else if (type === 'substitute' || type === 'override') {
             text = `平安！想請問您 ${newDate} 的【${newRole}】時段方不方便前來替補支援服事呢？（原先此班別為：${currentName}），再麻煩回覆，謝謝您的協助！`;
         } else {
-            text = `平安！想請問同工關於排班調整：原定由 ${currentName} 於 ${currentDate} 擔任的【${currentRole}】，預計調整為由 ${newName} 於 ${newDate} 擔任【${newRole}】，特此與您確認，謝謝！`;
+            text = `平安！
+
+因同工臨時有事，請問是否可以協助替補以下服事：
+
+📌 日期：${newDate}
+📌 崗位：【${newRole}】
+📌 原服事同工：${currentName}
+
+若可以協助，請回覆「可以」；若不方便也請告知，謝謝您的幫忙！`;
         }
         
         navigator.clipboard.writeText(text).then(() => {
