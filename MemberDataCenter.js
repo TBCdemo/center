@@ -1072,7 +1072,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
                             </div>
                             <div className="p-5 overflow-y-auto custom-scrollbar space-y-6 flex-1 touch-pan-y overscroll-contain">
                                 <div className="bg-sky-50 p-4 rounded-xl border border-sky-100 text-sm font-normal text-sky-700 leading-relaxed">
-                                    系統內建至 2030 年的節日。手動新增節日提醒，編輯同工資料時會自動標示！
+                                    系統內建至 2030 年的節日。手動新增節日提醒，編輯同工資料時自動標示
                                 </div>
                                 <div className="space-y-3">
                                     <label className="text-xs font-medium text-slate-500 uppercase">新增節日提醒</label>
