@@ -7,7 +7,7 @@ import {
     Lightbulb, UserCheck, UserX, LayoutList, 
     ArrowUpDown, X, Database, AlertTriangle,
     Home, LogOut, Edit2, Check, ShieldCheck, Undo2, Redo2,
-    ChevronDown, ChevronUp, Plus
+    ChevronDown, ChevronUp, Plus, Copy, Camera
 } from 'lucide-react';
 
 const safeParseJSON = (data, fallback) => {
@@ -520,84 +520,82 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
     const handleDownloadCapture = (type, currentName, currentDate, currentRole, newName, newDate, newRole) => {
         const canvas = document.createElement('canvas');
         canvas.width = 640;
-        canvas.height = 360;
+        canvas.height = 240; // 調整高度以符合截圖比例
         const ctx = canvas.getContext('2d');
 
-        // 背景與邊框
+        // 背景
         ctx.fillStyle = '#f8fafc';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.strokeStyle = '#e2e8f0';
-        ctx.lineWidth = 4;
-        ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
-
-        // 上方精緻裝飾條
-        const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
-        gradient.addColorStop(0, '#4f46e5');
-        gradient.addColorStop(1, '#7c3aed');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(4, 4, canvas.width - 8, 56);
-
-        // 標題
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 20px "Microsoft JhengHei", sans-serif';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('TBC Serve Manager ‧ 服事調整確認單', 24, 32);
 
         // 卡片底色繪製函式
         const drawCard = (x, y, w, h, name, date, role, title, isTarget) => {
+            // 背景卡片
             ctx.fillStyle = '#ffffff';
-            ctx.shadowColor = 'rgba(15, 23, 42, 0.05)';
-            ctx.shadowBlur = 8;
-            ctx.shadowOffsetX = 0;
-            ctx.shadowOffsetY = 4;
+            // ctx.shadowColor = 'rgba(15, 23, 42, 0.05)';
+            // ctx.shadowBlur = 8;
+            // ctx.shadowOffsetX = 0;
+            // ctx.shadowOffsetY = 4;
             
-            // 繪製圓角矩形 (簡易相容版)
             ctx.beginPath();
-            ctx.rect(x, y, w, h);
+            ctx.roundRect ? ctx.roundRect(x, y, w, h, 12) : ctx.rect(x, y, w, h);
             ctx.fill();
-            ctx.shadowColor = 'transparent'; // 重設陰影
-            ctx.strokeStyle = isTarget ? '#e0f2fe' : '#f1f5f9';
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-
-            // 小標題
+            // ctx.shadowColor = 'transparent';
+            
+            // 標題 (目前同工 / 支援同工)
             ctx.fillStyle = '#64748b';
-            ctx.font = '12px "Microsoft JhengHei", sans-serif';
-            ctx.fillText(title, x + 16, y + 24);
+            ctx.font = 'bold 16px "Microsoft JhengHei", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(title, x + w / 2, y + 36);
 
             // 姓名
-            ctx.fillStyle = isTarget ? '#4f46e5' : '#0f172a';
-            ctx.font = 'bold 22px "Microsoft JhengHei", sans-serif';
-            ctx.fillText(name, x + 16, y + 54);
+            ctx.fillStyle = isTarget ? '#ea580c' : '#0f172a'; // Target is orange, source is dark slate
+            ctx.font = 'bold 32px "Microsoft JhengHei", sans-serif';
+            ctx.fillText(name, x + w / 2, y + 80);
 
-            // 日期與角色
+            // 日期背景與文字
+            ctx.fillStyle = '#f1f5f9';
+            const dateWidth = 110;
+            ctx.beginPath();
+            ctx.roundRect ? ctx.roundRect(x + w / 2 - dateWidth / 2, y + 104, dateWidth, 26, 6) : ctx.rect(x + w / 2 - dateWidth / 2, y + 104, dateWidth, 26);
+            ctx.fill();
+            
             ctx.fillStyle = '#334155';
-            ctx.font = 'bold 13px "Microsoft JhengHei", sans-serif';
-            ctx.fillText(`日期：${date}`, x + 16, y + 90);
-            ctx.fillText(`班別：${role}`, x + 16, y + 114);
+            ctx.font = 'bold 16px "Microsoft JhengHei", sans-serif'; // 字級加大
+            ctx.textBaseline = 'middle';
+            ctx.fillText(date.replace(/-/g, '/'), x + w / 2, y + 118);
+
+            // 角色 (堂別 ‧ 崗位)
+            ctx.fillStyle = '#4f46e5'; // Indigo color for role
+            ctx.font = 'bold 15px "Microsoft JhengHei", sans-serif'; // 字級加大
+            ctx.textBaseline = 'alphabetic';
+            ctx.fillText(role.replace('‧', ' • '), x + w / 2, y + 160);
         };
 
-        // 繪製左右兩側卡片
-        drawCard(32, 90, 240, 140, currentName, currentDate, currentRole, '【目前同工】', false);
-        drawCard(368, 90, 240, 140, newName, newDate, newRole, type === 'swap' ? '【更換同工】' : '【支援同工】', true);
+        // 繪製卡片底色與邊框
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#f1f5f9';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect ? ctx.roundRect(24, 24, canvas.width - 48, canvas.height - 48, 16) : ctx.rect(24, 24, canvas.width - 48, canvas.height - 48);
+        ctx.fill();
+        ctx.stroke();
+
+        // 繪製左右兩側卡片 (調整座標以符合新版面)
+        const cardWidth = 200;
+        const cardHeight = 180;
+        const leftX = 60;
+        const rightX = canvas.width - cardWidth - 60;
+        const cardY = 24;
+
+        drawCard(leftX, cardY, cardWidth, cardHeight, currentName, currentDate, currentRole, '目前同工', false);
+        drawCard(rightX, cardY, cardWidth, cardHeight, newName, newDate, newRole, type === 'swap' ? '互換同工' : '支援同工', true);
 
         // 中間轉換箭頭與圖標
-        ctx.fillStyle = type === 'swap' ? '#4f46e5' : '#f97316';
+        ctx.fillStyle = '#f97316'; // Orange arrows
         ctx.font = 'bold 36px "Microsoft JhengHei", sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(type === 'swap' ? '⇄' : '→', 304, 160);
-        
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = '11px "Microsoft JhengHei", sans-serif';
-        ctx.fillText(type === 'swap' ? '雙方換班' : '請求替補', 304, 200);
-
-        // 頁尾資訊
-        ctx.textAlign = 'left';
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = '11px "Microsoft JhengHei", sans-serif';
-        ctx.fillText(`產出時間：${new Date().toLocaleString()}`, 32, 320);
-        ctx.textAlign = 'right';
-        ctx.fillText('請確認班次是否合適，謝謝您的勞苦！', canvas.width - 32, 320);
+        ctx.textBaseline = 'middle';
+        ctx.fillText('⇆', canvas.width / 2, canvas.height / 2); // 左右雙向箭頭
 
         // 下載圖片
         const dataUrl = canvas.toDataURL('image/png');
@@ -1387,7 +1385,8 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                             {globalSearchTerm && (
                                 <div className="mt-3 space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar bg-white rounded-lg border border-orange-100 p-2 animate-fade-in">
                                     {effectiveMembers
-                                        .filter(m => m.name.toLowerCase().includes(globalSearchTerm.toLowerCase()) && m.id !== activeSlot.member_id)
+                                        .filter(m => m.name && String(m.name).toLowerCase().includes(String(globalSearchTerm).toLowerCase()) && m.id !== activeSlot.member_id)
+                                        .sort((a, b) => (currentUsageCount[a.id] || 0) - (currentUsageCount[b.id] || 0)) // 依照服事次數排序 (少到多)
                                         .map(m => {
                                             const usage = currentUsageCount[m.id] || 0;
                                             return (
