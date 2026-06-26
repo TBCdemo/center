@@ -7,7 +7,7 @@ import {
     Lightbulb, UserCheck, UserX, LayoutList, 
     ArrowUpDown, X, Database, AlertTriangle,
     Home, LogOut, Edit2, Check, ShieldCheck, Undo2, Redo2,
-    ChevronDown, ChevronUp, Plus, Copy, Camera
+    ChevronDown, ChevronUp, Plus
 } from 'lucide-react';
 
 const safeParseJSON = (data, fallback) => {
@@ -1595,23 +1595,25 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                                 <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider pl-1">LINE 協調通訊小工具</p>
                                 <div className="grid grid-cols-2 gap-2">
                                     <button 
-                                        type="button"
-                                        onClick={() => handleCopyCoordinationText(confirmDialog.type, confirmDialog.currentName, confirmDialog.currentDate, confirmDialog.currentRole, confirmDialog.newName, confirmDialog.newDate, confirmDialog.newRole)}
-                                        className="py-2.5 px-3 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 flex items-center justify-center gap-1.5 transition-colors active:scale-95"
-                                        title="複製得體格式文字以便直接貼到 LINE 中溝通"
-                                    >
-                                        <Copy size={14} className="text-indigo-500" />
-                                        複製協調文案
-                                    </button>
-                                    <button 
-                                        type="button"
-                                        onClick={() => handleDownloadCapture(confirmDialog.type, confirmDialog.currentName, confirmDialog.currentDate, confirmDialog.currentRole, confirmDialog.newName, confirmDialog.newDate, confirmDialog.newRole)}
-                                        className="py-2.5 px-3 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 flex items-center justify-center gap-1.5 transition-colors active:scale-95"
-                                        title="將異動資訊渲染為精緻單據圖片供同工確認"
-                                    >
-                                        <Camera size={14} className="text-violet-500" />
-                                        下載換班截圖
-                                    </button>
+    type="button"
+    onClick={() => handleCopyCoordinationText(confirmDialog.type, confirmDialog.currentName, confirmDialog.currentDate, confirmDialog.currentRole, confirmDialog.newName, confirmDialog.newDate, confirmDialog.newRole)}
+    className="py-2.5 px-3 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 flex items-center justify-center gap-1.5 transition-colors active:scale-95"
+>
+    {/* 將 Copy 換成原本就有的 Check */}
+    <Check size={14} className="text-indigo-500" />
+    複製協調文案
+</button>
+
+{/* 下載按鈕 */}
+<button 
+    type="button"
+    onClick={() => handleDownloadCapture(confirmDialog.type, confirmDialog.currentName, confirmDialog.currentDate, confirmDialog.currentRole, confirmDialog.newName, confirmDialog.newDate, confirmDialog.newRole)}
+    className="py-2.5 px-3 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 flex items-center justify-center gap-1.5 transition-colors active:scale-95"
+>
+    {/* 將 Camera 換成原本就有的 Download */}
+    <Download size={14} className="text-violet-500" />
+    下載換班截圖
+</button>
                                 </div>
                             </div>
 
