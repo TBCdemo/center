@@ -512,12 +512,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
 若同意換班，請直接回覆，我們將協助完成換班登記
 
 謝謝你的協助！`;
-        } else if (type === 'substitute' || type === 'override') {
-            text = `平安！
-
-因同工臨時有事，請問 ${newDate}【${newRole}】，是否可以協助替補服事？
-
-若時間方便，請回覆確認；若不便也請告知，謝謝您的協助！`;
         } else {
             text = `平安！
 
@@ -525,7 +519,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
 
 📌 日期：${newDate}
 📌 崗位：【${newRole}】
-📌 原服事同工：${currentName}
 
 若可以協助，請回覆「可以」；若不方便也請告知，謝謝您的幫忙！`;
         }
