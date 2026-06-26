@@ -499,7 +499,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
     const handleCopyCoordinationText = (type, currentName, currentDate, currentRole, newName, newDate, newRole) => {
         let text = '';
         if (type === 'swap') {
-            text = `平安！想請問您，我是否可以用 ${currentDate} 的【${currentRole}】與您協調互換 ${newDate} 的【${newRole}】呢？（原排班：${currentName} ↔ ${newName}），謝謝您！`;
+            text = `平安！因臨時有事，請問是否可以 ${currentDate} 的【${currentRole}】與你協調互換 ${newDate} 的【${newRole}】呢？（原排班：${currentName} ↔ ${newName}），謝謝您！`;
         } else if (type === 'substitute' || type === 'override') {
             text = `平安！想請問您 ${newDate} 的【${newRole}】時段方不方便前來替補支援服事呢？（原先此班別為：${currentName}），再麻煩回覆，謝謝您的協助！`;
         } else {
@@ -507,11 +507,11 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
         }
         
         navigator.clipboard.writeText(text).then(() => {
-            setToastMessage('已複製協調文案！');
+            setToastMessage('複製成功');
             setShowSuccessToast(true);
             setTimeout(() => setShowSuccessToast(false), 2000);
         }).catch(() => {
-            setErrorMsg('複製失敗，請手動選取文字');
+            setErrorMsg('複製失敗');
             setTimeout(() => setErrorMsg(''), 3000);
         });
     };
@@ -588,7 +588,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
         const cardY = 24;
 
         drawCard(leftX, cardY, cardWidth, cardHeight, currentName, currentDate, currentRole, '目前同工', false);
-        drawCard(rightX, cardY, cardWidth, cardHeight, newName, newDate, newRole, type === 'swap' ? '互換同工' : '支援同工', true);
+        drawCard(rightX, cardY, cardWidth, cardHeight, newName, newDate, newRole, type === 'swap' ? '換班同工' : '替補同工', true);
 
         // 中間轉換箭頭與圖標
         ctx.fillStyle = '#f97316'; // Orange arrows
@@ -600,7 +600,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
         // 下載圖片
         const dataUrl = canvas.toDataURL('image/png');
         const link = document.createElement('a');
-        link.download = `TBC_排班調整_${newName}_${newDate.replace(/\//g,'')}.png`;
+        link.download = `TBC服事排班調整_${newName}_${newDate.replace(/\//g,'')}.png`;
         link.href = dataUrl;
         document.body.appendChild(link);
         link.click();
@@ -1353,7 +1353,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                     ) : (
                         <div className="p-6 text-center text-slate-400 bg-white rounded-xl border border-dashed border-slate-200 shadow-sm">
                             <UserX className="mx-auto mb-2 opacity-30" size={28} />
-                            <p className="font-medium text-sm">系統無合適推薦人選</p>
+                            <p className="font-medium text-sm">無合適推薦人選</p>
                         </div>
                     )}
 
@@ -1362,16 +1362,16 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                         <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 shadow-sm">
                             <h4 className="text-sm font-bold text-orange-800 flex items-center gap-1.5 mb-2">
                                 <AlertTriangle size={16} className="text-orange-600" />
-                                強制指派 (無視排班規則限制)
+                                強制人工指派 (無視排班規則限制)
                             </h4>
                             <p className="text-xs text-orange-600 mb-3 font-normal leading-relaxed">
-                                當推薦人選不符需求或為空時，可全域搜尋全體同工進行覆蓋指派。此操作將無視請假與崗位技能。
+                                無推薦人選時，可搜尋全體同工進行人工指派，完全忽略請假與崗位技能
                             </p>
                             <div className="relative">
                                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-400" />
                                 <input 
                                     type="text" 
-                                    placeholder="搜尋全體同工姓名..." 
+                                    placeholder="搜尋全體同工姓名" 
                                     value={globalSearchTerm}
                                     onChange={(e) => setGlobalSearchTerm(e.target.value)}
                                     className="w-full bg-white border border-orange-200 rounded-lg pl-9 pr-8 py-2 text-sm font-normal text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500/30 transition-all placeholder-orange-300"
@@ -1393,14 +1393,14 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                                                 <div key={m.id} className="flex items-center justify-between bg-slate-50 hover:bg-orange-50/40 p-2 rounded border border-slate-100 transition-colors">
                                                     <div className="flex flex-col">
                                                         <span className="text-sm font-bold text-slate-800">{m.name}</span>
-                                                        <span className="text-[11px] text-slate-400">本季已排 {usage} 次 ‧ {m.availability_status}</span>
+                                                        <span className="text-[11px] text-slate-400">本季服事 {usage} 次 ‧ {m.availability_status}</span>
                                                     </div>
                                                     <button 
                                                         onClick={() => handleOverrideAssign(m)}
                                                         className="px-3 py-1.5 bg-orange-600 text-white hover:bg-orange-700 rounded-md text-xs font-bold transition-all shadow-sm flex items-center gap-1 active:scale-95"
                                                     >
                                                         <Plus size={12} strokeWidth={3} />
-                                                        強制覆蓋
+                                                        強制人工指派
                                                     </button>
                                                 </div>
                                             );
@@ -1495,7 +1495,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                                 <div className="flex gap-3 mt-2 pt-2 border-t border-slate-100 flex-wrap">
                                     <p className="text-rose-600 text-[10px] font-bold flex items-center gap-1.5 bg-rose-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-rose-500"></span> 紅色：崗位兼任</p>
                                     <p className="text-sky-600 text-[10px] font-bold flex items-center gap-1.5 bg-sky-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-sky-500"></span> 藍色：群組落單</p>
-                                    {appMode === 'schedule' && <p className="text-orange-600 text-[10px] font-bold flex items-center gap-1.5 bg-orange-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-orange-500"></span> 橘色：落單自動替換 / 手動強制覆蓋</p>}
+                                    {appMode === 'schedule' && <p className="text-orange-600 text-[10px] font-bold flex items-center gap-1.5 bg-orange-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-orange-500"></span> 橘色：落單自動替換 / 強制人工指派</p>}
                                 </div>
                             </>
                         )}
@@ -1595,8 +1595,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
 
                             {/* 同工與管理員專屬通訊輔助區塊 */}
                             <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 mb-6 flex flex-col gap-2 shadow-sm">
-                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider pl-1">LINE 協調通訊小工具</p>
-                                <div className="grid grid-cols-2 gap-2">
+                               <div className="grid grid-cols-2 gap-2">
                                     {/* 複製按鈕 */}
                                 <button 
     type="button"
@@ -1605,7 +1604,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
 >
     {/* 將 Copy 換成原本就有的 Check */}
     <Check size={14} className="text-indigo-500" />
-    複製協調文案
+    複製
 </button>
 
 {/* 下載按鈕 */}
@@ -1616,14 +1615,14 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
 >
     {/* 將 Camera 換成原本就有的 Download */}
     <Download size={14} className="text-violet-500" />
-    下載換班截圖
+    截圖
 </button>
                                 </div>
                             </div>
 
                             <div className="flex gap-3">
                                 <button onClick={() => setConfirmDialog({ ...confirmDialog, isOpen: false })} className="flex-1 py-3 px-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium rounded-lg transition-colors text-sm">取消</button>
-                                <button onClick={confirmDialog.onConfirm} className={`flex-1 py-3 px-4 font-medium text-white rounded-lg transition-all duration-200 shadow-button hover:-translate-y-0.5 active:scale-95 text-sm ${confirmDialog.type === 'override' ? 'bg-gradient-to-r from-orange-500 to-red-500' : confirmDialog.type === 'swap' ? 'bg-gradient-to-r from-indigo-600 to-violet-600' : 'bg-gradient-to-r from-orange-500 to-amber-500'}`}>確認執行變更</button>
+                                <button onClick={confirmDialog.onConfirm} className={`flex-1 py-3 px-4 font-medium text-white rounded-lg transition-all duration-200 shadow-button hover:-translate-y-0.5 active:scale-95 text-sm ${confirmDialog.type === 'override' ? 'bg-gradient-to-r from-orange-500 to-red-500' : confirmDialog.type === 'swap' ? 'bg-gradient-to-r from-indigo-600 to-violet-600' : 'bg-gradient-to-r from-orange-500 to-amber-500'}`}>確認</button>
                             </div>
                         </div>
                     </div>
