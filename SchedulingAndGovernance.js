@@ -513,7 +513,11 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
 
 謝謝你的協助！`;
         } else if (type === 'substitute' || type === 'override') {
-            text = `平安！想請問您 ${newDate} 的【${newRole}】時段方不方便前來替補支援服事呢？（原先此班別為：${currentName}），再麻煩回覆，謝謝您的協助！`;
+            text = `平安！
+
+因同工臨時有事，請問 ${newDate}【${newRole}】，是否可以協助替補服事？
+
+若時間方便，請回覆確認；若不便也請告知，謝謝您的協助！`;
         } else {
             text = `平安！
 
