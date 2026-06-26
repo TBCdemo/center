@@ -1594,7 +1594,8 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                             <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 mb-6 flex flex-col gap-2 shadow-sm">
                                 <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider pl-1">LINE 協調通訊小工具</p>
                                 <div className="grid grid-cols-2 gap-2">
-                                    <button 
+                                    {/* 複製按鈕 */}
+                                <button 
     type="button"
     onClick={() => handleCopyCoordinationText(confirmDialog.type, confirmDialog.currentName, confirmDialog.currentDate, confirmDialog.currentRole, confirmDialog.newName, confirmDialog.newDate, confirmDialog.newRole)}
     className="py-2.5 px-3 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 flex items-center justify-center gap-1.5 transition-colors active:scale-95"
