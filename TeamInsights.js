@@ -26,7 +26,6 @@ const INITIAL_POLICY_LIMITS = {
 
 const COMPATIBLE_GROUP = ['新朋友關懷', '主餐', '接待', '收奉獻'];
 
-// 🌟 強制指定崗位顯示順序
 const POSITION_ORDER = [
     '新朋友關懷', '接待', '收奉獻', '主餐', '司會', 'PPT', '執事輪值'
 ];
@@ -325,7 +324,6 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             };
         });
 
-        // 🌟 依照指定順序排序崗位
         positionDistribution.sort((a, b) => {
             const indexA = POSITION_ORDER.indexOf(a.name);
             const indexB = POSITION_ORDER.indexOf(b.name);
@@ -350,7 +348,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
 
         return { 
             positionDistribution, concurrencyData, maxConcurrencyPeople, activeMemberIds,
-            globalAvgBurden, recruitmentList, remainingGlobalSurplus 
+            globalAvgBurden, recruitmentList, remainingGlobalSurplus, globalDemandSessions 
         };
     }, [dbData, viewQuarter, requirements, policyLimits, wandState]);
 
@@ -363,12 +361,27 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
         return Math.round(gap * 10) / 10;
     }, [insights]);
 
-    const healthStatus = globalGap < 0 ? 'danger' : globalGap === 0 ? 'warning' : 'healthy';
-    const healthStyles = {
+    // 🎯 修復 1：獨立計算全教會的「動態健康防線」
+    const dynamicGlobalLimit = useMemo(() => {
+        let perfectTotalFTE = 0;
+        let totalDemandSessions = 0;
+        insights.positionDistribution.forEach(p => {
+            perfectTotalFTE += (p.demandSessions / p.policyLimit);
+            totalDemandSessions += p.demandSessions;
+        });
+        return perfectTotalFTE > 0 ? Math.round((totalDemandSessions / perfectTotalFTE) * 10) / 10 : 6.0;
+    }, [insights]);
+
+    // 平均服事次數的燈號，綁定動態防線，不再受 globalGap 影響
+    const burdenHealthStatus = insights.globalAvgBurden > dynamicGlobalLimit 
+        ? 'danger' 
+        : (insights.globalAvgBurden === dynamicGlobalLimit ? 'warning' : 'healthy');
+
+    const burdenStyles = {
         danger: { iconBg: 'bg-rose-100', iconText: 'text-rose-600', valText: 'text-rose-600', badge: 'bg-rose-50 text-rose-600 border border-rose-200', label: '危險' },
         warning: { iconBg: 'bg-amber-100', iconText: 'text-amber-600', valText: 'text-amber-600', badge: 'bg-amber-50 text-amber-600 border border-amber-200', label: '警戒' },
         healthy: { iconBg: 'bg-emerald-100', iconText: 'text-emerald-600', valText: 'text-emerald-600', badge: 'bg-emerald-50 text-emerald-600 border border-emerald-200', label: '健康' }
-    }[healthStatus];
+    }[burdenHealthStatus];
 
     const handleAutoBalance = () => {
         let tempSurplus = 0;
@@ -430,9 +443,9 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                 isPriority: true,
                 content: (
                     <div className="text-sm text-slate-600 space-y-2">
-                        <p><strong className="text-slate-700">📍 數據支持：</strong>單堂安排 {posData.currentReq} 人，整體人力負擔過大。</p>
-                        <p><strong className="text-slate-700">👉 具體行動：</strong>單堂需求減少至 <strong className="text-cyan-600">{posData.currentReq - 1} 人</strong>。</p>
-                        <p className="text-cyan-800 bg-cyan-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>釋放多餘人力至人力池，降低人力壓力。</p>
+                        <p><strong className="text-slate-700">📍 數據支持：</strong>單堂安排 {posData.currentReq} 人，對整體戰力負擔過大。</p>
+                        <p><strong className="text-slate-700">👉 具體行動：</strong>將單堂需求縮減至 <strong className="text-cyan-600">{posData.currentReq - 1} 人</strong> (左側點擊 - 推演)。</p>
+                        <p className="text-cyan-800 bg-cyan-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>釋放多餘人力至人力池，瞬間降低全教會大盤壓力。</p>
                     </div>
                 )
             });
@@ -446,8 +459,8 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                 content: (
                     <div className="text-sm text-slate-600 space-y-2">
                         <p><strong className="text-slate-700">📍 數據支持：</strong>目前共有 <strong className="text-amber-600 text-base">{potentialHelpersCount} 位</strong> 同工屬於單一崗位。</p>
-                        <p><strong className="text-slate-700">👉 具體行動：</strong>培訓 {potentialHelpersCount} 位同工兼任「{drawerPos}」。</p>
-                        <p className="text-amber-700 bg-amber-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>不增加服事天數，100%高效率轉換補齊人力缺口。</p>
+                        <p><strong className="text-slate-700">👉 具體行動：</strong>培訓這 {potentialHelpersCount} 位同工兼任「{drawerPos}」。</p>
+                        <p className="text-amber-700 bg-amber-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>不增加出勤天數，100% 高效率轉換補齊缺口。</p>
                     </div>
                 )
             });
@@ -465,9 +478,9 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                 isPriority: false,
                 content: (
                     <div className="text-sm text-slate-600 space-y-2">
-                        <p><strong className="text-slate-700">📍 數據支持：</strong>每人每季服事 {posData.policyLimit} 次計算，短缺 <strong className="text-rose-600">{posData.shortageSessions.toFixed(1)} 次</strong> 。</p>
-                        <p><strong className="text-slate-700">👉 具體行動：</strong>啟動招募計畫，目標招募 <strong className="text-emerald-600 text-base">{posData.recruitCount} 位</strong> 新人。
-                        <span className="block mt-1 text-emerald-700 bg-emerald-50 p-1.5 rounded text-xs font-bold">(需求：{detailText})</span>
+                        <p><strong className="text-slate-700">📍 數據支持：</strong>目前本崗位總計短缺 <strong className="text-rose-600">{posData.shortageSessions.toFixed(1)} 次</strong> 服事額度。以每人每季服事 {posData.policyLimit} 次為基準計算。</p>
+                        <p><strong className="text-slate-700">👉 具體行動：</strong>啟動招募計畫，目標招募 <strong className="text-emerald-600 text-base">{posData.recruitCount} 位</strong> 新血。
+                        <span className="block mt-1 text-emerald-700 bg-emerald-50 p-1.5 rounded text-xs font-bold">(精準需求：{detailText})</span>
                         </p>
                     </div>
                 )
@@ -493,10 +506,10 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                         {posData.displayGap < 0 ? (
                             <div>
                                 <div className="text-2xl font-extrabold text-rose-600 mb-1 flex items-center gap-2">
-                                    <AlertCircle size={22} />人力不足 ({posData.displayGap} FTE)
+                                    <AlertCircle size={22} />人力短缺 ({posData.displayGap} FTE)
                                 </div>
                                 <p className="text-sm text-slate-600 leading-relaxed mt-2">
-                                    依 <strong className="text-slate-800">{posData.policyLimit} 次/季</strong> 計算，人力緊急待補。
+                                    依健康防線 <strong className="text-slate-800">{posData.policyLimit} 次/季</strong> 計算，整體戰力目前處於過載短缺狀態。
                                 </p>
                             </div>
                         ) : posData.displayGap === 0 ? (
@@ -505,7 +518,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                     <CheckCircle2 size={22} />人力平衡 (0.0 FTE)
                                 </div>
                                 <p className="text-sm text-slate-600 leading-relaxed mt-2">
-                                    人力正常！若有人員暫停服事或休假，仍可能造成短期人力不足。
+                                    目前排班供需已達成平衡。
                                 </p>
                             </div>
                         ) : (
@@ -514,7 +527,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                     <CheckCircle2 size={22} />人力充足 (+{posData.displayGap} FTE)
                                 </div>
                                 <p className="text-sm text-slate-600 leading-relaxed mt-2">
-                                    人力充足！多餘的 FTE 自動流入「人力池」，供其他崗位調度。
+                                    戰力充足！多餘的 FTE 將自動流入「人力池」，供其他崗位調度。
                                 </p>
                             </div>
                         )}
@@ -522,7 +535,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
 
                     {posData.recruitCount > 0 && posData.displayGap >= 0 && (
                          <div className="mb-4 bg-amber-50/60 border border-amber-200 rounded-lg p-3 text-sm text-amber-700 font-medium">
-                            💡 提示：透過調度補齊缺口，但本質上處於人力不足，建議進行下方優化計畫
+                            💡 提示：雖然目前透過調度補齊了缺口，但本崗位本質上仍處於人力短缺狀態，建議參考下方招募計畫。
                          </div>
                     )}
 
@@ -722,17 +735,17 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                             {/* 📊 頂部大盤：全域健康指標與招募精算清單 */}
                             <div className="bg-white rounded-xl shadow-soft border border-slate-100 p-5 flex flex-col xl:flex-row gap-5 items-start xl:items-center justify-between">
                                 <div className="flex items-center gap-4 w-full xl:w-auto">
-                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-inner ${healthStyles.iconBg} ${healthStyles.iconText}`}>
+                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-inner ${burdenStyles.iconBg} ${burdenStyles.iconText}`}>
                                         <TrendingUp size={28} />
                                     </div>
                                     <div>
                                         <h3 className="text-lg font-bold text-slate-800 mb-0.5">平均服事次數</h3>
                                         <div className="flex items-baseline gap-2">
-                                            <span className={`text-2xl font-black tracking-tight ${healthStyles.valText}`}>
+                                            <span className={`text-2xl font-black tracking-tight ${burdenStyles.valText}`}>
                                                 {insights.globalAvgBurden} <span className="text-sm font-bold text-slate-500">次/季</span>
                                             </span>
-                                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${healthStyles.badge}`}>
-                                                {healthStyles.label}
+                                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${burdenStyles.badge}`}>
+                                                {burdenStyles.label}
                                             </span>
                                         </div>
                                     </div>
@@ -743,7 +756,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                 <div className="flex-1 w-full flex flex-col justify-center">
                                     <div className="flex items-center justify-between mb-2">
                                         <h3 className="text-lg font-bold text-slate-800 flex items-center gap-1.5">
-                                             🚨 人力招募目標
+                                            <Target size={20} className="text-indigo-500"/> 🚨 人力招募目標
                                         </h3>
                                     </div>
                                     <div className="flex flex-wrap gap-2">
@@ -784,6 +797,16 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                                 人力缺口 {globalGap < 0 ? globalGap : '0.0'} FTE
                                             </span>
                                         </div>
+
+                                        {/* 🎯 修正：新增可用人力池的即時視覺回饋 */}
+                                        {insights.remainingGlobalSurplus > 0 && (
+                                            <div className="ml-2 flex items-center gap-1.5 px-3 py-1 rounded-full border shadow-sm bg-sky-50 border-sky-200">
+                                                <Zap size={14} className="text-sky-500" />
+                                                <span className="text-xs font-extrabold text-sky-600">
+                                                    可用人力池 +{insights.remainingGlobalSurplus} FTE
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* 🌟 操作區 */}
