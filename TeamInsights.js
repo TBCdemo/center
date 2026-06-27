@@ -762,8 +762,8 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                             insights.recruitmentList.map(r => (
                                                 <span key={r.name} className="px-3 py-1 bg-amber-50 border border-amber-200 text-amber-700 text-sm font-bold rounded-full shadow-sm flex items-center gap-1.5">
                                                     {r.name} 
-                                                    <span className="bg-amber-500 text-white px-2 py-1 rounded text-[13px] font-bold flex items-center gap-1">
-                                                        招募 {r.recruitCount} 人
+                                                    <span className="bg-amber-450 text-white px-2 py-1 rounded text-[13px] font-bold flex items-center gap-1">
+                                                         {r.recruitCount} 人
                                                         <span className="text-[13px] font-bold">
                                                             ({r.s1RecruitCount > 0 && r.s2RecruitCount > 0 ? `第一堂 ${r.s1RecruitCount} / 第二堂 ${r.s2RecruitCount}` : r.s1RecruitCount > 0 ? `第一堂 ${r.s1RecruitCount}` : `第二堂 ${r.s2RecruitCount}`})
                                                         </span>
@@ -772,7 +772,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                             ))
                                         ) : (
                                             <span className="px-3 py-1 bg-slate-50 border border-slate-200 text-slate-500 text-sm font-medium rounded-full flex items-center gap-1.5">
-                                                <CheckCircle2 size={16} className="text-emerald-500"/> 目前全域人力充足，無招募急需
+                                                <CheckCircle2 size={16} className="text-emerald-500"/> 人力充足，無招募需求
                                             </span>
                                         )}
                                     </div>
