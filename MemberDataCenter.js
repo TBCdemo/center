@@ -721,7 +721,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
                     <div className="px-6 pt-4 pb-2 bg-slate-50 z-10 shrink-0">
                         <div className="bg-white p-2 rounded-xl shadow-soft border border-slate-100 flex items-center relative transition-all focus-within:ring-2 focus-within:ring-indigo-500/20">
                             <Search className="absolute left-4 text-slate-400" size={20} />
-                            <input type="text" placeholder="搜尋姓名、群組、崗位、堂別或狀態..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-10 py-2.5 bg-transparent outline-none font-normal text-slate-800 text-sm" />
+                            <input type="text" placeholder="搜尋姓名、群組、崗位、堂別" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-10 py-2.5 bg-transparent outline-none font-normal text-slate-800 text-sm" />
                             {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-4 text-slate-400 hover:text-slate-600 transition-colors p-1"><X size={18} /></button>}
                         </div>
                     </div>
@@ -729,7 +729,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
 
                 <div className="flex-1 overflow-y-auto p-6 pt-2 custom-scrollbar pb-24">
                     {isLoading && members.length === 0 ? (
-                        <div className="text-center py-20 text-slate-400 font-medium animate-pulse">載入資料庫中...</div>
+                        <div className="text-center py-20 text-slate-400 font-medium animate-pulse">Loading...</div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                             {displayMembers.map(member => {
