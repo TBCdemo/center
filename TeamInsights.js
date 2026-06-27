@@ -361,7 +361,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                 isPriority: potentialHelpersCount > 0 && posData.currentReq <= 1,
                 content: (
                     <div className="text-sm text-slate-600 space-y-2">
-                        <p><strong className="text-slate-700">📍 數據支持：</strong>目前共有 <strong className="text-amber-600 text-base">{potentialHelpersCount} 位</strong> 同工屬於單一崗位。</p>
+                        <p><strong className="text-slate-700">📍 數據支持：</strong>共有 <strong className="text-amber-600 text-base">{potentialHelpersCount} 位</strong> 同工屬於單一崗位。</p>
                         <p><strong className="text-slate-700">👉 具體行動：</strong>鼓勵同工解鎖新技能，兼任「{drawerPos}」。</p>
                         <p className="text-amber-700 bg-amber-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>100%高效率轉換補齊人力缺口。</p>
                     </div>
