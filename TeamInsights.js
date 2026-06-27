@@ -381,7 +381,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                 isPriority: false,
                 content: (
                     <div className="text-sm text-slate-600 space-y-2">
-                        <p><strong className="text-slate-700">📍 數據支持：</strong>每人每季健康服事 {posData.policyLimit} 次，短缺 <strong className="text-rose-600">{posData.shortageSessions.toFixed(1)} 次</strong>。</p>
+                        <p><strong className="text-slate-700">📍 數據支持：</strong>每人每季服事 {posData.policyLimit} 次，短缺 <strong className="text-rose-600">{posData.shortageSessions.toFixed(1)} 次</strong>。</p>
                         <p><strong className="text-slate-700">👉 具體行動：</strong>招募新人，共 <strong className="text-emerald-600 text-base">{posData.recruitCount} 位</strong> 。
                         <span className="block mt-1 text-emerald-700 bg-emerald-50 p-1.5 rounded text-xs font-bold">(需求：{detailText})</span>
                         </p>
