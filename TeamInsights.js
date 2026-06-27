@@ -341,14 +341,14 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
 
         if (posData.currentReq > 1) {
             actionPlans.push({
-                title: "降低單堂排班需求",
+                title: "減少崗位人力",
                 icon: <UsersRound size={16} className="text-cyan-500" />,
                 isPriority: true,
                 content: (
                     <div className="text-sm text-slate-600 space-y-2">
-                        <p><strong className="text-slate-700">📍 數據支持：</strong>單堂安排 {posData.currentReq} 人，對現有同工負擔過重。</p>
-                        <p><strong className="text-slate-700">👉 具體行動：</strong>將單堂需求縮減至 <strong className="text-cyan-600">{posData.currentReq - 1} 人</strong> (於左側點擊 - 推演)。</p>
-                        <p className="text-cyan-800 bg-cyan-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>有效降低本崗位同工的服事頻率與過勞風險，快速恢復健康排班。</p>
+                        <p><strong className="text-slate-700">📍 數據支持：</strong>單堂安排 {posData.currentReq} 人，負擔過重。</p>
+                        <p><strong className="text-slate-700">👉 具體行動：</strong>單堂人力需求減少至 <strong className="text-cyan-600">{posData.currentReq - 1} 人</strong>。</p>
+                        <p className="text-cyan-800 bg-cyan-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>降低同工的服事頻率與過勞風險。</p>
                     </div>
                 )
             });
@@ -356,14 +356,14 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
 
         if (isCompat) {
             actionPlans.push({
-                title: "招募內部跨崗位同工",
+                title: "推動「崗位兼任」",
                 icon: <Zap size={16} className={potentialHelpersCount > 0 ? "text-amber-500" : "text-slate-400"} />,
                 isPriority: potentialHelpersCount > 0 && posData.currentReq <= 1,
                 content: (
                     <div className="text-sm text-slate-600 space-y-2">
-                        <p><strong className="text-slate-700">📍 數據支持：</strong>目前共有 <strong className="text-amber-600 text-base">{potentialHelpersCount} 位</strong> 同工僅服事單一相容崗位。</p>
-                        <p><strong className="text-slate-700">👉 具體行動：</strong>鼓勵這 {potentialHelpersCount} 位同工學習並兼任「{drawerPos}」。</p>
-                        <p className="text-amber-700 bg-amber-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>雖然會平分其貢獻次數，但能為本崗位注入新血，緩解現有專職人員的壓力。</p>
+                        <p><strong className="text-slate-700">📍 數據支持：</strong>目前共有 <strong className="text-amber-600 text-base">{potentialHelpersCount} 位</strong> 同工屬於單一崗位。</p>
+                        <p><strong className="text-slate-700">👉 具體行動：</strong>鼓勵 {potentialHelpersCount} 位同工學習並兼任「{drawerPos}」。</p>
+                        <p className="text-amber-700 bg-amber-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>100%高效率轉換補齊人力缺口。</p>
                     </div>
                 )
             });
@@ -376,14 +376,14 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             const detailText = detailArr.join(' / ');
 
             actionPlans.push({
-                title: "啟動外部招募計畫",
+                title: "招募新人",
                 icon: <UserPlus size={16} className="text-emerald-500" />,
                 isPriority: false,
                 content: (
                     <div className="text-sm text-slate-600 space-y-2">
-                        <p><strong className="text-slate-700">📍 數據支持：</strong>以每人每季健康服事 {posData.policyLimit} 次計算，總計短缺 <strong className="text-rose-600">{posData.shortageSessions.toFixed(1)} 次</strong>。</p>
-                        <p><strong className="text-slate-700">👉 具體行動：</strong>啟動新血招募，目標招募 <strong className="text-emerald-600 text-base">{posData.recruitCount} 位</strong> 新人。
-                        <span className="block mt-1 text-emerald-700 bg-emerald-50 p-1.5 rounded text-xs font-bold">(精準招募：{detailText})</span>
+                        <p><strong className="text-slate-700">📍 數據支持：</strong>每人每季健康服事 {posData.policyLimit} 次，短缺 <strong className="text-rose-600">{posData.shortageSessions.toFixed(1)} 次</strong>。</p>
+                        <p><strong className="text-slate-700">👉 具體行動：</strong>招募新人，共 <strong className="text-emerald-600 text-base">{posData.recruitCount} 位</strong> 。
+                        <span className="block mt-1 text-emerald-700 bg-emerald-50 p-1.5 rounded text-xs font-bold">(需求：{detailText})</span>
                         </p>
                     </div>
                 )
@@ -409,10 +409,10 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                         {posData.displayGap < 0 ? (
                             <div>
                                 <div className="text-2xl font-extrabold text-rose-600 mb-1 flex items-center gap-2">
-                                    <AlertCircle size={22} />人力短缺 ({posData.displayGap} FTE)
+                                    <AlertCircle size={22} />人力不足 ({posData.displayGap} FTE)
                                 </div>
                                 <p className="text-sm text-slate-600 leading-relaxed mt-2">
-                                    依健康防線 <strong className="text-slate-800">{posData.policyLimit} 次/季</strong> 計算，本崗位戰力目前處於過載短缺狀態，急需介入處理。
+                                    依 <strong className="text-slate-800">{posData.policyLimit} 次/季</strong> 計算，人力緊急待補。
                                 </p>
                             </div>
                         ) : posData.displayGap === 0 ? (
@@ -421,7 +421,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                     <CheckCircle2 size={22} />人力平衡 (0.0 FTE)
                                 </div>
                                 <p className="text-sm text-slate-600 leading-relaxed mt-2">
-                                    目前排班供需恰好達成緊繃平衡。
+                                    人力正常！若有同工暫停服事或休假，可能造成短期人力不足。
                                 </p>
                             </div>
                         ) : (
@@ -430,7 +430,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                     <CheckCircle2 size={22} />人力充足 (+{posData.displayGap} FTE)
                                 </div>
                                 <p className="text-sm text-slate-600 leading-relaxed mt-2">
-                                    戰力充足！多餘的 FTE 可作為本崗位臨時請假或特殊聚會的彈性備用人力。
+                                    人力充足！多餘的 FTE 可作為彈性備用人力。
                                 </p>
                             </div>
                         )}
@@ -694,7 +694,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                         <div className={`ml-2 flex items-center gap-1.5 px-3 py-1 rounded-full border shadow-sm ${globalGap < 0 ? 'bg-rose-50 border-rose-200' : 'bg-emerald-50 border-emerald-200'}`}>
                                             {globalGap < 0 ? <AlertCircle size={14} className="text-rose-500"/> : <CheckCircle2 size={14} className="text-emerald-500"/>}
                                             <span className={`text-xs font-extrabold ${globalGap < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                                全教會人力缺口 {globalGap < 0 ? globalGap : '0.0'} FTE
+                                                人力缺口 {globalGap < 0 ? globalGap : '0.0'} FTE
                                             </span>
                                         </div>
                                     </div>
