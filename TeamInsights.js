@@ -361,7 +361,6 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
         return Math.round(gap * 10) / 10;
     }, [insights]);
 
-    // 🎯 修復 1：獨立計算全教會的「動態健康防線」
     const dynamicGlobalLimit = useMemo(() => {
         let perfectTotalFTE = 0;
         let totalDemandSessions = 0;
@@ -372,7 +371,6 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
         return perfectTotalFTE > 0 ? Math.round((totalDemandSessions / perfectTotalFTE) * 10) / 10 : 6.0;
     }, [insights]);
 
-    // 平均服事次數的燈號，綁定動態防線，不再受 globalGap 影響
     const burdenHealthStatus = insights.globalAvgBurden > dynamicGlobalLimit 
         ? 'danger' 
         : (insights.globalAvgBurden === dynamicGlobalLimit ? 'warning' : 'healthy');
@@ -506,10 +504,10 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                         {posData.displayGap < 0 ? (
                             <div>
                                 <div className="text-2xl font-extrabold text-rose-600 mb-1 flex items-center gap-2">
-                                    <AlertCircle size={22} />人力短缺 ({posData.displayGap} FTE)
+                                    <AlertCircle size={22} />人力不足 ({posData.displayGap} FTE)
                                 </div>
                                 <p className="text-sm text-slate-600 leading-relaxed mt-2">
-                                    依健康防線 <strong className="text-slate-800">{posData.policyLimit} 次/季</strong> 計算，整體戰力目前處於過載短缺狀態。
+                                    依 <strong className="text-slate-800">{posData.policyLimit} 次/季</strong> 計算，人力緊急待補。
                                 </p>
                             </div>
                         ) : posData.displayGap === 0 ? (
@@ -518,7 +516,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                     <CheckCircle2 size={22} />人力平衡 (0.0 FTE)
                                 </div>
                                 <p className="text-sm text-slate-600 leading-relaxed mt-2">
-                                    目前排班供需已達成平衡。
+                                    人力正常！若有人員暫停服事或休假，仍可能造成短期人力不足。
                                 </p>
                             </div>
                         ) : (
@@ -527,7 +525,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                     <CheckCircle2 size={22} />人力充足 (+{posData.displayGap} FTE)
                                 </div>
                                 <p className="text-sm text-slate-600 leading-relaxed mt-2">
-                                    戰力充足！多餘的 FTE 將自動流入「人力池」，供其他崗位調度。
+                                    人力充足！多餘的 FTE 自動流入「人力池」，供其他崗位調度。
                                 </p>
                             </div>
                         )}
@@ -535,7 +533,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
 
                     {posData.recruitCount > 0 && posData.displayGap >= 0 && (
                          <div className="mb-4 bg-amber-50/60 border border-amber-200 rounded-lg p-3 text-sm text-amber-700 font-medium">
-                            💡 提示：雖然目前透過調度補齊了缺口，但本崗位本質上仍處於人力短缺狀態，建議參考下方招募計畫。
+                            💡 提示：透過調度補齊缺口，但本質上處於人力不足，建議進行下方優化計畫
                          </div>
                     )}
 
@@ -798,7 +796,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                             </span>
                                         </div>
 
-                                        {/* 🎯 修正：新增可用人力池的即時視覺回饋 */}
+                                        {/* 🎯 可用人力池視覺回饋 */}
                                         {insights.remainingGlobalSurplus > 0 && (
                                             <div className="ml-2 flex items-center gap-1.5 px-3 py-1 rounded-full border shadow-sm bg-sky-50 border-sky-200">
                                                 <Zap size={14} className="text-sky-500" />
@@ -809,13 +807,13 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                         )}
                                     </div>
 
-                                    {/* 🌟 操作區 */}
+                                    {/* 🌟 操作區 (已加入雙重條件防呆) */}
                                     <div className="flex items-center gap-2">
                                         {Object.keys(wandState).length > 0 ? (
                                             <button onClick={() => setWandState({})} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-bold rounded-lg shadow-sm transition-all">
                                                 <Undo2 size={14} /> 還原調度
                                             </button>
-                                        ) : globalGap < 0 ? (
+                                        ) : (globalGap < 0 && insights.remainingGlobalSurplus > 0) ? (
                                             <button onClick={handleAutoBalance} className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-400 to-amber-500 text-white text-xs font-bold rounded-lg shadow-sm hover:from-amber-500 hover:to-amber-600 transition-all transform hover:scale-105 active:scale-95">
                                                 <Sparkles size={14} /> 智慧調度
                                             </button>
