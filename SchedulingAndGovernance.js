@@ -503,10 +503,10 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
 
 因同工臨時有事，是否可以協調互換以下班次：
 
-📌 （${currentName}）
+📌 ${currentName}
 • ${currentDate}【${currentRole}】
 
-📌 （${newName}）
+📌 ${newName}
 • ${newDate}【${newRole}】
 
 若同意換班，請直接回覆，我們將協助完成換班登記
@@ -1424,7 +1424,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                                         })
                                     }
                                     {effectiveMembers.filter(m => m.name.toLowerCase().includes(globalSearchTerm.toLowerCase()) && m.id !== activeSlot.member_id).length === 0 && (
-                                        <p className="text-center text-xs text-slate-400 py-3 font-medium">找不到對應姓名之同工</p>
+                                        <p className="text-center text-xs text-slate-400 py-3 font-medium">查無資料</p>
                                     )}
                                 </div>
                             )}
