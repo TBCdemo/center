@@ -509,7 +509,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
 📌 ${newName}
 • ${newDate}【${newRole}】
 
-若同意換班，請直接回覆，我們將協助完成換班登記
+若同意換班，請告知，我們將協助完成換班登記
 
 謝謝你的協助！`;
         } else {
@@ -520,7 +520,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
 📌 日期：${newDate}
 📌 崗位：【${newRole}】
 
-若可以協助，請回覆「可以」；若不方便也請告知，謝謝您的幫忙！`;
+若方便協助，請告知；若不方便也沒關係，再請回覆，謝謝你。`;
         }
         
         navigator.clipboard.writeText(text).then(() => {
