@@ -57,14 +57,14 @@ const FteTooltip = () => (
         <div className="absolute z-50 hidden group-hover:block w-[320px] p-4 bg-slate-800 text-slate-50 text-[12px] leading-relaxed rounded-xl shadow-2xl top-full left-1/2 -translate-x-1/2 mt-2 text-left font-normal normal-case pointer-events-none border border-slate-700">
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-800"></div>
             <div className="font-bold text-white mb-2 pb-2 border-b border-slate-600">
-                FTE (有效人力) ：同工對單一崗位的實際貢獻度
+                FTE（人力貢獻值）：同工對單一崗位的實際貢獻度
             </div>
             <div className="space-y-1">
                 <div className="text-slate-300">
-                    基於「同一天站兩個崗位就算 2 次」的健康管理原則，若同工身兼多個崗位，其健康額度將被多個崗位平分。
+                    FTE = 1 ÷ 同日服事崗位數
                 </div>
                 <div className="text-slate-400 text-[11px] bg-slate-900/50 p-2 mt-2 rounded border border-slate-600">
-                    <strong className="text-rose-300">範例：</strong>若健康上限為 6 次/季，某同工身兼「接待」與「PPT」。他能分配給這兩個崗位的次數各為 3 次，因此他在這兩個崗位上的 FTE 貢獻皆為 <strong>0.5</strong>。
+                    <strong className="text-rose-300">範例：</strong>服事 1 個崗位 = 1.0 FTE；服事 2 個崗位 = 各 0.5 FTE。
                 </div>
             </div>
         </div>
@@ -362,7 +362,8 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                 content: (
                     <div className="text-sm text-slate-600 space-y-2">
                         <p><strong className="text-slate-700">📍 數據支持：</strong>共有 <strong className="text-amber-600 text-base">{potentialHelpersCount} 位</strong> 同工屬於單一崗位。</p>
-                        <p><strong className="text-slate-700">👉 具體行動：</strong>鼓勵同工解鎖新技能，兼任「{drawerPos}」。</p>
+                        <p><strong className="text-slate-700">👉 具體行動：</strong>鼓勵同工 ({sourcePositions}) 解鎖新技能，兼任「{drawerPos}」。
+</p>
                         <p className="text-amber-700 bg-amber-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>100%高效率轉換補齊人力缺口。</p>
                     </div>
                 )
