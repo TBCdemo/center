@@ -355,6 +355,9 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
         }
 
         if (isCompat) {
+            // 1. 先在這裡加上這行：動態計算要顯示的相容崗位
+            const sourcePositions = COMPATIBLE_GROUP.filter(p => p !== drawerPos).join('、');
+
             actionPlans.push({
                 title: "推動「崗位兼任」",
                 icon: <Zap size={16} className={potentialHelpersCount > 0 ? "text-amber-500" : "text-slate-400"} />,
@@ -362,8 +365,10 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                 content: (
                     <div className="text-sm text-slate-600 space-y-2">
                         <p><strong className="text-slate-700">📍 數據支持：</strong>共有 <strong className="text-amber-600 text-base">{potentialHelpersCount} 位</strong> 同工屬於單一崗位。</p>
-                        <p><strong className="text-slate-700">👉 具體行動：</strong>鼓勵同工 ({sourcePositions}) 解鎖新技能，兼任「{drawerPos}」。
-</p>
+                        
+                        {/* 2. 然後在這裡替換內文 */}
+                        <p><strong className="text-slate-700">👉 具體行動：</strong>鼓勵同工 ({sourcePositions}) 解鎖新技能，兼任「{drawerPos}」。</p>
+                        
                         <p className="text-amber-700 bg-amber-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>100%高效率轉換補齊人力缺口。</p>
                     </div>
                 )
