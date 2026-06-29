@@ -5,7 +5,7 @@ import {
     Home, LogOut, Calendar, Lock, Unlock, Menu, BarChart3
 } from 'lucide-react';
 
-const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabase, utils, constants }) => {
+const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights, supabase, utils, constants }) => {
     const { fetchAllData, extractAccountFromEmail, generateBaseQuarters, getNextQuarter, getCurrentQuarter, getSundaysInQuarter, getHolidayName } = utils;
     const { ADMIN_ACCOUNT, DEFAULT_MEMBER, SESSION_OPTIONS, STATUS_OPTIONS } = constants;
 
@@ -20,8 +20,7 @@ const MemberDataCenter = ({ session, goBack, goToSchedule, goToInsights, supabas
 
     const currentUserEmail = session.user.email;
     const currentUserAccount = extractAccountFromEmail(currentUserEmail);
-    const isAdmin = session.user?.app_metadata?.role === 'admin';
-
+    
     const [isSubmissionOpen, setIsSubmissionOpen] = useState(false);
     const [isLargeFont, setIsLargeFont] = useState(false); 
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
