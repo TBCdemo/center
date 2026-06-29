@@ -90,13 +90,13 @@
         // ==========================================
         // 初始化連線與共用常數
         // ==========================================
-        // ⚠️ 請填入你的專案 URL 和金鑰
+        // ⚠️ 請確認這是你目前的 Supabase URL 和金鑰
         const SUPABASE_URL = "https://iwmkzsredvbgcqvqlayn.supabase.co";
         const SUPABASE_KEY = "sb_publishable_GwDMLoXcHaTzQDCcQlDuGw_4J9mwiaA"; 
         const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
         const constants = {
-                        VIRTUAL_DOMAIN: "@tbc.gmail.com",
+            VIRTUAL_DOMAIN: "@tbc.gmail.com",
             sessionsToSchedule: ['第一堂', '第二堂'],
             DEFAULT_MEMBER: {
                 name: '', email: '', preferred_session: '第一堂', availability_status: '穩定服事',
@@ -215,7 +215,7 @@
                         if (password !== confirmPassword) throw new Error('兩次輸入的密碼不同');
 
                         // ==========================================
-                        // 2. 註冊邏輯：純白名單驗證
+                        // 2. 註冊邏輯：純白名單驗證 (無邀請碼)
                         // ==========================================
                         const { data: isValid, error: checkError } = await supabase.rpc('check_member_exists', { 
                             p_account: account
@@ -347,7 +347,7 @@
                                 {isSignUp && (
                                     <div className="bg-amber-50 text-amber-700 text-xs font-bold p-3 rounded-xl border border-amber-100 flex items-start gap-2 leading-relaxed mt-2">
                                         <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                                        限本會同工註冊使用
+                                        僅限本會同工註冊。請先確認已向行政辦公室提交您的聯絡方式，方可完成註冊。
                                     </div>
                                 )}
 
@@ -383,21 +383,51 @@
         // 主應用框架 (分流與路由守衛)
         // ==========================================
         const MainApp = ({ session }) => {
-            // 新寫法
-const currentUserEmail = session.user?.email;
-// 檢查使用者的 app_metadata 中是否有 role: 'admin'
-const isAdmin = session.user?.app_metadata?.role === 'admin';
+            const [isAdmin, setIsAdmin] = useState(false);
+            const [isRoleChecking, setIsRoleChecking] = useState(true);
+            const [currentApp, setCurrentApp] = useState('members'); 
 
-            // 狀態加入 insights 路由
-            const [currentApp, setCurrentApp] = useState(isAdmin ? 'home' : 'members'); 
+            // 一登入就去資料庫 user_roles 查詢是否為管理員
+            useEffect(() => {
+                const checkUserRole = async () => {
+                    if (!session?.user?.id) return;
+                    try {
+                        const { data, error } = await supabase
+                            .from('user_roles')
+                            .select('role')
+                            .eq('user_uid', session.user.id)
+                            .maybeSingle();
+
+                        const userIsAdmin = data?.role === 'admin';
+                        setIsAdmin(userIsAdmin);
+                        // 根據身分決定初始畫面
+                        setCurrentApp(userIsAdmin ? 'home' : 'members');
+                    } catch (error) {
+                        console.error('權限檢查失敗:', error);
+                    } finally {
+                        setIsRoleChecking(false);
+                    }
+                };
+                checkUserRole();
+            }, [session]);
 
             const handleLogout = async () => { await supabase.auth.signOut(); window.location.reload(); };
 
+            // 強制導航保護
             useEffect(() => {
-                if (!isAdmin && currentApp !== 'members') {
+                if (!isRoleChecking && !isAdmin && currentApp !== 'members') {
                     setCurrentApp('members');
                 }
-            }, [currentApp, isAdmin]);
+            }, [currentApp, isAdmin, isRoleChecking]);
+
+            // 顯示讀取中畫面，避免未驗證完成前畫面閃爍
+            if (isRoleChecking) {
+                return (
+                    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+                        <div className="text-slate-500 font-medium animate-pulse">驗證權限中...</div>
+                    </div>
+                );
+            }
 
             if (currentApp === 'home' && isAdmin) {
                 return (
@@ -417,7 +447,6 @@ const isAdmin = session.user?.app_metadata?.role === 'admin';
                                 <p className="text-slate-500 font-normal text-sm sm:text-base">Select a workspace to continue your management tasks.</p>
                             </div>
                             
-                            {/* 將卡片改為 md:grid-cols-3，一列並排三個選項 */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 perspective-[2000px]">
                                 <div onClick={() => setCurrentApp('members')} className="bg-white p-8 rounded-xl border border-slate-100 shadow-soft hover:shadow-hover-soft hover:-translate-y-1 transition-all duration-300 cursor-pointer group relative overflow-hidden transform hover:rotate-x-[2deg] hover:rotate-y-[-4deg]">
                                     <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-bl from-indigo-50 to-transparent rounded-bl-full -z-10 transition-transform duration-500 group-hover:scale-110"></div>
@@ -431,7 +460,6 @@ const isAdmin = session.user?.app_metadata?.role === 'admin';
                                     <h3 className="text-2xl font-extrabold text-slate-900 mb-10 tracking-tight">排班作業中心</h3>
                                     <div className="flex items-center gap-2 text-violet-600 font-medium text-sm group-hover:translate-x-1 transition-transform duration-200">Enter Workspace <ArrowRight size={16} /></div>
                                 </div>
-                                {/* 新增的人力洞察中心卡片 */}
                                 <div onClick={() => setCurrentApp('insights')} className="bg-white p-8 rounded-xl border border-slate-100 shadow-soft hover:shadow-hover-soft hover:-translate-y-1 transition-all duration-300 cursor-pointer group relative overflow-hidden transform hover:rotate-x-[2deg] hover:rotate-y-[4deg]">
                                     <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-bl from-sky-50 to-transparent rounded-bl-full -z-10 transition-transform duration-500 group-hover:scale-110"></div>
                                     <div className="w-16 h-16 bg-sky-50 text-sky-600 rounded-xl flex items-center justify-center mb-8"><BarChart3 size={32} /></div>
@@ -455,6 +483,7 @@ const isAdmin = session.user?.app_metadata?.role === 'admin';
                             MemberDataCenterComp 
                                 ? <MemberDataCenterComp 
                                     session={session} 
+                                    isAdmin={isAdmin} // 將身分傳給子元件
                                     goBack={isAdmin ? () => setCurrentApp('home') : handleLogout} 
                                     goToSchedule={() => setCurrentApp('scheduling')} 
                                     goToInsights={() => setCurrentApp('insights')} 
@@ -478,7 +507,6 @@ const isAdmin = session.user?.app_metadata?.role === 'admin';
                                   />
                                 : <div className="flex-1 flex items-center justify-center font-medium text-slate-500 animate-pulse">Loading...</div>
                         )}
-                        {/* 處理 Insights 路由 */}
                         {currentApp === 'insights' && isAdmin && (
                             TeamInsightsComp 
                                 ? <TeamInsightsComp 
