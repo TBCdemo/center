@@ -223,11 +223,11 @@
 
                         if (checkError) {
                             console.error("驗證錯誤:", checkError);
-                            throw new Error('系統驗證時發生錯誤。請確認網路狀態後再試一次；若持續失敗，請聯絡行政辦公室協助處理。');
+                            throw new Error('驗證時發生錯誤，再試一次，或聯絡行政辦公室');
                         }
 
                         if (!isValid) {
-                            throw new Error('查無此帳號！請確認後再試，或聯絡行政辦公室。');
+                            throw new Error('查無此帳號，再試一次，或聯絡行政辦公室');
                         }
 
                         // ==========================================
@@ -244,7 +244,7 @@
 
                         if (error) throw error;
                         
-                        alert('註冊成功！請使用新密碼登入。');
+                        alert('註冊成功');
                         setIsSignUp(false);
                         setConfirmPassword('');
                         setShowPassword(false);
@@ -260,10 +260,10 @@
                 } catch (error) {
                     let msg = error.message;
                     if (msg.includes('Invalid login credentials')) msg = '登入失敗：帳號或密碼錯誤';
-                    if (msg.includes('User already registered')) msg = 'Oops！此帳號已經註冊過了';
+                    if (msg.includes('User already registered')) msg = 'Oops！帳號已經註冊過了';
                     if (msg.includes('Password should be at least')) msg = '密碼長度至少需 6 個字元';
                     if (msg.includes('查無此帳號')) msg = error.message; 
-                    if (msg.includes('系統驗證時發生錯誤')) msg = error.message; 
+                    if (msg.includes('驗證時發生錯誤')) msg = error.message; 
                     if (msg.includes('兩次輸入的密碼不同')) msg = error.message; 
                     setErrorMsg(msg);
                 } finally {
@@ -347,7 +347,7 @@
                                 {isSignUp && (
                                     <div className="bg-amber-50 text-amber-700 text-xs font-bold p-3 rounded-xl border border-amber-100 flex items-start gap-2 leading-relaxed mt-2">
                                         <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                                        僅限本會同工註冊。請先確認已向行政辦公室提交您的聯絡方式，方可完成註冊。
+                                        僅限本會同工註冊
                                     </div>
                                 )}
 
@@ -424,7 +424,7 @@
             if (isRoleChecking) {
                 return (
                     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-                        <div className="text-slate-500 font-medium animate-pulse">驗證權限中...</div>
+                        <div className="text-slate-500 font-medium animate-pulse">驗證權限中</div>
                     </div>
                 );
             }
