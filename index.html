@@ -474,7 +474,7 @@
 
                     setSystemConfig(newConfig);
                 } catch (e) {
-                    alert('系統班表狀態更新失敗');
+                    alert('班表更新失敗');
                 } finally {
                     setIsUpdatingConfig(false);
                 }
@@ -510,7 +510,7 @@
             if (isRoleChecking) {
                 return (
                     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-                        <div className="text-slate-500 font-medium animate-pulse">驗證權限中</div>
+                        <div className="text-slate-500 font-medium animate-pulse">Laoding</div>
                     </div>
                 );
             }
@@ -563,14 +563,10 @@
                                         <ShieldCheck size={24} strokeWidth={2.5} />
                                     </div>
                                     <div>
-                                        <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">系統發布控制面板</h3>
-                                        <p className="text-xs sm:text-sm text-slate-500 font-medium">即時控管前台查詢系統 (Beta) 的班表發布與開關狀態</p>
+                                        <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">TBC主日服事查詢系統控制面板</h3>
+                                        
                                     </div>
-                                    {isUpdatingConfig && (
-                                        <span className="ml-auto text-xs font-bold text-indigo-500 animate-pulse bg-indigo-50/50 px-3 py-1.5 rounded-full whitespace-nowrap">
-                                            同步中...
-                                        </span>
-                                    )}
+                                   
                                 </div>
 
                                 {/* 按鈕佈局：手機與平板垂直排列，大桌機橫向並排 */}
