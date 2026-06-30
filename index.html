@@ -545,19 +545,18 @@
                                 </div>
                             </div>
 
-                            {/* 🛡️ 系統發布控制面板：位於核心模組下方 */}
+                            {/* 🛡️ 班表查詢控制面板：位於核心模組下方 */}
                             <div className="mt-10 sm:mt-12 bg-white p-5 sm:p-6 md:p-8 rounded-[1.5rem] border border-slate-100 shadow-soft">
                                 <div className="flex items-center gap-3 mb-6">
                                     <div className="bg-indigo-50 text-indigo-600 p-2.5 rounded-xl">
                                         <ShieldCheck size={24} strokeWidth={2.5} />
                                     </div>
                                     <div>
-                                        <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">系統發布控制面板</h3>
-                                        <p className="text-xs sm:text-sm text-slate-500 font-medium">即時控管前台查詢系統 (Beta) 的班表發布與開關狀態</p>
-                                    </div>
+                                        <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">TBC主日服事查詢系統控制面板</h3>
+                                                                           </div>
                                     {isUpdatingConfig && (
                                         <span className="ml-auto text-xs font-bold text-indigo-500 animate-pulse bg-indigo-50/50 px-3 py-1.5 rounded-full whitespace-nowrap">
-                                            同步中...
+                                            Loading
                                         </span>
                                     )}
                                 </div>
@@ -612,7 +611,7 @@
                                             : 'border-slate-100 bg-slate-50/80 text-slate-400 hover:bg-slate-100'
                                         }`}
                                     >
-                                        <span className="font-bold text-base">加入行事曆 / 換班查詢功能</span>
+                                        <span className="font-bold text-base">加入行事曆 / 換班查詢</span>
                                         <div className="flex items-center gap-2 shrink-0">
                                             <div className={`w-2.5 h-2.5 rounded-full transition-colors ${nextButtonsConfig ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]' : 'bg-slate-300'}`}></div>
                                             <span className="text-sm font-extrabold w-10 text-right">{nextButtonsConfig ? 'Open' : 'Close'}</span>
