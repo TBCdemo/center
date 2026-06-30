@@ -152,7 +152,7 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
 
             if (error) throw error;
             setIsSubmissionOpen(!isSubmissionOpen);
-            showMessage('success', `已${!isSubmissionOpen ? '開放' : '關閉'}同工填寫權限`);
+            showMessage('success', `${!isSubmissionOpen ? '開放' : '關閉'}同工填寫`);
         } catch (err) {
             showMessage('error', '權限切換失敗: ' + err.message);
         } finally {
@@ -174,7 +174,7 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
             if (err1) throw err1; if (err2) throw err2;
             
             const sourceName = sourceQ === 'BASE' ? '基礎版' : sourceQ;
-            if ((!oldSettings || oldSettings.length === 0) && (!oldPos || oldPos.length === 0)) throw new Error(`【${sourceName}】目前沒有任何資料可供複製！`);
+            if ((!oldSettings || oldSettings.length === 0) && (!oldPos || oldPos.length === 0)) throw new Error(`【${sourceName}】沒有資料可複製`);
 
             const uniqueSettingsMap = new Map();
             if (oldSettings) oldSettings.forEach(s => uniqueSettingsMap.set(s.member_id, s));
@@ -218,7 +218,7 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
     };
 
     const handleExecuteCreateQuarter = () => {
-        if (!createSourceQ || !createTargetQ) return showMessage('error', '請選擇來源與目標季度');
+        if (!createSourceQ || !createTargetQ) return showMessage('error', '選擇來源與目標季度');
         setIsCreateQuarterModalOpen(false);
         copyQuarterData(createSourceQ, createTargetQ);
     };
@@ -253,7 +253,7 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
             const { data: delSettings, error: err1 } = await supabase.from('member_quarter_settings').delete().in('quarter', quartersToDelete).select();
             const { data: delPos, error: err2 } = await supabase.from('member_positions').delete().in('quarter', quartersToDelete).select();
             if (err1) throw err1; if (err2) throw err2;
-            if ((!delSettings || delSettings.length === 0) && (!delPos || delPos.length === 0)) throw new Error("未能刪除資料！請確認權限。");
+            if ((!delSettings || delSettings.length === 0) && (!delPos || delPos.length === 0)) throw new Error("資料無法刪除");
             
             const deletedNames = quartersToDelete.map(q => q.replace('-', '')).join('、');
             showMessage('success', `${deletedNames}資料刪除成功`);
@@ -366,10 +366,10 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
 
     const handleSave = async () => {
         if (!isAdmin && !isSubmissionOpen) {
-            return showMessage('error', '非開放填寫期間無法儲存變更！');
+            return showMessage('error', '非開放填寫期間無法儲存變更');
         }
 
-        if (!formData.name || !formData.name.trim()) return showMessage('error', '姓名不可為空！');
+        if (!formData.name || !formData.name.trim()) return showMessage('error', '姓名不可為空');
         setIsLoading(true);
         try {
             let memberId = editingMember ? editingMember.id : null;
@@ -418,8 +418,8 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
                 setConfirmAction(null); setIsLoading(true);
                 try {
                     const { data, error } = await supabase.from('members').delete().eq('id', id).select();
-                    if (error) throw error; if (!data || data.length === 0) throw new Error("無權限刪除！");
-                    showMessage('success', '已刪除同工資料。'); loadData();
+                    if (error) throw error; if (!data || data.length === 0) throw new Error("無權限刪除");
+                    showMessage('success', '已刪除同工資料'); loadData();
                 } catch (err) { showMessage('error', '刪除失敗: ' + err.message); } finally { setIsLoading(false); }
             }
         });
@@ -429,7 +429,7 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
     const handleResetAuth = async (email, name) => {
         if (!isAdmin) return;
         if (!email || email.trim() === '') {
-            return showMessage('error', '同工沒有綁定 Email，無法執行');
+            return showMessage('error', '同工沒有綁定 Email，執行失敗');
         }
 
         setConfirmAction({
@@ -1055,7 +1055,7 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
                             <div className="px-5 py-4 border-t border-slate-100 bg-white flex gap-3 shrink-0 sticky bottom-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
                                 <button onClick={closeModal} className="flex-1 py-3 sm:py-2.5 rounded-lg font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">取消</button>
                                 <button onClick={handleSave} disabled={isLoading} className="flex-[2] py-3 sm:py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:opacity-95 text-white rounded-lg font-medium flex items-center justify-center gap-2 shadow-button transition-all duration-200 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50">
-                                    <Save size={18}/> {isLoading ? '儲存中...' : '儲存設定'}
+                                    <Save size={18}/> {isLoading ? '儲存中' : '儲存設定'}
                                 </button>
                             </div>
                         </div>
@@ -1071,7 +1071,7 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
                             </div>
                             <div className="p-5 overflow-y-auto custom-scrollbar space-y-6 flex-1 touch-pan-y overscroll-contain">
                                 <div className="bg-sky-50 p-4 rounded-xl border border-sky-100 text-sm font-normal text-sky-700 leading-relaxed">
-                                    系統內建至 2030 年的節日。手動新增節日提醒，編輯同工資料時自動標示
+                                    系統內建至 2030 年，手動新增節日提醒，編輯時自動標示
                                 </div>
                                 <div className="space-y-3">
                                     <label className="text-xs font-medium text-slate-500 uppercase">新增節日提醒</label>
