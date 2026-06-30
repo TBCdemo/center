@@ -90,7 +90,6 @@
         // ==========================================
         // 初始化連線與共用常數
         // ==========================================
-        // ⚠️ 請確認這是你目前的 Supabase URL 和金鑰
         const SUPABASE_URL = "https://iwmkzsredvbgcqvqlayn.supabase.co";
         const SUPABASE_KEY = "sb_publishable_GwDMLoXcHaTzQDCcQlDuGw_4J9mwiaA"; 
         const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -209,14 +208,8 @@
 
                 try {
                     if (isSignUp) {
-                        // ==========================================
-                        // 1. 註冊邏輯：前置防呆
-                        // ==========================================
                         if (password !== confirmPassword) throw new Error('兩次輸入的密碼不同');
 
-                        // ==========================================
-                        // 2. 註冊邏輯：純白名單驗證 (無邀請碼)
-                        // ==========================================
                         const { data: isValid, error: checkError } = await supabase.rpc('check_member_exists', { 
                             p_account: account
                         });
@@ -230,9 +223,6 @@
                             throw new Error('查無此帳號，再試一次，或聯絡行政辦公室');
                         }
 
-                        // ==========================================
-                        // 3. 通過檢查，正式寫入 Auth 系統
-                        // ==========================================
                         const { data, error } = await supabase.auth.signUp({ email: loginEmail, password });
                         
                         const isFakeSuccess = data?.user && data.user.identities && data.user.identities.length === 0;
@@ -251,9 +241,6 @@
                         setShowConfirmPassword(false);
                         
                     } else {
-                        // ==========================================
-                        // 一般登入邏輯
-                        // ==========================================
                         const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
                         if (error) throw error;
                     }
@@ -387,6 +374,12 @@
             const [isRoleChecking, setIsRoleChecking] = useState(true);
             const [currentApp, setCurrentApp] = useState('members'); 
 
+            // --- 系統控制面板專用狀態 ---
+            const [systemConfig, setSystemConfig] = useState({ current: true, next: false });
+            const [nextButtonsConfig, setNextButtonsConfig] = useState(false);
+            const [seasonLabels, setSeasonLabels] = useState({ current: '4-6月', next: '7-9月' });
+            const [isUpdatingConfig, setIsUpdatingConfig] = useState(false);
+
             // 一登入就去資料庫 user_roles 查詢是否為管理員
             useEffect(() => {
                 const checkUserRole = async () => {
@@ -400,7 +393,6 @@
 
                         const userIsAdmin = data?.role === 'admin';
                         setIsAdmin(userIsAdmin);
-                        // 根據身分決定初始畫面
                         setCurrentApp(userIsAdmin ? 'home' : 'members');
                     } catch (error) {
                         console.error('權限檢查失敗:', error);
@@ -411,6 +403,89 @@
                 checkUserRole();
             }, [session]);
 
+            // 當回到管理員首頁時，讀取並初始化發布控制面板設定
+            useEffect(() => {
+                if (currentApp === 'home' && isAdmin) {
+                    // 1. 動態計算當前季度與下一季度標籤
+                    const d = new Date();
+                    const month = d.getMonth() + 1;
+                    let cur = '4-6月', nxt = '7-9月'; // 預設值
+                    if (month >= 1 && month <= 3) { cur = '1-3月'; nxt = '4-6月'; }
+                    else if (month >= 4 && month <= 6) { cur = '4-6月'; nxt = '7-9月'; }
+                    else if (month >= 7 && month <= 9) { cur = '7-9月'; nxt = '10-12月'; }
+                    else { cur = '10-12月'; nxt = '1-3月'; }
+                    setSeasonLabels({ current: cur, next: nxt });
+
+                    // 2. 從 members 撈取系統控制虛擬同工的狀態
+                    const fetchConfig = async () => {
+                        try {
+                            const { data, error } = await supabase
+                                .from('members')
+                                .select('*')
+                                .in('name', ['SYSTEM_CONFIG', 'SYSTEM_NEXT_BUTTONS']);
+                            
+                            if (!error && data) {
+                                const conf = data.find(m => m.name === 'SYSTEM_CONFIG');
+                                if (conf) {
+                                    const status = conf.availability_status || 'CURRENT';
+                                    setSystemConfig({
+                                        current: status === 'BOTH' || status === 'CURRENT',
+                                        next: status === 'BOTH' || status === 'NEXT'
+                                    });
+                                }
+                                const btnConf = data.find(m => m.name === 'SYSTEM_NEXT_BUTTONS');
+                                if (btnConf) {
+                                    setNextButtonsConfig(btnConf.availability_status === 'ON');
+                                }
+                            }
+                        } catch (err) {
+                            console.error("讀取系統設定失敗:", err);
+                        }
+                    };
+                    fetchConfig();
+                }
+            }, [currentApp, isAdmin]);
+
+            // --- 發布控制面板切換邏輯 ---
+            const handleToggleSystemConfig = async (target) => {
+                setIsUpdatingConfig(true);
+                const newConfig = { ...systemConfig, [target]: !systemConfig[target] };
+                let dbStatus = 'NONE';
+                if (newConfig.current && newConfig.next) dbStatus = 'BOTH';
+                else if (newConfig.current) dbStatus = 'CURRENT';
+                else if (newConfig.next) dbStatus = 'NEXT';
+
+                try {
+                    await supabase
+                        .from('members')
+                        .update({ availability_status: dbStatus })
+                        .eq('name', 'SYSTEM_CONFIG');
+                    setSystemConfig(newConfig);
+                } catch (e) {
+                    alert('系統班表狀態更新失敗');
+                } finally {
+                    setIsUpdatingConfig(false);
+                }
+            };
+
+            const handleToggleNextButtons = async () => {
+                setIsUpdatingConfig(true);
+                const newState = !nextButtonsConfig;
+                const dbStatus = newState ? 'ON' : 'OFF';
+
+                try {
+                    await supabase
+                        .from('members')
+                        .update({ availability_status: dbStatus })
+                        .eq('name', 'SYSTEM_NEXT_BUTTONS');
+                    setNextButtonsConfig(newState);
+                } catch (e) {
+                    alert('按鈕擴充功能更新失敗');
+                } finally {
+                    setIsUpdatingConfig(false);
+                }
+            };
+
             const handleLogout = async () => { await supabase.auth.signOut(); window.location.reload(); };
 
             // 強制導航保護
@@ -420,7 +495,6 @@
                 }
             }, [currentApp, isAdmin, isRoleChecking]);
 
-            // 顯示讀取中畫面，避免未驗證完成前畫面閃爍
             if (isRoleChecking) {
                 return (
                     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -431,7 +505,7 @@
 
             if (currentApp === 'home' && isAdmin) {
                 return (
-                    <div className="min-h-screen bg-slate-50 flex flex-col relative overflow-hidden">
+                    <div className="min-h-screen bg-slate-50 flex flex-col relative overflow-y-auto custom-scrollbar">
                         <div className="absolute top-[10%] left-[5%] w-[40vw] h-[40vw] rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none"></div>
                         <div className="absolute bottom-[10%] right-[5%] w-[40vw] h-[40vw] rounded-full bg-violet-500/10 blur-[120px] pointer-events-none"></div>
 
@@ -439,14 +513,16 @@
                             <div className="flex items-center gap-3"><Activity className="text-indigo-600" size={28} /><h1 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">TBC Serve Manager</h1></div>
                             <button onClick={handleLogout} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-normal px-3 sm:px-4 py-2 rounded-lg hover:bg-slate-100 transition-colors"><LogOut size={18} /> <span className="hidden sm:inline">Sign Out</span></button>
                         </header>
-                        <main className="flex-1 w-full max-w-6xl mx-auto px-6 py-10 sm:py-16 animate-fade-in flex flex-col justify-center relative z-10">
-                            <div className="mb-10 sm:mb-14 text-center sm:text-left">
+                        
+                        <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12 animate-fade-in flex flex-col justify-start relative z-10">
+                            <div className="mb-8 sm:mb-10 text-center sm:text-left">
                                 <h2 className="text-3xl sm:text-5xl font-extrabold mb-3 tracking-tight text-slate-900">
                                     Welcome <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600">back</span>
                                 </h2>
                                 <p className="text-slate-500 font-normal text-sm sm:text-base">Select a workspace to continue your management tasks.</p>
                             </div>
                             
+                            {/* 三大中心工作卡片：手機版全寬自動垂直堆疊，桌機並排 */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 perspective-[2000px]">
                                 <div onClick={() => setCurrentApp('members')} className="bg-white p-8 rounded-xl border border-slate-100 shadow-soft hover:shadow-hover-soft hover:-translate-y-1 transition-all duration-300 cursor-pointer group relative overflow-hidden transform hover:rotate-x-[2deg] hover:rotate-y-[-4deg]">
                                     <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-bl from-indigo-50 to-transparent rounded-bl-full -z-10 transition-transform duration-500 group-hover:scale-110"></div>
@@ -467,6 +543,82 @@
                                     <div className="flex items-center gap-2 text-sky-600 font-medium text-sm group-hover:translate-x-1 transition-transform duration-200">Enter Workspace <ArrowRight size={16} /></div>
                                 </div>
                             </div>
+
+                            {/* 🛡️ 系統發布控制面板：位於核心模組下方 */}
+                            <div className="mt-10 sm:mt-12 bg-white p-5 sm:p-6 md:p-8 rounded-[1.5rem] border border-slate-100 shadow-soft">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="bg-indigo-50 text-indigo-600 p-2.5 rounded-xl">
+                                        <ShieldCheck size={24} strokeWidth={2.5} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">系統發布控制面板</h3>
+                                        <p className="text-xs sm:text-sm text-slate-500 font-medium">即時控管前台查詢系統 (Beta) 的班表發布與開關狀態</p>
+                                    </div>
+                                    {isUpdatingConfig && (
+                                        <span className="ml-auto text-xs font-bold text-indigo-500 animate-pulse bg-indigo-50/50 px-3 py-1.5 rounded-full whitespace-nowrap">
+                                            同步中...
+                                        </span>
+                                    )}
+                                </div>
+
+                                {/* 按鈕佈局：手機與平板垂直排列 (grid-cols-1)，大桌機橫向並排 (lg:grid-cols-3) */}
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                                    
+                                    {/* 開關 1：服事班表 */}
+                                    <button
+                                        onClick={() => handleToggleSystemConfig('current')}
+                                        disabled={isUpdatingConfig}
+                                        type="button"
+                                        className={`flex items-center justify-between p-4 sm:p-5 rounded-2xl border-2 transition-all duration-200 active:scale-95 text-left ${
+                                            systemConfig.current
+                                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100/70 shadow-sm'
+                                            : 'border-slate-100 bg-slate-50/80 text-slate-400 hover:bg-slate-100'
+                                        }`}
+                                    >
+                                        <span className="font-bold text-base">服事班表 ({seasonLabels.current})</span>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <div className={`w-2.5 h-2.5 rounded-full transition-colors ${systemConfig.current ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]' : 'bg-slate-300'}`}></div>
+                                            <span className="text-sm font-extrabold w-10 text-right">{systemConfig.current ? 'Open' : 'Close'}</span>
+                                        </div>
+                                    </button>
+
+                                    {/* 開關 2：預排班表 */}
+                                    <button
+                                        onClick={() => handleToggleSystemConfig('next')}
+                                        disabled={isUpdatingConfig}
+                                        type="button"
+                                        className={`flex items-center justify-between p-4 sm:p-5 rounded-2xl border-2 transition-all duration-200 active:scale-95 text-left ${
+                                            systemConfig.next
+                                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100/70 shadow-sm'
+                                            : 'border-slate-100 bg-slate-50/80 text-slate-400 hover:bg-slate-100'
+                                        }`}
+                                    >
+                                        <span className="font-bold text-base">預排班表 ({seasonLabels.next})</span>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <div className={`w-2.5 h-2.5 rounded-full transition-colors ${systemConfig.next ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]' : 'bg-slate-300'}`}></div>
+                                            <span className="text-sm font-extrabold w-10 text-right">{systemConfig.next ? 'Open' : 'Close'}</span>
+                                        </div>
+                                    </button>
+
+                                    {/* 開關 3：加入行事曆/換班查詢 */}
+                                    <button
+                                        onClick={handleToggleNextButtons}
+                                        disabled={isUpdatingConfig}
+                                        type="button"
+                                        className={`flex items-center justify-between p-4 sm:p-5 rounded-2xl border-2 transition-all duration-200 active:scale-95 text-left ${
+                                            nextButtonsConfig
+                                            ? 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100/70 shadow-sm'
+                                            : 'border-slate-100 bg-slate-50/80 text-slate-400 hover:bg-slate-100'
+                                        }`}
+                                    >
+                                        <span className="font-bold text-base">加入行事曆 / 換班查詢功能</span>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <div className={`w-2.5 h-2.5 rounded-full transition-colors ${nextButtonsConfig ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]' : 'bg-slate-300'}`}></div>
+                                            <span className="text-sm font-extrabold w-10 text-right">{nextButtonsConfig ? 'Open' : 'Close'}</span>
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
                         </main>
                     </div>
                 );
@@ -483,7 +635,7 @@
                             MemberDataCenterComp 
                                 ? <MemberDataCenterComp 
                                     session={session} 
-                                    isAdmin={isAdmin} // 將身分傳給子元件
+                                    isAdmin={isAdmin} 
                                     goBack={isAdmin ? () => setCurrentApp('home') : handleLogout} 
                                     goToSchedule={() => setCurrentApp('scheduling')} 
                                     goToInsights={() => setCurrentApp('insights')} 
