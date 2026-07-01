@@ -383,26 +383,30 @@
 
             // 一登入就去資料庫 user_roles 查詢是否為管理員
             useEffect(() => {
-                const checkUserRole = async () => {
-                    if (!session?.user?.id) return;
-                    try {
-                        const { data, error } = await supabase
-                            .from('user_roles')
-                            .select('role')
-                            .eq('user_uid', session.user.id)
-                            .maybeSingle();
+    const checkUserRole = async () => {
+        if (!session?.user?.id) return;
+        try {
+            const { data, error } = await supabase
+                .from('user_roles')
+                .select('role')
+                .eq('user_uid', session.user.id)
+                .maybeSingle();
 
-                        const userIsAdmin = data?.role === 'admin';
-                        setIsAdmin(userIsAdmin);
-                        setCurrentApp(userIsAdmin ? 'home' : 'members');
-                    } catch (error) {
-                        console.error('權限檢查失敗:', error);
-                    } finally {
-                        setIsRoleChecking(false);
-                    }
-                };
-                checkUserRole();
-            }, [session]);
+            const userIsAdmin = data?.role === 'admin';
+            setIsAdmin(userIsAdmin);
+            
+            // ✅ [關鍵修改 1]：加入判斷，只有在「初始載入 (isRoleChecking)」時，才執行路由跳轉
+            if (isRoleChecking) {
+                setCurrentApp(userIsAdmin ? 'home' : 'members');
+            }
+        } catch (error) {
+            console.error('權限檢查失敗:', error);
+        } finally {
+            setIsRoleChecking(false);
+        }
+    };
+    checkUserRole();
+            }, [session?.user?.id]);
 
             // 當回到管理員首頁時，讀取並初始化發布控制面板設定
             useEffect(() => {
