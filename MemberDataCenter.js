@@ -963,7 +963,7 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
                                     <div className="space-y-2 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
                                         <label className="text-xs font-medium text-indigo-600 flex items-center gap-1.5 flex-wrap">
                                             <User size={14}/> 帳號 
-                                            <span className="text-xs text-indigo-400 font-normal">(忘記密碼需通知「管理員」重設密碼)</span>
+                                            <span className="text-xs text-indigo-400 font-normal">(忘記密碼需通知「管理員」)</span>
                                         </label>
                                         <input type="text" value={formData.email ?? ''} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full bg-white border border-indigo-200 rounded-lg px-4 py-3 sm:py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-normal text-slate-900 transition-all" placeholder="電話號碼或電子郵件" />
                                     </div>
