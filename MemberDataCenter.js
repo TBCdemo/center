@@ -434,7 +434,7 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
 
         setConfirmAction({
             title: '重設密碼',
-            message: `確定重設「${name}」(${email}) 的密碼？`,
+            message: `重設「${name}」(${email}) 的密碼？`,
             confirmText: '確定',
             onConfirm: async () => {
                 setConfirmAction(null);
