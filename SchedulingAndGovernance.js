@@ -284,6 +284,24 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
             const reconstructed = [];
             const sundays = window.ScheduleEngine ? window.ScheduleEngine.getSundaysInQuarter(qY, qQ) : [];
 
+            // ==========================================
+            // [新增區塊]：自動推導該季度歷史班表的「實際最大崗位人數」
+            // ==========================================
+            const historicalMaxPeople = {};
+            (pData || []).forEach(pos => {
+                const posName = (pos.name || '').trim();
+                let maxCount = 0;
+                sundays.forEach(sunday => {
+                    const dateStr = window.ScheduleEngine ? window.ScheduleEngine.formatDate(sunday) : sunday.toISOString().split('T')[0];
+                    sessionsToSchedule.forEach(session => {
+                        const count = activeSchedules.filter(s => s.d === dateStr && s.s === session && s.p === posName).length;
+                        if (count > maxCount) maxCount = count;
+                    });
+                });
+                historicalMaxPeople[posName] = maxCount;
+            });
+            // ==========================================
+
             sundays.forEach(sunday => {
                 const dateStr = window.ScheduleEngine ? window.ScheduleEngine.formatDate(sunday) : sunday.toISOString().split('T')[0];
                 sessionsToSchedule.forEach(session => {
@@ -292,7 +310,13 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                         if (!posName) return;
                         if (posName === '主餐' && sunday.getDate() > 7) return; 
 
-                        const maxPeople = pos.max_people || 1;
+                        // ==========================================
+                        // [修改區塊]：優先使用歷史排班的人數，若歷史完全無資料才 fallback 使用當前全域設定
+                        // ==========================================
+                        // 原始程式碼：const maxPeople = pos.max_people || 1;
+                        const maxPeople = historicalMaxPeople[posName] > 0 ? historicalMaxPeople[posName] : (pos.max_people || 1);
+                        // ==========================================
+
                         const existingForSlot = activeSchedules.filter(s => s.d === dateStr && s.s === session && s.p === posName);
 
                         existingForSlot.forEach(s => {
@@ -302,6 +326,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                                 _memberName: member ? member.name : '未知同工', _positionName: posName, is_empty: false, is_emergency: 0
                             });
                         });
+                        
                         const missingCount = maxPeople - existingForSlot.length;
                         for (let i = 0; i < missingCount; i++) {
                             reconstructed.push({
