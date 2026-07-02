@@ -827,7 +827,7 @@ const ScheduleEngine = {
       let bestScore = -9999;
 
       for (let shift of todayShifts) {
-          if (exclusiveRoles.includes(shift._positionName)) constinue;
+          if (exclusiveRoles.includes(shift._positionName)) continue;
 
           const mockSlot = { roleName: shift._positionName, session: shift.session, posId: shift.position_id };
           if (!this._canAssign(unM, mockSlot, state, context, 0, true)) continue;
