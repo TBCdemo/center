@@ -1,13 +1,9 @@
 /**
- * 教會季排班系統 - 核心引擎 (Scheduler Engine V21 最終完整版)
- * 實作規範：
- * 1. 核心排序調整：[有效服事次數, 條件加減分, 技能數量, 隨機碼]，次數少者絕對優先。
- * 2. 專兼任絕對隔離：司會、PPT、執事輪值為絕對專任，當日排入專任者不可兼任，反之亦然。
- * 3. 過勞軟性勸阻 (Soft Penalty)：移除連續兩週禁排的硬限制，改為「虛擬服事次數 +3」，平時保護同工不連排，極度缺人時仍可抓出救火。
- * 4. 同堂兼任優惠 (Combo Bonus)：針對單堂服事同工，若已排定一兼任崗位，第二崗位賦予「虛擬次數 -1.5」強勢促成一條龍服事。
- * 5. 方案 B 分軌 Pipeline：階段一先鎖定專任骨幹 ➔ 階段二特殊與群組進場 ➔ 階段三對兼任崗位進行「動態稀缺性排序填充」。
- * 6. 低頻同工打散分發：一季一次/三次同工依據剩餘週次機率隨機抽樣，平滑分散全季。
- * 7. 群組容許誤差：FA/FB 群組進場時放寬次數限制至平均值 +1.5，確保大塊積木順利成班。
+ * 教會季排班系統 - 核心引擎 (Scheduler Engine V22 - 跨堂雙打完美修復版)
+ * 修正重點：
+ * 1. 修復 dual_service_pref = 1 (二堂同崗) 與 2 (二堂異崗) 失效問題。
+ * 2. 專兼任隔離優化：禁止「專任+兼任」混搭，但合法放行「專任跨堂連莊」(如雙堂PPT)。
+ * 3. 擴展 Combo Bonus：全面支援 0, 1, 2 三種偏好，尋找第二班次時賦予絕對優先權 (-2次)。
  */
 
 const sessionsToSchedule = ['第一堂', '第二堂'];
@@ -191,41 +187,44 @@ const ScheduleEngine = {
     const dayShifts = state.draft.filter((d) => d.service_date === context.dateStr && d.member_id === m.id);
     const dayRoles = dayShifts.map(d => d._positionName);
 
-    // --- 防呆 1：專任與兼任崗位絕對硬性隔離 ---
-    if (exclusiveRoles.includes(roleName) && dayShifts.length > 0) return false;
-    if (dayRoles.some(r => exclusiveRoles.includes(r))) return false;
+    // --- V22 修正：專兼任防呆隔離 (不再誤殺跨堂專任) ---
+    const isExclusive = exclusiveRoles.includes(roleName);
+    const hasExclusive = dayRoles.some(r => exclusiveRoles.includes(r));
+    const hasConcurrent = dayRoles.some(r => !exclusiveRoles.includes(r));
+    
+    // 嚴禁專任混搭兼任 (但允許專任配專任，例如雙堂PPT)
+    if (isExclusive && hasConcurrent) return false;
+    if (!isExclusive && hasExclusive) return false;
 
-    // --- 防呆 2：單日總崗位上限最多 2 個 ---
+    // 單日總崗位上限最多 2 個
     if (dayShifts.length >= 2) return false; 
 
+    // --- V22 修正：跨堂與同堂的兼任邏輯過濾 (全面支援) ---
     const dualPref = parseInt(m.dual_service_pref) || 0;
 
-    // --- 防呆 3：跨堂與同堂的兼任邏輯過濾 ---
-    if (!exclusiveRoles.includes(roleName)) {
-        if (dayShifts.length === 1) {
-            const firstShift = dayShifts[0];
-            if (dualPref === 1) { // 跨堂同崗：強制綁定不同堂、同崗位
-                if (firstShift.session === session) return false; 
-                if (firstShift._positionName !== roleName) return false; 
-            } else if (dualPref === 2) { // 跨堂異崗：強制綁定不同堂、不同崗位
-                if (firstShift.session === session) return false; 
-                if (firstShift._positionName === roleName) return false; 
-            } else { // 單堂兼任 (dualPref === 0)：強制綁定「同堂」、不同崗位
-                if (firstShift.session !== session) return false; // 嚴格禁止跨堂
-                if (firstShift._positionName === roleName) return false; // 不可同一堂接同崗位
-            }
-        }
-
-        // 首班車檢查偏好堂別
-        if (dayShifts.length === 0 && dualPref === 0) {
-            if (m.preferred_session && m.preferred_session !== '皆可') {
-                const prefStr = String(m.preferred_session);
-                if (!prefStr.includes(session.replace('堂', ''))) return false;
-            }
+    if (dayShifts.length === 1) {
+        const firstShift = dayShifts[0];
+        if (dualPref === 1) { // 跨堂同崗
+            if (firstShift.session === session) return false; // 必須不同堂
+            if (firstShift._positionName !== roleName) return false; // 必須同崗位
+        } else if (dualPref === 2) { // 跨堂異崗
+            if (firstShift.session === session) return false; // 必須不同堂
+            if (firstShift._positionName === roleName) return false; // 必須異崗位
+        } else { // 單堂兼任 (dualPref === 0)
+            if (firstShift.session !== session) return false; // 必須同堂
+            if (firstShift._positionName === roleName) return false; // 必須異崗位
         }
     }
 
-    // --- 群組同進退檢核 ---
+    // 首班車檢查偏好堂別
+    if (dayShifts.length === 0 && dualPref === 0) {
+        if (m.preferred_session && m.preferred_session !== '皆可') {
+            const prefStr = String(m.preferred_session);
+            if (!prefStr.includes(session.replace('堂', ''))) return false;
+        }
+    }
+
+    // 群組同進退檢核
     if (!skipFamilyCheck) {
         const myGroupId = state.memberGroups[m.id];
         if (myGroupId && (myGroupId.startsWith('FA') || myGroupId.startsWith('FB'))) {
@@ -281,24 +280,27 @@ const ScheduleEngine = {
     let effectiveUsage = state.totalUsage[m.id] || 0;
     let weight = 0;
 
-    // --- 機制 1：過勞軟性勸阻 (Soft Penalty) ---
-    // 連續兩週服事者，虛擬次數 +3，使其墊底，非緊急情況系統不會抓他
+    // 過勞軟性勸阻 (Soft Penalty)
     const history = state.servingHistory[m.id] || [];
     if (history.includes(context.weekIndex - 1) && history.includes(context.weekIndex - 2)) {
         effectiveUsage += 3; 
     }
 
-    // --- 機制 2：同日同堂兼任優惠 (Combo Bonus) ---
-    // 鼓勵單堂同工一條龍服事：若他今天已接了一堂兼任，第二個兼任給予極大優勢 (-1.5次)
+    // --- V22 修正：全面 Combo Bonus (保護 0, 1, 2 所有型態的第二班次) ---
     const dayShifts = state.draft.filter(d => d.service_date === context.dateStr && d.member_id === m.id);
     const dualPref = parseInt(m.dual_service_pref) || 0;
-    if (dualPref === 0 && dayShifts.length === 1) {
-        if (dayShifts[0].session === slot.session && concurrentRoles.includes(dayShifts[0]._positionName) && concurrentRoles.includes(slot.roleName)) {
-            effectiveUsage -= 1.5; 
+    
+    if (dayShifts.length === 1) {
+        const firstShift = dayShifts[0];
+        if (dualPref === 1 && firstShift.session !== slot.session && firstShift._positionName === slot.roleName) {
+            effectiveUsage -= 2; // 跨堂同崗必中優勢
+        } else if (dualPref === 2 && firstShift.session !== slot.session && firstShift._positionName !== slot.roleName) {
+            effectiveUsage -= 2; // 跨堂異崗必中優勢
+        } else if (dualPref === 0 && firstShift.session === slot.session && firstShift._positionName !== slot.roleName) {
+            effectiveUsage -= 2; // 單堂兼任必中優勢
         }
     }
 
-    // --- 機制 3：群組/組合 條件權重微調 ---
     if (exclusiveRoles.includes(slot.roleName)) {
        const currentUsage = state.roleUsage[m.id]?.[slot.posId] || 0;
        if (currentUsage === 0) weight -= 2; 
@@ -323,12 +325,11 @@ const ScheduleEngine = {
        }
     }
 
-    // --- 核心變更：回傳嚴格的優先級比較陣列 ---
     return [
-        effectiveUsage,                         // 優先級 1：虛擬服事總次數 (含勸阻與兼任加減分)
-        weight,                                 // 優先級 2：同工群組扣分加權
-        state.memberSkills[m.id].size,          // 優先級 3：技能越少越優先精準卡位
-        Math.random()                           // 優先級 4：隨機亂數平衡
+        effectiveUsage,                         
+        weight,                                 
+        state.memberSkills[m.id].size,          
+        Math.random()                           
     ];
   },
 
@@ -341,9 +342,6 @@ const ScheduleEngine = {
   },
 
   _runSchedulingPipeline(state, context, members, specialIds) {
-    // ==========================================================
-    // 方案 B 分軌 Pipeline - 階段一：專任核心崗位絕對優先進場
-    // ==========================================================
     this._assignDeacons(state, context, members, specialIds.deacon);
     
     ['司會', 'PPT'].forEach(roleName => {
@@ -353,23 +351,14 @@ const ScheduleEngine = {
         });
     });
 
-    // ==========================================================
-    // 方案 B 分軌 Pipeline - 階段二：特殊限制與群組解綁進場
-    // ==========================================================
     this._assignLimitedMembers(state, context, members);
     this._assignDualService(state, context, members);
     this._assignFamilyGroups(state, context, members, specialIds); 
-
-    // ==========================================================
-    // 方案 B 分軌 Pipeline - 階段三：兼任崗位「動態稀缺性排序」
-    // ==========================================================
     this._assignConcurrentRolesDynamic(state, context, members, 0);
 
-    // 強制轉換、家族防落單後置處理
     this._enforceFO(state, context, members); 
     this._enforceFamily(state, context, members);
 
-    // 最終寬鬆填補階段 (若有漏網之魚再跑一次)
     this._assignConcurrentRolesDynamic(state, context, members, 1);
     this._fillEmptyWarnings(state, context);
   },
@@ -388,7 +377,6 @@ const ScheduleEngine = {
           const needed = targetCount - currentUsage;
           if (needed <= 0) return;
 
-          // 計算動態進場機率
           const triggerProbability = needed / remainingWeeks;
           if (Math.random() < triggerProbability) {
               const availableConcurrentSlots = context.availableSlots.filter(
@@ -415,13 +403,11 @@ const ScheduleEngine = {
 
           let anyAssigned = false;
 
-          // 動態計算每個缺口「目前還有多少合格的人可以排班」
           pendingSlots.forEach(slot => {
               const qualifiedCount = members.filter(m => this._canAssign(m, slot, state, context, strictLevel)).length;
               slot._scarcityScore = qualifiedCount;
           });
 
-          // 升冪排序：可用人數越少的空缺（越稀缺、越容易開天窗）優先處理
           pendingSlots.sort((a, b) => a._scarcityScore - b._scarcityScore);
           
           for (let targetSlot of pendingSlots) {
@@ -436,11 +422,10 @@ const ScheduleEngine = {
                   this._immediateFOFill(assignedMember, state, context, members);
                   this._immediateFamilyFill(assignedMember, state, context, members);
                   anyAssigned = true;
-                  break; // 一旦填補成功，中斷內部迴圈，重新計算全域稀缺度
+                  break; 
               }
           }
-
-          if (!anyAssigned) break; // 若所有缺口都無人可填補，強制跳出防死迴圈
+          if (!anyAssigned) break; 
           limit++;
       }
   },
@@ -481,14 +466,15 @@ const ScheduleEngine = {
 
       for (let m of dualMembers) {
           const p = parseInt(m.dual_service_pref);
-          let s1Slots = context.availableSlots.filter(s => s.session === '第一堂' && s.needed > 0 && concurrentRoles.includes(s.roleName));
+          // V22 修正：解開只搜尋 concurrentRoles 的限制，PPT等專任也可跨堂
+          let s1Slots = context.availableSlots.filter(s => s.session === '第一堂' && s.needed > 0);
           
           for (let s1 of s1Slots) {
               if (!this._canAssign(m, s1, state, context, 0)) continue;
               if ((state.totalUsage[m.id] || 0) > this._getSkillAvgUsage(state, members, s1.posId) + 0.1) continue;
               
               let s2 = null;
-              const s2Slots = context.availableSlots.filter(s => s.session === '第二堂' && s.needed > 0 && concurrentRoles.includes(s.roleName));
+              const s2Slots = context.availableSlots.filter(s => s.session === '第二堂' && s.needed > 0);
               
               if (p === 1) { 
                   s2 = s2Slots.find(s => s.roleName === s1.roleName && this._canAssign(m, s, state, context, 0) && (state.totalUsage[m.id] || 0) <= this._getSkillAvgUsage(state, members, s.posId) + 0.1);
@@ -516,8 +502,6 @@ const ScheduleEngine = {
       members.forEach(m => {
           const gid = state.memberGroups[m.id];
           if (gid && (gid.startsWith('FA') || gid.startsWith('FB'))) {
-              // --- 群組容許誤差保障 ---
-              // 放寬群組的次數限制至平均值 + 1.5，避免因過於嚴格導致群組積木無法放入
               if ((state.totalUsage[m.id] || 0) > avgUsage + 1.5) return;
               if ((context.dailyAssignments[m.id] || []).length > 0) return;
 
@@ -613,13 +597,17 @@ const ScheduleEngine = {
       if (pref !== 1 && pref !== 2) return;
 
       const dayShifts = state.draft.filter(d => d.service_date === context.dateStr && d.member_id === baseMember.id);
-      if (dayShifts.length >= 2 || dayShifts.some(s => exclusiveRoles.includes(s._positionName))) return;
+      
+      // 修復：不再無條件阻擋 exclusiveRoles，改由 _canAssign 自行判斷
+      if (dayShifts.length >= 2) return;
 
       const currentShift = dayShifts[0];
       if (!currentShift) return;
 
       const targetSession = currentShift.session === '第一堂' ? '第二堂' : '第一堂';
-      const targetSlots = context.availableSlots.filter(s => s.session === targetSession && s.needed > 0 && concurrentRoles.includes(s.roleName));
+      
+      // V22 修正：解開只搜尋 concurrentRoles 的限制
+      const targetSlots = context.availableSlots.filter(s => s.session === targetSession && s.needed > 0);
 
       let targetSlot = null;
       if (pref === 1) { 
@@ -722,11 +710,15 @@ const ScheduleEngine = {
        if (pref !== 1 && pref !== 2) return; 
 
        const myShifts = todayShifts.filter(d => d.member_id === m.id);
-       if (myShifts.length >= 2 || myShifts.some(s => exclusiveRoles.includes(s._positionName))) return;
+       
+       // 修復：由 _canAssign 自行判斷是否合法，不需提前強制阻擋專任
+       if (myShifts.length >= 2) return;
 
        const currentShift = myShifts[0];
        const targetSession = currentShift.session === '第一堂' ? '第二堂' : '第一堂';
-       const targetSlots = context.availableSlots.filter(s => s.session === targetSession && s.needed > 0 && concurrentRoles.includes(s.roleName));
+       
+       // V22 修正：解開只搜尋 concurrentRoles 的限制
+       const targetSlots = context.availableSlots.filter(s => s.session === targetSession && s.needed > 0);
 
        let targetSlot = null;
        if (pref === 1) { 
@@ -813,7 +805,6 @@ const ScheduleEngine = {
     });
   },
 
-  // 已修復之前 continue 的拼寫錯誤
   _forceSwapForFamily(unM, baseMember, state, context, members) {
       const todayShifts = state.draft.filter(d => 
           d.service_date === context.dateStr && 
