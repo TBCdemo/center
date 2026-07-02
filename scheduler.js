@@ -1,12 +1,13 @@
 /**
- * 教會季排班系統 - 核心引擎 (Scheduler Engine V21 + 方案 B 分軌動態排班引擎)
+ * 教會季排班系統 - 核心引擎 (Scheduler Engine V21 最終完整版)
  * 實作規範：
- * 1. 核心排序調整：[服事總次數, 條件加減分, 技能數量, 隨機碼]，次數少者具備絕對優先權。
+ * 1. 核心排序調整：[有效服事次數, 條件加減分, 技能數量, 隨機碼]，次數少者絕對優先。
  * 2. 專兼任絕對隔離：司會、PPT、執事輪值為絕對專任，當日排入專任者不可兼任，反之亦然。
- * 3. 過勞防護網：同工若已連續服事 2 週，第 3 週啟動硬性冷卻排除。
- * 4. 方案 B 分軌 Pipeline：階段一先鎖定專任骨幹 ➔ 階段二發配低頻、雙堂與群組 ➔ 階段三對兼任崗位進行動態稀缺性排序填充。
- * 5. 低頻同工打散分發：一季一次/三次同工依據剩餘週次與次數比例隨機抽樣，平滑分散全季。
- * 6. 群組容許誤差：FA/FB 群組進場時放寬平均次數限制，確保大塊群組積木順利成班。
+ * 3. 過勞軟性勸阻 (Soft Penalty)：移除連續兩週禁排的硬限制，改為「虛擬服事次數 +3」，平時保護同工不連排，極度缺人時仍可抓出救火。
+ * 4. 同堂兼任優惠 (Combo Bonus)：針對單堂服事同工，若已排定一兼任崗位，第二崗位賦予「虛擬次數 -1.5」強勢促成一條龍服事。
+ * 5. 方案 B 分軌 Pipeline：階段一先鎖定專任骨幹 ➔ 階段二特殊與群組進場 ➔ 階段三對兼任崗位進行「動態稀缺性排序填充」。
+ * 6. 低頻同工打散分發：一季一次/三次同工依據剩餘週次機率隨機抽樣，平滑分散全季。
+ * 7. 群組容許誤差：FA/FB 群組進場時放寬次數限制至平均值 +1.5，確保大塊積木順利成班。
  */
 
 const sessionsToSchedule = ['第一堂', '第二堂'];
@@ -185,53 +186,46 @@ const ScheduleEngine = {
 
     if (!state.memberSkills[m.id].has(posId)) return false;
 
-    // --- 防呆：連續週次過勞防護網 ---
-    const history = state.servingHistory[m.id] || [];
-    if (history.includes(context.weekIndex - 1) && history.includes(context.weekIndex - 2)) {
-        return false; 
-    }
-
     if (roleName === '執事輪值' && (state.roleUsage[m.id][posId] || 0) >= 4) return false;
 
     const dayShifts = state.draft.filter((d) => d.service_date === context.dateStr && d.member_id === m.id);
     const dayRoles = dayShifts.map(d => d._positionName);
 
-    // --- 防呆：專任與兼任崗位絕對硬性隔離 ---
+    // --- 防呆 1：專任與兼任崗位絕對硬性隔離 ---
     if (exclusiveRoles.includes(roleName) && dayShifts.length > 0) return false;
     if (dayRoles.some(r => exclusiveRoles.includes(r))) return false;
 
-    // 兼任崗位單日上限上限 2 個
+    // --- 防呆 2：單日總崗位上限最多 2 個 ---
     if (dayShifts.length >= 2) return false; 
 
     const dualPref = parseInt(m.dual_service_pref) || 0;
 
+    // --- 防呆 3：跨堂與同堂的兼任邏輯過濾 ---
     if (!exclusiveRoles.includes(roleName)) {
         if (dayShifts.length === 1) {
             const firstShift = dayShifts[0];
-            if (dualPref === 1) {
+            if (dualPref === 1) { // 跨堂同崗：強制綁定不同堂、同崗位
                 if (firstShift.session === session) return false; 
                 if (firstShift._positionName !== roleName) return false; 
-            } else if (dualPref === 2) {
+            } else if (dualPref === 2) { // 跨堂異崗：強制綁定不同堂、不同崗位
                 if (firstShift.session === session) return false; 
                 if (firstShift._positionName === roleName) return false; 
-            } else {
-                if (firstShift.session !== session) return false; 
-                if (firstShift._positionName === roleName) return false; 
+            } else { // 單堂兼任 (dualPref === 0)：強制綁定「同堂」、不同崗位
+                if (firstShift.session !== session) return false; // 嚴格禁止跨堂
+                if (firstShift._positionName === roleName) return false; // 不可同一堂接同崗位
             }
         }
 
-        if (dualPref === 0) {
-            if (dayShifts.length > 0) return false;
-        }
-
-        if (dayShifts.length === 0) {
-            if (dualPref === 0 && m.preferred_session && m.preferred_session !== '皆可') {
+        // 首班車檢查偏好堂別
+        if (dayShifts.length === 0 && dualPref === 0) {
+            if (m.preferred_session && m.preferred_session !== '皆可') {
                 const prefStr = String(m.preferred_session);
                 if (!prefStr.includes(session.replace('堂', ''))) return false;
             }
         }
     }
 
+    // --- 群組同進退檢核 ---
     if (!skipFamilyCheck) {
         const myGroupId = state.memberGroups[m.id];
         if (myGroupId && (myGroupId.startsWith('FA') || myGroupId.startsWith('FB'))) {
@@ -245,7 +239,6 @@ const ScheduleEngine = {
                 assignedFamilyIds.forEach(fid => {
                     context.dailyAssignments[fid].forEach(r => familyRoles.add(r));
                 });
-                
                 if (myGroupId.startsWith('FA')) {
                     if (!familyRoles.has(roleName)) return false;
                 } 
@@ -263,20 +256,16 @@ const ScheduleEngine = {
                             return true;
                         }
                     );
-                    
                     if (slot.needed < (unassignedFamilyIds.length + 1)) return false;
 
                     for (let fid of unassignedFamilyIds) {
                         const famMember = state.membersList.find(mem => mem.id === fid);
                         if (!famMember) continue;
-
                         if (!this._isAvailableOnDate(famMember, context.dateStr)) return false;
                         if (!state.memberSkills[fid]?.has(posId)) return false; 
-
                         const famUsage = state.totalUsage[fid] || 0;
                         if (famMember.availability_status === '一季一次' && famUsage >= 1) return false;
                         if (famMember.availability_status === '一季三次' && famUsage >= 3) return false;
-
                         const famDayShifts = state.draft.filter((d) => d.service_date === context.dateStr && d.member_id === fid);
                         if (famDayShifts.length >= 2) return false;
                     }
@@ -289,8 +278,27 @@ const ScheduleEngine = {
   },
 
   _getScore(m, slot, state, context, members) {
+    let effectiveUsage = state.totalUsage[m.id] || 0;
     let weight = 0;
 
+    // --- 機制 1：過勞軟性勸阻 (Soft Penalty) ---
+    // 連續兩週服事者，虛擬次數 +3，使其墊底，非緊急情況系統不會抓他
+    const history = state.servingHistory[m.id] || [];
+    if (history.includes(context.weekIndex - 1) && history.includes(context.weekIndex - 2)) {
+        effectiveUsage += 3; 
+    }
+
+    // --- 機制 2：同日同堂兼任優惠 (Combo Bonus) ---
+    // 鼓勵單堂同工一條龍服事：若他今天已接了一堂兼任，第二個兼任給予極大優勢 (-1.5次)
+    const dayShifts = state.draft.filter(d => d.service_date === context.dateStr && d.member_id === m.id);
+    const dualPref = parseInt(m.dual_service_pref) || 0;
+    if (dualPref === 0 && dayShifts.length === 1) {
+        if (dayShifts[0].session === slot.session && concurrentRoles.includes(dayShifts[0]._positionName) && concurrentRoles.includes(slot.roleName)) {
+            effectiveUsage -= 1.5; 
+        }
+    }
+
+    // --- 機制 3：群組/組合 條件權重微調 ---
     if (exclusiveRoles.includes(slot.roleName)) {
        const currentUsage = state.roleUsage[m.id]?.[slot.posId] || 0;
        if (currentUsage === 0) weight -= 2; 
@@ -303,11 +311,9 @@ const ScheduleEngine = {
            const assignedFamilyIds = Object.keys(context.dailyAssignments).filter(
                assignedId => assignedId !== m.id && state.memberGroups[assignedId] === myGroupId
            );
-           
            if (assignedFamilyIds.length > 0) {
                const familyRoles = new Set();
                assignedFamilyIds.forEach(fid => context.dailyAssignments[fid].forEach(r => familyRoles.add(r)));
-               
                if (myGroupId.startsWith('FA') && familyRoles.has(slot.roleName)) {
                    weight -= 1.5; 
                } else if (myGroupId.startsWith('FB')) {
@@ -317,16 +323,11 @@ const ScheduleEngine = {
        }
     }
 
-    if ((context.dailyAssignments[m.id] || []).length === 1 && concurrentRoles.includes(slot.roleName) && concurrentRoles.includes(context.dailyAssignments[m.id][0])) {
-       weight -= 0.5;
-    }
-
     // --- 核心變更：回傳嚴格的優先級比較陣列 ---
-    // [服事總次數] 為最高關鍵字，次數少者絕對優先。次數相同才依據微調權重(weight)排序
     return [
-        state.totalUsage[m.id] || 0,            // 優先級 1：服事總次數
-        weight,                                 // 優先級 2：同工群組/特定組合扣分加權
-        state.memberSkills[m.id].size,          // 優先級 3：懂得技能越少越精準卡位
+        effectiveUsage,                         // 優先級 1：虛擬服事總次數 (含勸阻與兼任加減分)
+        weight,                                 // 優先級 2：同工群組扣分加權
+        state.memberSkills[m.id].size,          // 優先級 3：技能越少越優先精準卡位
         Math.random()                           // 優先級 4：隨機亂數平衡
     ];
   },
@@ -353,14 +354,14 @@ const ScheduleEngine = {
     });
 
     // ==========================================================
-    // 方案 B 分軌 Pipeline - 階段二：特殊限制與群組解綁進場 (此時專任已鎖定)
+    // 方案 B 分軌 Pipeline - 階段二：特殊限制與群組解綁進場
     // ==========================================================
     this._assignLimitedMembers(state, context, members);
     this._assignDualService(state, context, members);
     this._assignFamilyGroups(state, context, members, specialIds); 
 
     // ==========================================================
-    // 方案 B 分軌 Pipeline - 階段三：兼任崗位引進「動態稀缺性排序」發配
+    // 方案 B 分軌 Pipeline - 階段三：兼任崗位「動態稀缺性排序」
     // ==========================================================
     this._assignConcurrentRolesDynamic(state, context, members, 0);
 
@@ -368,12 +369,11 @@ const ScheduleEngine = {
     this._enforceFO(state, context, members); 
     this._enforceFamily(state, context, members);
 
-    // 最終寬鬆填補階段
+    // 最終寬鬆填補階段 (若有漏網之魚再跑一次)
     this._assignConcurrentRolesDynamic(state, context, members, 1);
     this._fillEmptyWarnings(state, context);
   },
 
-  // --- 新增：低頻同工全季平滑打散分發機制 ---
   _assignLimitedMembers(state, context, members) {
       const remainingWeeks = state.totalWeeks - context.weekIndex;
       if (remainingWeeks <= 0) return;
@@ -388,7 +388,7 @@ const ScheduleEngine = {
           const needed = targetCount - currentUsage;
           if (needed <= 0) return;
 
-          // 計算動態進場機率 = 剩餘所需服事次數 / 剩餘可用週數
+          // 計算動態進場機率
           const triggerProbability = needed / remainingWeeks;
           if (Math.random() < triggerProbability) {
               const availableConcurrentSlots = context.availableSlots.filter(
@@ -396,7 +396,6 @@ const ScheduleEngine = {
               );
 
               if (availableConcurrentSlots.length > 0) {
-                  // 基於稀缺度排序，讓低頻同工優先去補當天最難塞人的兼任空缺
                   availableConcurrentSlots.sort((a, b) => {
                       const qA = members.filter(x => this._canAssign(x, a, state, context, 0, true)).length;
                       const qB = members.filter(x => this._canAssign(x, b, state, context, 0, true)).length;
@@ -408,37 +407,40 @@ const ScheduleEngine = {
       });
   },
 
-  // --- 新增：兼任崗位動態稀缺性排序填充引擎 ---
   _assignConcurrentRolesDynamic(state, context, members, strictLevel) {
       let limit = 0;
       while (limit < 100) {
           const pendingSlots = context.availableSlots.filter(s => s.needed > 0 && concurrentRoles.includes(s.roleName));
           if (pendingSlots.length === 0) break;
 
-          // 核心演算法：動態計算每個缺口「目前還有多少合格的人可以排班」
+          let anyAssigned = false;
+
+          // 動態計算每個缺口「目前還有多少合格的人可以排班」
           pendingSlots.forEach(slot => {
               const qualifiedCount = members.filter(m => this._canAssign(m, slot, state, context, strictLevel)).length;
               slot._scarcityScore = qualifiedCount;
           });
 
-          // 升冪排序：可用人數越少的空缺（越稀缺、越可能開天窗）排在越前面優先處理
+          // 升冪排序：可用人數越少的空缺（越稀缺、越容易開天窗）優先處理
           pendingSlots.sort((a, b) => a._scarcityScore - b._scarcityScore);
           
-          const targetSlot = pendingSlots[0];
-          const eligibleMembers = members.filter(m => this._canAssign(m, targetSlot, state, context, strictLevel));
-          
-          if (eligibleMembers.length === 0) {
-              break; 
+          for (let targetSlot of pendingSlots) {
+              const eligibleMembers = members.filter(m => this._canAssign(m, targetSlot, state, context, strictLevel));
+              if (eligibleMembers.length > 0) {
+                  const scored = eligibleMembers.map(m => ({ m, score: this._getScore(m, targetSlot, state, context, members) }));
+                  scored.sort((a, b) => this._compareScore(a.score, b.score));
+                  
+                  const assignedMember = scored[0].m;
+                  this._assign(assignedMember, targetSlot, state, context);
+                  
+                  this._immediateFOFill(assignedMember, state, context, members);
+                  this._immediateFamilyFill(assignedMember, state, context, members);
+                  anyAssigned = true;
+                  break; // 一旦填補成功，中斷內部迴圈，重新計算全域稀缺度
+              }
           }
 
-          const scored = eligibleMembers.map(m => ({ m, score: this._getScore(m, targetSlot, state, context, members) }));
-          scored.sort((a, b) => this._compareScore(a.score, b.score));
-          
-          const assignedMember = scored[0].m;
-          this._assign(assignedMember, targetSlot, state, context);
-          
-          this._immediateFOFill(assignedMember, state, context, members);
-          this._immediateFamilyFill(assignedMember, state, context, members);
+          if (!anyAssigned) break; // 若所有缺口都無人可填補，強制跳出防死迴圈
           limit++;
       }
   },
@@ -471,10 +473,7 @@ const ScheduleEngine = {
           const p = parseInt(m.dual_service_pref) || 0;
           if (p !== 1 && p !== 2) return false;
           if ((context.dailyAssignments[m.id] || []).length > 0) return false;
-
-          if (state.lastServedWeek[m.id] === context.weekIndex - 1) return false;
           if ((state.totalUsage[m.id] || 0) > avgUsage + 1.5) return false;
-
           return true;
       });
 
@@ -517,9 +516,8 @@ const ScheduleEngine = {
       members.forEach(m => {
           const gid = state.memberGroups[m.id];
           if (gid && (gid.startsWith('FA') || gid.startsWith('FB'))) {
-              if (state.lastServedWeek[m.id] === context.weekIndex - 1) return;
-              // --- 容許誤差保障機制 ---
-              // 允許群組在提早進場時，服事次數可以放寬至平均值 + 1.5，保障群體成班率
+              // --- 群組容許誤差保障 ---
+              // 放寬群組的次數限制至平均值 + 1.5，避免因過於嚴格導致群組積木無法放入
               if ((state.totalUsage[m.id] || 0) > avgUsage + 1.5) return;
               if ((context.dailyAssignments[m.id] || []).length > 0) return;
 
@@ -815,6 +813,7 @@ const ScheduleEngine = {
     });
   },
 
+  // 已修復之前 continue 的拼寫錯誤
   _forceSwapForFamily(unM, baseMember, state, context, members) {
       const todayShifts = state.draft.filter(d => 
           d.service_date === context.dateStr && 
