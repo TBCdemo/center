@@ -1,11 +1,11 @@
 /**
- * 教會季排班系統 - 核心引擎 (Scheduler Engine V21 + 出勤天數優化 + 強制同堂兼任)
+ * 教會季排班系統 - 核心引擎 (Scheduler Engine V21 + 出勤天數 + 同堂兼任 + 智慧配速防呆)
  * 實作優化目標：
- * 1. 導入 totalDays 獨立計算出勤主日天數，將「一季一次/一季三次」限制全面改為天數判定。
- * 2. 重構計分排序演算法為五維矩陣，將同堂兼任機會列為絕對最高優先級。
- * 3. 實作 _immediateComboFill 主動攔截配發機制，最大化同堂庶務崗位打包效率。
- * 4. 設定嚴格單日 2 個崗位上限，且核心崗位（司會、PPT、執事）與庶務崗位完美隔離互斥。
- * 5. 主餐與收奉獻開放自由兼任組合，不進行程式碼硬性阻擋。
+ * 1. [天數計算] 導入 totalDays 獨立計算出勤天數，支援同堂兼任以降低出勤日數。
+ * 2. [同堂兼任] 實作 _immediateComboFill 主動攔截，並調整計分矩陣，絕對優先排入同堂 Combo 崗位。
+ * 3. [防呆配速] 「一季三次」者，實施單月出勤上限 = 2 天。
+ * 4. [防呆配速] 「一季一次」者，實施智慧隨機解禁週 (Opening Week) + 順延與季末保底機制。
+ * 5. [互斥隔離] 核心崗位（司會、PPT、執事）與庶務崗位嚴格隔離，主餐與收奉獻開放自由兼任。
  */
 
 const sessionsToSchedule = ['第一堂', '第二堂'];
@@ -98,14 +98,16 @@ const ScheduleEngine = {
     const state = {
       draft: [],
       totalUsage: {},
-      totalDays: {}, // 新增：出勤主日天數獨立追蹤
+      totalDays: {},
       roleUsage: {},
       lastServedWeek: {},
       memberSkills: {},
       memberGroups: {}, 
+      openingWeek: {}, // 新增：紀錄一季一次人員的解禁週
     };
 
-    this._prepareData(state, clonedMembers, effectiveMemberPositions);
+    // 傳入 sundays 以便初始化解禁週
+    this._prepareData(state, clonedMembers, effectiveMemberPositions, sundays);
 
     const specialIds = {
       deacon: positions.find((p) => String(p?.name || '').trim() === '執事輪值')?.id,
@@ -118,6 +120,7 @@ const ScheduleEngine = {
       const context = {
         sunday,
         weekIndex,
+        totalWeeks: sundays.length, // 新增：用於判斷是否進入季末保底期
         dateStr: this.formatDate(sunday),
         dailyAssignments: {},
         availableSlots: this._createAvailableSlots(sunday, positions, roleSettings),
@@ -132,11 +135,11 @@ const ScheduleEngine = {
     return state.draft;
   },
 
-  _prepareData(state, members, memberPositions) {
+  _prepareData(state, members, memberPositions, sundays) {
     state.membersList = members; 
     members.forEach((m) => {
       state.totalUsage[m.id] = 0;
-      state.totalDays[m.id] = 0; // 初始化出勤天數
+      state.totalDays[m.id] = 0; 
       state.roleUsage[m.id] = {};
       state.lastServedWeek[m.id] = -99;
       state.memberSkills[m.id] = new Set(
@@ -144,6 +147,25 @@ const ScheduleEngine = {
       );
       if (m.group_id) {
           state.memberGroups[m.id] = String(m.group_id);
+      }
+
+      // 【一季一次：智慧隨機解禁週初始化】
+      if (m.availability_status === '一季一次') {
+          const availableWeeks = [];
+          sundays.forEach((sunday, idx) => {
+              const dateStr = this.formatDate(sunday);
+              if (this._isAvailableOnDate(m, dateStr)) {
+                  availableWeeks.push(idx);
+              }
+          });
+          
+          if (availableWeeks.length > 0) {
+              // 從真正有空的週次中隨機抽取一週作為解禁點
+              const randomIdx = Math.floor(Math.random() * availableWeeks.length);
+              state.openingWeek[m.id] = availableWeeks[randomIdx];
+          } else {
+              state.openingWeek[m.id] = 0; 
+          }
       }
     });
   },
@@ -181,12 +203,28 @@ const ScheduleEngine = {
     const dayShifts = state.draft.filter((d) => d.service_date === context.dateStr && d.member_id === m.id);
     const hasShiftToday = dayShifts.length > 0;
 
-    // 【天數控制】限制調整為以出勤天數 (totalDays) 為準，若今天已出勤，則不增加新天數，允許兼任
+    // 【一季一次防呆】
     if (m.availability_status === '一季一次' && (state.totalDays[m.id] || 0) >= 1 && !hasShiftToday) {
         return false;
     }
-    if (m.availability_status === '一季三次' && (state.totalDays[m.id] || 0) >= 3 && !hasShiftToday) {
-        return false;
+
+    // 【一季三次防呆與配速】
+    if (m.availability_status === '一季三次') {
+        if ((state.totalDays[m.id] || 0) >= 3 && !hasShiftToday) return false;
+
+        // 【新增】單月出勤上限 = 2 天 (若今天尚未排班才檢查，允許同日兼任)
+        if (!hasShiftToday) {
+            const currentMonth = new Date(context.dateStr).getMonth();
+            const monthShifts = state.draft.filter(d => 
+                d.member_id === m.id && 
+                new Date(d.service_date).getMonth() === currentMonth
+            );
+            const uniqueDaysInMonth = new Set(monthShifts.map(d => d.service_date)).size;
+            
+            if (uniqueDaysInMonth >= 2) {
+                return false;
+            }
+        }
     }
 
     if (!state.memberSkills[m.id].has(posId)) return false;
@@ -195,13 +233,11 @@ const ScheduleEngine = {
       if ((state.roleUsage[m.id][posId] || 0) >= 4) return false;
     }
 
-    // 【單日上限與核心崗位隔離】
     if (dayShifts.length >= 2) return false; 
 
     const dayRoles = dayShifts.map(d => d._positionName);
     const coreRoles = ['司會', 'PPT', '執事輪值'];
 
-    // 核心崗位專注防呆：已排核心崗位者當天不能接其他事；已排班者當天不能再塞核心崗位
     if (dayRoles.some(r => coreRoles.includes(r))) return false;
     if (coreRoles.includes(roleName) && dayShifts.length > 0) return false;
 
@@ -217,7 +253,6 @@ const ScheduleEngine = {
                 if (firstShift.session === session) return false; 
                 if (firstShift._positionName === roleName) return false; 
             } else {
-                // dualPref === 0 預設狀態：允許在同堂 (same session) 兼任不同崗位 (不同名稱)
                 if (firstShift.session !== session) return false; 
                 if (firstShift._positionName === roleName) return false; 
             }
@@ -234,7 +269,6 @@ const ScheduleEngine = {
     if (!skipFamilyCheck) {
         const myGroupId = state.memberGroups[m.id];
         if (myGroupId && (myGroupId.startsWith('FA') || myGroupId.startsWith('FB'))) {
-            
             const assignedFamilyIds = Object.keys(context.dailyAssignments).filter(
                 id => id !== m.id && state.memberGroups[id] === myGroupId
             );
@@ -281,7 +315,16 @@ const ScheduleEngine = {
                         const famDays = state.totalDays[fid] || 0;
                         const famHasShiftToday = state.draft.some(d => d.service_date === context.dateStr && d.member_id === fid);
                         if (famMember.availability_status === '一季一次' && famDays >= 1 && !famHasShiftToday) return false;
-                        if (famMember.availability_status === '一季三次' && famDays >= 3 && !famHasShiftToday) return false;
+                        
+                        if (famMember.availability_status === '一季三次') {
+                            if (famDays >= 3 && !famHasShiftToday) return false;
+                            if (!famHasShiftToday) {
+                                const currentMonth = new Date(context.dateStr).getMonth();
+                                const monthShifts = state.draft.filter(d => d.member_id === fid && new Date(d.service_date).getMonth() === currentMonth);
+                                const uniqueDays = new Set(monthShifts.map(d => d.service_date)).size;
+                                if (uniqueDays >= 2) return false;
+                            }
+                        }
 
                         const famDayShifts = state.draft.filter((d) => d.service_date === context.dateStr && d.member_id === fid);
                         if (famDayShifts.length >= 2) return false;
@@ -296,6 +339,18 @@ const ScheduleEngine = {
 
   _getScore(m, slot, state, context, members) {
     let weight = 0;
+
+    // 【一季一次配速防呆：解禁週與季末保底機制】
+    if (m.availability_status === '一季一次' && state.totalDays[m.id] === 0) {
+        const openingWeek = state.openingWeek[m.id] || 0;
+        const isSafetyNetActive = (context.totalWeeks - context.weekIndex) <= 3; // 季末最後三週強制全員解禁
+
+        if (context.weekIndex < openingWeek && !isSafetyNetActive) {
+            weight += 20000; // 尚未解禁，大幅度扣分隱藏
+        } else {
+            weight -= 10000; // 已解禁或進入保底期，給予極大優勢盡速排入
+        }
+    }
 
     if (['執事輪值', '司會'].includes(slot.roleName)) {
        const currentUsage = state.roleUsage[m.id]?.[slot.posId] || 0;
@@ -339,12 +394,10 @@ const ScheduleEngine = {
         }
     }
 
-    // 【兼任機會判定】檢查該人員當天是否已有服事，且現有及當前崗位皆屬於 Combo 庶務崗位
     const dayRoles = context.dailyAssignments[m.id] || [];
     const comboRoles = ['接待', '收奉獻', '主餐', '新朋友關懷'];
     const isComboOpportunity = dayRoles.length > 0 && comboRoles.includes(slot.roleName) && dayRoles.some(r => comboRoles.includes(r));
 
-    // 五維排序：兼任優先(0優先於1) -> 出勤天數少優先 -> 權重防呆微調 -> 崗位總次數少優先 -> 技能單一優先 -> 隨機
     return [
         isComboOpportunity ? 0 : 1, 
         state.totalDays[m.id] || 0,
@@ -557,8 +610,7 @@ const ScheduleEngine = {
       const assignedMember = scored[0].m;
       this._assign(assignedMember, slot, state, context);
       
-      // 【兼任與連動配發觸發】
-      this._immediateComboFill(assignedMember, state, context, members); // 優先主動塞同堂兼任
+      this._immediateComboFill(assignedMember, state, context, members);
       this._immediateFOFill(assignedMember, state, context, members);
       this._immediateFamilyFill(assignedMember, state, context, members);
       
@@ -566,7 +618,6 @@ const ScheduleEngine = {
     }
   },
 
-  // 【主動兼任配發機制】打包同一主日同堂的庶務空缺，不進行跨堂或主餐收奉獻的阻擋
   _immediateComboFill(baseMember, state, context, members) {
       const comboRoles = ['接待', '收奉獻', '主餐', '新朋友關懷'];
       const dayShifts = state.draft.filter(d => d.service_date === context.dateStr && d.member_id === baseMember.id);
@@ -578,7 +629,6 @@ const ScheduleEngine = {
       
       const targetSession = currentShift.session;
 
-      // 搜尋同堂聚會內其他需要人力的 Combo 庶務崗位
       const targetSlots = context.availableSlots.filter(s => 
           s.session === targetSession && 
           s.needed > 0 && 
@@ -848,7 +898,6 @@ const ScheduleEngine = {
       const draftIdx = state.draft.findIndex(d => d.temp_id === targetTempId);
       if (draftIdx === -1) return;
 
-      // 扣除舊人員次數
       state.totalUsage[oldMemberId] = Math.max(0, state.totalUsage[oldMemberId] - 1);
       if (state.roleUsage[oldMemberId][slotInfo.posId]) {
           state.roleUsage[oldMemberId][slotInfo.posId]--;
@@ -856,12 +905,10 @@ const ScheduleEngine = {
       const dailyIdx = context.dailyAssignments[oldMemberId].indexOf(slotInfo.roleName);
       if (dailyIdx > -1) context.dailyAssignments[oldMemberId].splice(dailyIdx, 1);
 
-      // 檢查舊人員當天若完全沒服事，則扣除出勤天數
       if (context.dailyAssignments[oldMemberId].length === 0) {
           state.totalDays[oldMemberId] = Math.max(0, (state.totalDays[oldMemberId] || 0) - 1);
       }
 
-      // 新增新人員天數（當天第一次排班才增加）
       if (!context.dailyAssignments[newMember.id] || context.dailyAssignments[newMember.id].length === 0) {
           state.totalDays[newMember.id] = (state.totalDays[newMember.id] || 0) + 1;
       }
@@ -880,7 +927,6 @@ const ScheduleEngine = {
     slot.assigned.push(m);
     slot.needed--;
 
-    // 只有當天尚未被指派任何工作時，出勤天數 (totalDays) 才 +1
     if (!context.dailyAssignments[m.id] || context.dailyAssignments[m.id].length === 0) {
         state.totalDays[m.id] = (state.totalDays[m.id] || 0) + 1;
     }
