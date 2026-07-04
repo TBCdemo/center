@@ -1,11 +1,11 @@
 /**
- * 教會季排班系統 - 核心引擎 (Scheduler Engine V21 Final + 跨月防連週升維 + 配速優化)
+ * 教會季排班系統 - 核心引擎 (Scheduler Engine V21 + 出勤天數 + 同堂兼任 + 智慧配速防呆)
  * 實作優化目標：
  * 1. [天數計算] 導入 totalDays 獨立計算出勤天數，支援同堂兼任以降低出勤日數。
- * 2. [同堂兼任] 實作 _immediateComboFill 主動攔截，並將 Combo 列為絕對最優先。
- * 3. [防呆配速] 「一季三次」單月出勤上限 = 2 天；「一季一次」智慧解禁週順延。
- * 4. [防連週升維] 升級為 7 維度計分陣列，將防連週懲罰放在天數之前，完美解決跨月連週問題，且不破壞家庭連動。
- * 5. [互斥隔離] 核心崗位與庶務崗位嚴格隔離，主餐與收奉獻開放自由兼任。
+ * 2. [同堂兼任] 實作 _immediateComboFill 主動攔截，並調整計分矩陣，絕對優先排入同堂 Combo 崗位。
+ * 3. [防呆配速] 「一季三次」者，實施單月出勤上限 = 2 天。
+ * 4. [防呆配速] 「一季一次」者，實施智慧隨機解禁週 (Opening Week) + 順延與季末保底機制。
+ * 5. [互斥隔離] 核心崗位（司會、PPT、執事）與庶務崗位嚴格隔離，主餐與收奉獻開放自由兼任。
  */
 
 const sessionsToSchedule = ['第一堂', '第二堂'];
@@ -103,9 +103,10 @@ const ScheduleEngine = {
       lastServedWeek: {},
       memberSkills: {},
       memberGroups: {}, 
-      openingWeek: {}, 
+      openingWeek: {}, // 新增：紀錄一季一次人員的解禁週
     };
 
+    // 傳入 sundays 以便初始化解禁週
     this._prepareData(state, clonedMembers, effectiveMemberPositions, sundays);
 
     const specialIds = {
@@ -119,7 +120,7 @@ const ScheduleEngine = {
       const context = {
         sunday,
         weekIndex,
-        totalWeeks: sundays.length,
+        totalWeeks: sundays.length, // 新增：用於判斷是否進入季末保底期
         dateStr: this.formatDate(sunday),
         dailyAssignments: {},
         availableSlots: this._createAvailableSlots(sunday, positions, roleSettings),
@@ -148,6 +149,7 @@ const ScheduleEngine = {
           state.memberGroups[m.id] = String(m.group_id);
       }
 
+      // 【一季一次：智慧隨機解禁週初始化】
       if (m.availability_status === '一季一次') {
           const availableWeeks = [];
           sundays.forEach((sunday, idx) => {
@@ -158,6 +160,7 @@ const ScheduleEngine = {
           });
           
           if (availableWeeks.length > 0) {
+              // 從真正有空的週次中隨機抽取一週作為解禁點
               const randomIdx = Math.floor(Math.random() * availableWeeks.length);
               state.openingWeek[m.id] = availableWeeks[randomIdx];
           } else {
@@ -200,13 +203,16 @@ const ScheduleEngine = {
     const dayShifts = state.draft.filter((d) => d.service_date === context.dateStr && d.member_id === m.id);
     const hasShiftToday = dayShifts.length > 0;
 
+    // 【一季一次防呆】
     if (m.availability_status === '一季一次' && (state.totalDays[m.id] || 0) >= 1 && !hasShiftToday) {
         return false;
     }
 
+    // 【一季三次防呆與配速】
     if (m.availability_status === '一季三次') {
         if ((state.totalDays[m.id] || 0) >= 3 && !hasShiftToday) return false;
 
+        // 【新增】單月出勤上限 = 2 天 (若今天尚未排班才檢查，允許同日兼任)
         if (!hasShiftToday) {
             const currentMonth = new Date(context.dateStr).getMonth();
             const monthShifts = state.draft.filter(d => 
@@ -332,23 +338,23 @@ const ScheduleEngine = {
   },
 
   _getScore(m, slot, state, context, members) {
-    let criticalWeight = 0; 
-    let softWeight = 0;     
+    let weight = 0;
 
+    // 【一季一次配速防呆：解禁週與季末保底機制】
     if (m.availability_status === '一季一次' && state.totalDays[m.id] === 0) {
         const openingWeek = state.openingWeek[m.id] || 0;
-        const isSafetyNetActive = (context.totalWeeks - context.weekIndex) <= 3;
+        const isSafetyNetActive = (context.totalWeeks - context.weekIndex) <= 3; // 季末最後三週強制全員解禁
 
         if (context.weekIndex < openingWeek && !isSafetyNetActive) {
-            criticalWeight += 20000; 
+            weight += 20000; // 尚未解禁，大幅度扣分隱藏
         } else {
-            criticalWeight -= 10000; 
+            weight -= 10000; // 已解禁或進入保底期，給予極大優勢盡速排入
         }
     }
 
     if (['執事輪值', '司會'].includes(slot.roleName)) {
        const currentUsage = state.roleUsage[m.id]?.[slot.posId] || 0;
-       if (currentUsage === 0) criticalWeight -= 20000;
+       if (currentUsage === 0) weight -= 20000;
     }
 
     const myGroupId = state.memberGroups[m.id];
@@ -364,27 +370,27 @@ const ScheduleEngine = {
                assignedFamilyIds.forEach(fid => context.dailyAssignments[fid].forEach(r => familyRoles.add(r)));
                
                if (myGroupId.startsWith('FA') && familyRoles.has(slot.roleName)) {
-                   criticalWeight -= 15000; 
+                   weight -= 15000; 
                } else if (myGroupId.startsWith('FB')) {
-                   criticalWeight -= 15000; 
+                   weight -= 15000; 
                }
            }
        }
     }
 
     if (state.lastServedWeek[m.id] === context.weekIndex - 1) {
-       criticalWeight += 5000; 
+       weight += 1000;
     }
 
     const isFamily = myGroupId && (String(myGroupId).startsWith('FA') || String(myGroupId).startsWith('FB'));
     if (!isFamily && state.memberSkills[m.id].size === 1) {
-        softWeight -= 800; 
+        weight -= 800; 
     }
 
     if (isFamily && members) {
         const skillAvg = this._getSkillAvgUsage(state, members, slot.posId);
         if ((state.totalUsage[m.id] || 0) > skillAvg + 0.1) {
-            softWeight += 2000; 
+            weight += 2000; 
         }
     }
 
@@ -393,13 +399,12 @@ const ScheduleEngine = {
     const isComboOpportunity = dayRoles.length > 0 && comboRoles.includes(slot.roleName) && dayRoles.some(r => comboRoles.includes(r));
 
     return [
-        isComboOpportunity ? 0 : 1,   
-        criticalWeight,               
-        state.totalDays[m.id] || 0,   
-        softWeight,                   
-        state.totalUsage[m.id] || 0,  
-        state.memberSkills[m.id].size,
-        Math.random()                 
+        isComboOpportunity ? 0 : 1, 
+        state.totalDays[m.id] || 0,
+        weight,
+        state.totalUsage[m.id] || 0, 
+        state.memberSkills[m.id].size, 
+        Math.random()
     ];
   },
 
