@@ -400,7 +400,8 @@ const ScheduleEngine = {
 
     return [
         isComboOpportunity ? 0 : 1, 
-        state.totalDays[m.id] || 0,
+      isConsecutive ? 1 : 0,  
+      state.totalDays[m.id] || 0,
         weight,
         state.totalUsage[m.id] || 0, 
         state.memberSkills[m.id].size, 
