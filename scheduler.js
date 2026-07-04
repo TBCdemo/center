@@ -338,25 +338,28 @@ const ScheduleEngine = {
   },
 
   _getScore(m, slot, state, context, members) {
-    let weight = 0;
+    let criticalWeight = 0; // 影響生死的高優先級權重 (放在 totalDays 之前)
+    let softWeight = 0;     // 微調用的軟性指標 (放在 totalDays 之後)
 
-    // 【一季一次配速防呆：解禁週與季末保底機制】
+    // 1. 【一季一次配速防呆：解禁週與季末保底機制】
     if (m.availability_status === '一季一次' && state.totalDays[m.id] === 0) {
         const openingWeek = state.openingWeek[m.id] || 0;
-        const isSafetyNetActive = (context.totalWeeks - context.weekIndex) <= 3; // 季末最後三週強制全員解禁
+        const isSafetyNetActive = (context.totalWeeks - context.weekIndex) <= 3;
 
         if (context.weekIndex < openingWeek && !isSafetyNetActive) {
-            weight += 20000; // 尚未解禁，大幅度扣分隱藏
+            criticalWeight += 20000; // 尚未解禁，大幅度扣分隱藏
         } else {
-            weight -= 10000; // 已解禁或進入保底期，給予極大優勢盡速排入
+            criticalWeight -= 10000; // 已解禁或進入保底期，給予極大優勢盡速排入
         }
     }
 
+    // 2. 【核心崗位保底】
     if (['執事輪值', '司會'].includes(slot.roleName)) {
        const currentUsage = state.roleUsage[m.id]?.[slot.posId] || 0;
-       if (currentUsage === 0) weight -= 20000;
+       if (currentUsage === 0) criticalWeight -= 20000;
     }
 
+    // 3. 【家庭連動】
     const myGroupId = state.memberGroups[m.id];
     if (myGroupId && (myGroupId.startsWith('FA') || myGroupId.startsWith('FB'))) {
        const myShiftsCount = (context.dailyAssignments[m.id] || []).length;
@@ -370,42 +373,48 @@ const ScheduleEngine = {
                assignedFamilyIds.forEach(fid => context.dailyAssignments[fid].forEach(r => familyRoles.add(r)));
                
                if (myGroupId.startsWith('FA') && familyRoles.has(slot.roleName)) {
-                   weight -= 15000; 
+                   criticalWeight -= 15000; 
                } else if (myGroupId.startsWith('FB')) {
-                   weight -= 15000; 
+                   criticalWeight -= 15000; 
                }
            }
        }
     }
 
+    // 4. 【防連續排班 (跨月連週解法)】
+    // 上週有服事者，加上 5000 分懲罰。
+    // 這足以讓他們輸給「上週沒服事」的人，但若遇上家庭連動 (-15000)，加總後為 -10000，依然能順利同進退！
     if (state.lastServedWeek[m.id] === context.weekIndex - 1) {
-       weight += 1000;
+       criticalWeight += 5000; 
     }
 
+    // 5. 【軟性指標微調】
     const isFamily = myGroupId && (String(myGroupId).startsWith('FA') || String(myGroupId).startsWith('FB'));
     if (!isFamily && state.memberSkills[m.id].size === 1) {
-        weight -= 800; 
+        softWeight -= 800; // 技能單一者微調優先
     }
 
     if (isFamily && members) {
         const skillAvg = this._getSkillAvgUsage(state, members, slot.posId);
         if ((state.totalUsage[m.id] || 0) > skillAvg + 0.1) {
-            weight += 2000; 
+            softWeight += 2000; // 家庭防超用微調
         }
     }
 
+    // 6. 【兼任機會判定】
     const dayRoles = context.dailyAssignments[m.id] || [];
     const comboRoles = ['接待', '收奉獻', '主餐', '新朋友關懷'];
     const isComboOpportunity = dayRoles.length > 0 && comboRoles.includes(slot.roleName) && dayRoles.some(r => comboRoles.includes(r));
 
+    // 【全新七維排序陣列】
     return [
-        isComboOpportunity ? 0 : 1, 
-      isConsecutive ? 1 : 0,  
-      state.totalDays[m.id] || 0,
-        weight,
-        state.totalUsage[m.id] || 0, 
-        state.memberSkills[m.id].size, 
-        Math.random()
+        isComboOpportunity ? 0 : 1,   // 維度 1：同堂兼任最優先
+        criticalWeight,               // 維度 2：絕對權重 (防連週、家庭、核心保底)
+        state.totalDays[m.id] || 0,   // 維度 3：天數平均 (在此維度被 criticalWeight 完美阻擋連週)
+        softWeight,                   // 維度 4：軟性指標
+        state.totalUsage[m.id] || 0,  // 維度 5：次數平均
+        state.memberSkills[m.id].size,// 維度 6：技能單一者
+        Math.random()                 // 維度 7：隨機
     ];
   },
 
