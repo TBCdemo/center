@@ -801,7 +801,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                 const shiftsThisSession = mShiftsToday.filter(d => d.session === session);
                 if (shiftsThisSession.length > 0) {
                     if (dualPref === 0) return false; 
-// 📍 [新增這行] 限制同堂最多只能排 2 個崗位，超過就直接過濾掉
     if (shiftsThisSession.length >= 2) return false;
                     const concurrentRoles = ['接待', '收奉獻', '主餐', '新朋友關懷'];
                     if (!concurrentRoles.includes(activeRole)) return false;
