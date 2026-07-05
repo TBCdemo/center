@@ -1553,9 +1553,9 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                                 <div className="mt-3 flex flex-wrap items-center gap-6"><p className="text-slate-500 text-xs font-medium flex items-center gap-1.5"><Search size={14} className="text-indigo-500"/> 點擊姓名選擇替代人選</p><p className="text-slate-500 text-xs font-medium flex items-center gap-1.5"><GripVertical size={14} className="text-indigo-500"/> 拖曳姓名可交換位置</p></div>
                                 <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 gap-4 flex-wrap">
                                     <div className="flex gap-3 flex-wrap">
-                                        <p className="text-rose-600 text-[10px] font-bold flex items-center gap-1.5 bg-rose-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-rose-500"></span> 紅色：崗位兼任</p>
-                                        <p className="text-sky-600 text-[10px] font-bold flex items-center gap-1.5 bg-sky-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-sky-500"></span> 藍色：群組落單</p>
-                                        {appMode === 'schedule' && <p className="text-orange-600 text-[10px] font-bold flex items-center gap-1.5 bg-orange-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-orange-500"></span> 橘色：落單自動替換 / 強制人工指派</p>}
+                                        <p className="text-rose-600 text-[10px] font-bold flex items-center gap-1.5 bg-rose-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-rose-500"></span> 崗位兼任</p>
+                                        <p className="text-sky-600 text-[10px] font-bold flex items-center gap-1.5 bg-sky-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-sky-500"></span> 群組落單</p>
+                                        {appMode === 'schedule' && <p className="text-orange-600 text-[10px] font-bold flex items-center gap-1.5 bg-orange-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-orange-500"></span> 落單自動替換 / 強制人工指派</p>}
                                     </div>
                                     
                                     {/* 班表內文姓名搜尋框 */}
