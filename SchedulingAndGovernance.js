@@ -1560,24 +1560,24 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                                     
                                     {/* 班表內文姓名搜尋框 */}
                                     {activeSessionTab !== '📊 數據分析' && (
-                                        <div className="relative w-full sm:w-56 lg:w-64 shrink-0">
-                                            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                                            <input 
-                                                type="text" 
-                                                placeholder="在班表中快速標示姓名..." 
-                                                value={gridSearchTerm}
-                                                onChange={(e) => setGridSearchTerm(e.target.value)}
-                                                className="w-full bg-slate-50 hover:bg-white border border-slate-200 rounded-md pl-8 pr-7 py-1.5 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:bg-white transition-all shadow-sm"
-                                            />
-                                            {gridSearchTerm && (
-                                                <button 
-                                                    onClick={() => setGridSearchTerm('')} 
-                                                    className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded transition-colors"
-                                                >
-                                                    <X size={12} />
-                                                </button>
-                                            )}
-                                        </div>
+                                        <div className="relative w-[120px] shrink-0">
+    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+    <input 
+        type="text" 
+        placeholder="搜尋關鍵字" 
+        value={gridSearchTerm}
+        onChange={(e) => setGridSearchTerm(e.target.value)}
+        className="w-full bg-slate-50 hover:bg-white border border-slate-200 rounded-md pl-8 pr-6 py-1.5 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:bg-white transition-all shadow-sm"
+    />
+    {gridSearchTerm && (
+        <button 
+            onClick={() => setGridSearchTerm('')} 
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded transition-colors"
+        >
+            <X size={12} />
+        </button>
+    )}
+</div>
                                     )}
                                 </div>
                             </>
