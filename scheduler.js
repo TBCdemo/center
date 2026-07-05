@@ -1,11 +1,12 @@
 /**
- * 教會季排班系統 - 核心引擎 (Scheduler Engine V21 Final + 跨月防連週升維 + 配速優化)
+ * 教會季排班系統 - 核心引擎 (Scheduler Engine V22 終極版)
  * 實作優化目標：
- * 1. [天數計算] 導入 totalDays 獨立計算出勤天數，支援同堂兼任以降低出勤日數。
- * 2. [同堂兼任] 實作 _immediateComboFill 主動攔截，並將 Combo 列為絕對最優先。
- * 3. [防呆配速] 「一季三次」單月出勤上限 = 2 天；「一季一次」智慧解禁週順延。
- * 4. [防連週升維] 升級為 7 維度計分陣列，將防連週懲罰放在天數之前，完美解決跨月連週問題，且不破壞家庭連動。
- * 5. [互斥隔離] 核心崗位與庶務崗位嚴格隔離，主餐與收奉獻開放自由兼任。
+ * 1. [天數獨立計算] 導入 totalDays 獨立計算出勤天數，支援同堂兼任降低出勤日數。
+ * 2. [主動兼任攔截] _immediateComboFill 攔截機制，將同堂 Combo 列為絕對最優先。
+ * 3. [防呆配速] 「一季三次」單月出勤上限 2 天；「一季一次」智慧解禁週順延機制。
+ * 4. [絕對防連週] 「一季一次/三次」在 _canAssign 直接宣判死刑，徹底解決跨月連週問題。
+ * 5. [跨堂意願相容] 跨堂意願 (dual_pref) 大於首選堂次。只要願意跨堂，司會/PPT皆可連堂。
+ * 6. [七維度計分] 拆分 criticalWeight 與 softWeight，確保防呆懲罰不會破壞家庭強制連動。
  */
 
 const sessionsToSchedule = ['第一堂', '第二堂'];
@@ -87,6 +88,7 @@ const ScheduleEngine = {
         }
         m.unavailable_dates = unDates.sort();
 
+        // 僅限無限制人員才能跨堂，限制次數者強制歸零
         if (['一季三次', '一季一次'].includes(m.availability_status)) {
              m.dual_service_pref = 0; 
         }
@@ -148,6 +150,7 @@ const ScheduleEngine = {
           state.memberGroups[m.id] = String(m.group_id);
       }
 
+      // 【一季一次智慧配速：解禁週】
       if (m.availability_status === '一季一次') {
           const availableWeeks = [];
           sundays.forEach((sunday, idx) => {
@@ -200,13 +203,18 @@ const ScheduleEngine = {
     const dayShifts = state.draft.filter((d) => d.service_date === context.dateStr && d.member_id === m.id);
     const hasShiftToday = dayShifts.length > 0;
 
-    if (m.availability_status === '一季一次' && (state.totalDays[m.id] || 0) >= 1 && !hasShiftToday) {
-        return false;
+    // 【一季一次 防呆】
+    if (m.availability_status === '一季一次') {
+        if (state.lastServedWeek[m.id] === context.weekIndex - 1) return false; // 絕對防連週
+        if ((state.totalDays[m.id] || 0) >= 1 && !hasShiftToday) return false;
     }
 
+    // 【一季三次 防呆與配速】
     if (m.availability_status === '一季三次') {
+        if (state.lastServedWeek[m.id] === context.weekIndex - 1) return false; // 絕對防連週
         if ((state.totalDays[m.id] || 0) >= 3 && !hasShiftToday) return false;
 
+        // 單月出勤上限 2 天
         if (!hasShiftToday) {
             const currentMonth = new Date(context.dateStr).getMonth();
             const monthShifts = state.draft.filter(d => 
@@ -214,10 +222,7 @@ const ScheduleEngine = {
                 new Date(d.service_date).getMonth() === currentMonth
             );
             const uniqueDaysInMonth = new Set(monthShifts.map(d => d.service_date)).size;
-            
-            if (uniqueDaysInMonth >= 2) {
-                return false;
-            }
+            if (uniqueDaysInMonth >= 2) return false;
         }
     }
 
@@ -227,39 +232,48 @@ const ScheduleEngine = {
       if ((state.roleUsage[m.id][posId] || 0) >= 4) return false;
     }
 
+    // 單日最多 2 個服事
     if (dayShifts.length >= 2) return false; 
-
-    const dayRoles = dayShifts.map(d => d._positionName);
-    const coreRoles = ['司會', 'PPT', '執事輪值'];
-
-    if (dayRoles.some(r => coreRoles.includes(r))) return false;
-    if (coreRoles.includes(roleName) && dayShifts.length > 0) return false;
 
     const dualPref = parseInt(m.dual_service_pref) || 0;
 
-    if (!coreRoles.includes(roleName)) {
-        if (dayShifts.length === 1) {
-            const firstShift = dayShifts[0];
-            if (dualPref === 1) {
-                if (firstShift.session === session) return false; 
-                if (firstShift._positionName !== roleName) return false; 
-            } else if (dualPref === 2) {
-                if (firstShift.session === session) return false; 
-                if (firstShift._positionName === roleName) return false; 
-            } else {
-                if (firstShift.session !== session) return false; 
-                if (firstShift._positionName === roleName) return false; 
-            }
-        }
-
-        if (dayShifts.length === 0) {
-            if (dualPref === 0 && m.preferred_session && m.preferred_session !== '皆可') {
-                const prefStr = String(m.preferred_session);
-                if (!prefStr.includes(session.replace('堂', ''))) return false;
-            }
+    // 🌟 首選堂次防護：只要意願不是跨堂 (dualPref === 0)，就嚴格遵守首選堂次
+    if (roleName !== '執事輪值' && dualPref === 0) {
+        if (m.preferred_session && m.preferred_session !== '皆可') {
+            const prefStr = String(m.preferred_session);
+            if (!prefStr.includes(session.replace('堂', ''))) return false;
         }
     }
 
+    // 🌟 同堂 / 跨堂 複雜防呆與相容性處理
+    if (dayShifts.length === 1) {
+        const firstShift = dayShifts[0];
+        const isCore1 = ['司會', 'PPT', '執事輪值'].includes(firstShift._positionName);
+        const isCore2 = ['司會', 'PPT', '執事輪值'].includes(roleName);
+
+        if (roleName === '執事輪值' || firstShift._positionName === '執事輪值') {
+            // 執事輪值必須搭配執事輪值，且必須跨堂
+            if (roleName !== '執事輪值' || firstShift._positionName !== '執事輪值') return false;
+            if (firstShift.session === session) return false; 
+        } else if (dualPref === 1) { 
+            // 跨堂同崗位 (允許司會/PPT兩堂連任)
+            if (firstShift.session === session) return false; 
+            if (firstShift._positionName !== roleName) return false; 
+        } else if (dualPref === 2) { 
+            // 跨堂異崗位
+            if (firstShift.session === session) return false; 
+            if (firstShift._positionName === roleName) return false; 
+        } else { 
+            // 同堂兼任模式
+            if (firstShift.session !== session) return false; 
+            if (firstShift._positionName === roleName) return false; 
+            
+            // 嚴格禁止核心崗位參與同堂兼任
+            if (isCore1 || isCore2) return false;
+        }
+    }
+
+    // 家庭連動檢查
     if (!skipFamilyCheck) {
         const myGroupId = state.memberGroups[m.id];
         if (myGroupId && (myGroupId.startsWith('FA') || myGroupId.startsWith('FB'))) {
@@ -308,9 +322,13 @@ const ScheduleEngine = {
 
                         const famDays = state.totalDays[fid] || 0;
                         const famHasShiftToday = state.draft.some(d => d.service_date === context.dateStr && d.member_id === fid);
-                        if (famMember.availability_status === '一季一次' && famDays >= 1 && !famHasShiftToday) return false;
+                        if (famMember.availability_status === '一季一次') {
+                            if (state.lastServedWeek[fid] === context.weekIndex - 1) return false;
+                            if (famDays >= 1 && !famHasShiftToday) return false;
+                        }
                         
                         if (famMember.availability_status === '一季三次') {
+                            if (state.lastServedWeek[fid] === context.weekIndex - 1) return false;
                             if (famDays >= 3 && !famHasShiftToday) return false;
                             if (!famHasShiftToday) {
                                 const currentMonth = new Date(context.dateStr).getMonth();
@@ -335,6 +353,7 @@ const ScheduleEngine = {
     let criticalWeight = 0; 
     let softWeight = 0;     
 
+    // 【一季一次配速防呆：解禁週與季末保底機制】
     if (m.availability_status === '一季一次' && state.totalDays[m.id] === 0) {
         const openingWeek = state.openingWeek[m.id] || 0;
         const isSafetyNetActive = (context.totalWeeks - context.weekIndex) <= 3;
@@ -372,6 +391,7 @@ const ScheduleEngine = {
        }
     }
 
+    // 防連週軟性懲罰 (雖生死門已擋下配額者，此處用於調控無限制的核心同工)
     if (state.lastServedWeek[m.id] === context.weekIndex - 1) {
        criticalWeight += 5000; 
     }
@@ -392,6 +412,7 @@ const ScheduleEngine = {
     const comboRoles = ['接待', '收奉獻', '主餐', '新朋友關懷'];
     const isComboOpportunity = dayRoles.length > 0 && comboRoles.includes(slot.roleName) && dayRoles.some(r => comboRoles.includes(r));
 
+    // 七維度排序陣列
     return [
         isComboOpportunity ? 0 : 1,   
         criticalWeight,               
