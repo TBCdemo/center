@@ -66,6 +66,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
     const [searchTerm, setSearchTerm] = useState('');
     const [globalSearchTerm, setGlobalSearchTerm] = useState(''); // 全域指派搜尋框狀態
     const [analysisSearchTerm, setAnalysisSearchTerm] = useState(''); 
+    const [gridSearchTerm, setGridSearchTerm] = useState(''); // 班表全域姓名搜尋狀態
     const [draggedItem, setDraggedItem] = useState(null);
     const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', currentName: '', currentDate: '', currentRole: '', newName: '', newDate: '', newRole: '', type: '', onConfirm: null });
     const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
@@ -1482,12 +1483,28 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
 
     const getTagClass = (item) => {
         let cls = `name-tag ${activeSlot?.temp_id === item.temp_id ? 'active' : ''}`;
-        if (item.is_empty) return cls + ' empty-slot';
-        if (item._positionName !== '執事輪值') {
-            if (conflictIds.has(item.temp_id)) return cls + ' conflict';
-            if (orphanIds.has(item.temp_id)) return cls + ' orphan';
+        
+        if (item.is_empty) {
+            cls += ' empty-slot';
+        } else {
+            if (item._positionName !== '執事輪值') {
+                if (conflictIds.has(item.temp_id)) cls += ' conflict';
+                if (orphanIds.has(item.temp_id)) cls += ' orphan';
+            }
+            if (item.is_emergency) cls += ' emergency';
         }
-        if (item.is_emergency) return cls + ' emergency';
+
+        // --- [新增] 班表搜尋高亮邏輯 (極簡黑底白字版) ---
+        if (gridSearchTerm) {
+            if (!item.is_empty && item._memberName && item._memberName.includes(gridSearchTerm)) {
+                // 關鍵字匹配：純粹的黑底反白字，平滑過場
+                cls += ' !bg-slate-900 !text-white transition-colors';
+            } else {
+                // 非匹配：降低透明度及飽和度
+                cls += ' opacity-30 saturate-50 transition-colors';
+            }
+        }
+
         return cls;
     };
 
@@ -1528,16 +1545,40 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                     <div className="flex flex-col justify-center">
                         <div className="flex items-center gap-3">
                             <h2 className="text-2xl font-extrabold text-slate-900 flex items-center gap-3 tracking-tight">
-                                {schedulingPhase === 'setup' ? (<><Calendar className="text-violet-600" size={28}/> 排班作業中心</>) : (<div className="flex items-center gap-2"><button onClick={() => { setSchedulingPhase('setup'); setActiveSlot(null); setGlobalSearchTerm(''); }} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors" title="返回設定"><ChevronLeft size={20} /></button><span>{year}Q{quarter} {appMode === 'schedule' ? '預排預覽' : '編輯預覽'}</span></div>)}
+                                {schedulingPhase === 'setup' ? (<><Calendar className="text-violet-600" size={28}/> 排班作業中心</>) : (<div className="flex items-center gap-2"><button onClick={() => { setSchedulingPhase('setup'); setActiveSlot(null); setGlobalSearchTerm(''); setGridSearchTerm(''); }} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors" title="返回設定"><ChevronLeft size={20} /></button><span>{year}Q{quarter} {appMode === 'schedule' ? '預排預覽' : '編輯預覽'}</span></div>)}
                             </h2>
                         </div>
                         {schedulingPhase === 'editor' && (
                             <>
                                 <div className="mt-3 flex flex-wrap items-center gap-6"><p className="text-slate-500 text-xs font-medium flex items-center gap-1.5"><Search size={14} className="text-indigo-500"/> 點擊姓名選擇替代人選</p><p className="text-slate-500 text-xs font-medium flex items-center gap-1.5"><GripVertical size={14} className="text-indigo-500"/> 拖曳姓名可交換位置</p></div>
-                                <div className="flex gap-3 mt-2 pt-2 border-t border-slate-100 flex-wrap">
-                                    <p className="text-rose-600 text-[10px] font-bold flex items-center gap-1.5 bg-rose-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-rose-500"></span> 紅色：崗位兼任</p>
-                                    <p className="text-sky-600 text-[10px] font-bold flex items-center gap-1.5 bg-sky-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-sky-500"></span> 藍色：群組落單</p>
-                                    {appMode === 'schedule' && <p className="text-orange-600 text-[10px] font-bold flex items-center gap-1.5 bg-orange-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-orange-500"></span> 橘色：落單自動替換 / 強制人工指派</p>}
+                                <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 gap-4 flex-wrap">
+                                    <div className="flex gap-3 flex-wrap">
+                                        <p className="text-rose-600 text-[10px] font-bold flex items-center gap-1.5 bg-rose-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-rose-500"></span> 紅色：崗位兼任</p>
+                                        <p className="text-sky-600 text-[10px] font-bold flex items-center gap-1.5 bg-sky-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-sky-500"></span> 藍色：群組落單</p>
+                                        {appMode === 'schedule' && <p className="text-orange-600 text-[10px] font-bold flex items-center gap-1.5 bg-orange-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-orange-500"></span> 橘色：落單自動替換 / 強制人工指派</p>}
+                                    </div>
+                                    
+                                    {/* 班表內文姓名搜尋框 */}
+                                    {activeSessionTab !== '📊 數據分析' && (
+                                        <div className="relative w-full sm:w-56 lg:w-64 shrink-0">
+                                            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                                            <input 
+                                                type="text" 
+                                                placeholder="在班表中快速標示姓名..." 
+                                                value={gridSearchTerm}
+                                                onChange={(e) => setGridSearchTerm(e.target.value)}
+                                                className="w-full bg-slate-50 hover:bg-white border border-slate-200 rounded-md pl-8 pr-7 py-1.5 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:bg-white transition-all shadow-sm"
+                                            />
+                                            {gridSearchTerm && (
+                                                <button 
+                                                    onClick={() => setGridSearchTerm('')} 
+                                                    className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded transition-colors"
+                                                >
+                                                    <X size={12} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </>
                         )}
@@ -1547,7 +1588,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                             <div className="flex items-center gap-3 flex-wrap justify-end">
                                 <div className="flex bg-slate-50 p-1.5 rounded-lg w-full md:w-auto overflow-x-auto custom-scrollbar border border-slate-200">
                                     {['第一堂', '第二堂', '📊 數據分析'].map(tab => (
-                                        <button key={tab} onClick={() => { setActiveSessionTab(tab); if(tab === '📊 數據分析') { setActiveSlot(null); setGlobalSearchTerm(''); } }} className={`px-5 py-2 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap ${activeSessionTab === tab ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>{tab}</button>
+                                        <button key={tab} onClick={() => { setActiveSessionTab(tab); if(tab === '📊 數據分析') { setActiveSlot(null); setGlobalSearchTerm(''); } setGridSearchTerm(''); }} className={`px-5 py-2 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap ${activeSessionTab === tab ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>{tab}</button>
                                     ))}
                                     {appMode === 'schedule' && (
                                         <><div className="w-px h-6 bg-slate-200 mx-2 self-center"></div><button onClick={runAutoSchedule} disabled={isLoading} className="px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap text-indigo-600 hover:bg-white hover:shadow-sm flex items-center gap-1.5"><RefreshCw size={16} className={isLoading ? "animate-spin" : ""} /> 重新排班</button></>
