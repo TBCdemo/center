@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { 
     Calendar, Play, Search, ChevronLeft, GripVertical, RefreshCw, 
     Download, Save, AlertCircle, CheckCircle2, HeartPulse, Activity, 
@@ -63,6 +63,12 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
     // -------------------------
 
     const [activeSlot, setActiveSlot] = useState(null); 
+    const recommendationsScrollRef = useRef(null);
+    useEffect(() => {
+        if (recommendationsScrollRef.current) {
+            recommendationsScrollRef.current.scrollTop = 0;
+        }
+    }, [activeSlot]);
     const [searchTerm, setSearchTerm] = useState('');
     const [globalSearchTerm, setGlobalSearchTerm] = useState(''); // 全域指派搜尋框狀態
     const [analysisSearchTerm, setAnalysisSearchTerm] = useState(''); 
@@ -1345,7 +1351,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                 </div>
 
                 {/* 推薦清單與全域強制指派區塊 */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar px-6 pb-6 pt-4 space-y-5 bg-slate-50/40">
+                <div ref={recommendationsScrollRef} className="flex-1 overflow-y-auto custom-scrollbar px-6 pb-6 pt-4 space-y-5 bg-slate-50/40">
                     <div className="flex items-center justify-between px-1"><h3 className="font-bold text-slate-900 flex items-center gap-2 text-sm"><UserCheck className="text-emerald-500" size={16}/> 推薦人選 ({finalRecommendations.length})</h3><span className="text-[12px] bg-slate-100 text-slate-500 px-2 py-1 rounded-md font-medium">依本季次數排序</span></div>
                     
                     {finalRecommendations.length > 0 ? (
