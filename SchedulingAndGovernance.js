@@ -1629,42 +1629,6 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                         </div>
                     )}
                 </div>
-                    {schedulingPhase === 'editor' && (
-                        <div className="flex flex-col items-end gap-3 mt-4 xl:mt-0 w-full xl:w-auto">
-                            <div className="flex items-center gap-3 flex-wrap justify-end">
-                                <div className="flex bg-slate-50 p-1.5 rounded-lg w-full md:w-auto overflow-x-auto custom-scrollbar border border-slate-200">
-                                    {['第一堂', '第二堂', '📊 數據分析'].map(tab => (
-                                        <button key={tab} onClick={() => { setActiveSessionTab(tab); if(tab === '📊 數據分析') { setActiveSlot(null); setGlobalSearchTerm(''); } setGridSearchTerm(''); }} className={`px-5 py-2 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap ${activeSessionTab === tab ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>{tab}</button>
-                                    ))}
-                                    {appMode === 'schedule' && (
-                                        <><div className="w-px h-6 bg-slate-200 mx-2 self-center"></div><button onClick={runAutoSchedule} disabled={isLoading} className="px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap text-indigo-600 hover:bg-white hover:shadow-sm flex items-center gap-1.5"><RefreshCw size={16} className={isLoading ? "animate-spin" : ""} /> 重新排班</button></>
-                                    )}
-                                </div>
-                                <div className="flex bg-slate-50 p-1.5 rounded-lg w-full md:w-auto overflow-x-auto custom-scrollbar border border-slate-200">
-                                    <button 
-                                        onClick={handleUndo} 
-                                        disabled={undoStack.length === 0} 
-                                        className="p-2 rounded-md transition-all duration-200 text-slate-600 hover:bg-white hover:shadow-sm hover:text-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:shadow-none disabled:hover:text-slate-600"
-                                        title="復原 (Ctrl+Z)"
-                                    >
-                                        <Undo2 size={18} />
-                                    </button>
-                                    <button 
-                                        onClick={handleRedo} 
-                                        disabled={redoStack.length === 0} 
-                                        className="p-2 rounded-md transition-all duration-200 text-slate-600 hover:bg-white hover:shadow-sm hover:text-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:shadow-none disabled:hover:text-slate-600"
-                                        title="取消復原 (Ctrl+Y)"
-                                    >
-                                        <Redo2 size={18} />
-                                    </button>
-                                    <div className="w-px h-6 bg-slate-200 mx-2 self-center"></div>
-                                    <button onClick={exportToCSV} className="px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap text-emerald-600 hover:bg-white hover:shadow-sm flex items-center gap-1.5"><Download size={16} /> 匯出 CSV</button>
-                                    <button onClick={handlePublishClick} disabled={isSaving} className="px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-button hover:-translate-y-0.5 flex items-center gap-1.5 disabled:from-indigo-400 disabled:to-violet-400">{isSaving ? <RefreshCw className="animate-spin" size={16} /> : <><Save size={16}/> 發布班表</>}</button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
                 
                 <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
                     <div className="flex-1 flex flex-col h-full relative overflow-hidden">
