@@ -1549,66 +1549,75 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                         </h2>
                     </div>
                     
-                    {/* 控制面板區塊 */}
+                   {/* 控制面板區塊 */}
                     {schedulingPhase === 'editor' && (
-                        <div className="mt-5 flex flex-col gap-4">
-                            {/* 第一行：紅框內容 (操作提示、圖例) + 搜尋框 */}
-                            <div className="flex flex-wrap items-end justify-between gap-4 border-b border-slate-100 pb-4">
-                                <div className="flex flex-col gap-3">
-                                    {/* 操作提示 */}
-                                    <div className="flex flex-wrap items-center gap-6">
-                                        <p className="text-slate-500 text-xs font-medium flex items-center gap-1.5"><Search size={14} className="text-indigo-500"/> 點擊姓名選擇替代人選</p>
-                                        <p className="text-slate-500 text-xs font-medium flex items-center gap-1.5"><GripVertical size={14} className="text-indigo-500"/> 拖曳姓名可交換位置</p>
-                                    </div>
-                                    {/* 圖例 */}
-                                    <div className="flex gap-3 flex-wrap">
-                                        <p className="text-rose-600 text-[10px] font-bold flex items-center gap-1.5 bg-rose-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-rose-500"></span> 紅色：崗位兼任</p>
-                                        <p className="text-sky-600 text-[10px] font-bold flex items-center gap-1.5 bg-sky-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-sky-500"></span> 藍色：群組落單</p>
-                                        {appMode === 'schedule' && <p className="text-orange-600 text-[10px] font-bold flex items-center gap-1.5 bg-orange-50 px-2 py-1 rounded"><span className="w-2 h-2 rounded-full bg-orange-500"></span> 橘色：落單自動替換 / 強制人工指派</p>}
-                                    </div>
+                        <div className="mt-4 flex flex-col gap-4">
+                            {/* 第一行：操作提示與圖例整併 */}
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-slate-100 pb-3">
+                                {/* 提示文字 */}
+                                <div className="flex items-center gap-4">
+                                    <p className="text-slate-500 text-xs font-medium flex items-center gap-1.5"><Search size={14} className="text-indigo-500"/> 點擊姓名選擇替代人選</p>
+                                    <p className="text-slate-500 text-xs font-medium flex items-center gap-1.5"><GripVertical size={14} className="text-indigo-500"/> 拖曳姓名可交換位置</p>
                                 </div>
                                 
-                                {/* 搜尋框 (靠右對齊) */}
-                                {activeSessionTab !== '📊 數據分析' && (
-                                    <div className="relative w-[120px] shrink-0 mb-1">
-                                        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                                        <input 
-                                            type="text" 
-                                            placeholder="搜尋關鍵字" 
-                                            value={gridSearchTerm}
-                                            onChange={(e) => setGridSearchTerm(e.target.value)}
-                                            className="w-full bg-slate-50 hover:bg-white border border-slate-200 rounded-md pl-8 pr-6 py-1.5 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:bg-white transition-all shadow-sm"
-                                        />
-                                        {gridSearchTerm && (
-                                            <button 
-                                                onClick={() => setGridSearchTerm('')} 
-                                                className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded transition-colors"
-                                            >
-                                                <X size={12} />
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
+                                {/* 垂直分隔線 (大螢幕顯示) */}
+                                <div className="hidden sm:block w-px h-3.5 bg-slate-300"></div>
+                                
+                                {/* 狀態圖例 */}
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="text-rose-600 text-[10px] font-bold flex items-center gap-1 bg-rose-50 px-2 py-1 rounded"><span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span> 崗位兼任</p>
+                                    <p className="text-sky-600 text-[10px] font-bold flex items-center gap-1 bg-sky-50 px-2 py-1 rounded"><span className="w-1.5 h-1.5 rounded-full bg-sky-500"></span> 群組落單</p>
+                                    {appMode === 'schedule' && <p className="text-orange-600 text-[10px] font-bold flex items-center gap-1 bg-orange-50 px-2 py-1 rounded"><span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span> 落單自動替換 / 強制人工指派</p>}
+                                </div>
                             </div>
 
-                            {/* 第二行：藍框內容 (堂別切換、功能按鈕) */}
+                            {/* 第二行：藍框內容 (工具列：堂別切換、重新排班、搜尋、功能按鈕) */}
                             <div className="flex flex-wrap items-center justify-between gap-3">
-                                {/* 左側：堂別與重新排班 */}
-                                <div className="flex bg-slate-50 p-1.5 rounded-lg w-full md:w-auto overflow-x-auto custom-scrollbar border border-slate-200 shadow-sm">
+                                {/* 左側工具列：堂別 + 重新排班 + 搜尋 */}
+                                <div className="flex items-center bg-slate-50 p-1.5 rounded-lg w-full xl:w-auto overflow-x-auto custom-scrollbar border border-slate-200 shadow-sm">
                                     {['第一堂', '第二堂', '📊 數據分析'].map(tab => (
-                                        <button key={tab} onClick={() => { setActiveSessionTab(tab); if(tab === '📊 數據分析') { setActiveSlot(null); setGlobalSearchTerm(''); } setGridSearchTerm(''); }} className={`px-5 py-2 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap ${activeSessionTab === tab ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>{tab}</button>
+                                        <button key={tab} onClick={() => { setActiveSessionTab(tab); if(tab === '📊 數據分析') { setActiveSlot(null); setGlobalSearchTerm(''); } setGridSearchTerm(''); }} className={`px-5 py-2 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap shrink-0 ${activeSessionTab === tab ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>{tab}</button>
                                     ))}
+                                    
                                     {appMode === 'schedule' && (
-                                        <><div className="w-px h-6 bg-slate-200 mx-2 self-center"></div><button onClick={runAutoSchedule} disabled={isLoading} className="px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap text-indigo-600 hover:bg-white hover:shadow-sm flex items-center gap-1.5"><RefreshCw size={16} className={isLoading ? "animate-spin" : ""} /> 重新排班</button></>
+                                        <>
+                                            <div className="w-px h-6 bg-slate-200 mx-2 self-center shrink-0"></div>
+                                            <button onClick={runAutoSchedule} disabled={isLoading} className="px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap text-indigo-600 hover:bg-white hover:shadow-sm flex items-center gap-1.5 shrink-0"><RefreshCw size={16} className={isLoading ? "animate-spin" : ""} /> 重新排班</button>
+                                        </>
+                                    )}
+
+                                    {/* 班表內文姓名搜尋框 (整合進左側工具列中) */}
+                                    {activeSessionTab !== '📊 數據分析' && (
+                                        <>
+                                            <div className="w-px h-6 bg-slate-200 mx-2 self-center shrink-0"></div>
+                                            <div className="relative w-[140px] shrink-0 mx-1">
+                                                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                                                <input 
+                                                    type="text" 
+                                                    placeholder="搜尋關鍵字" 
+                                                    value={gridSearchTerm}
+                                                    onChange={(e) => setGridSearchTerm(e.target.value)}
+                                                    className="w-full bg-white border border-slate-200 rounded-md pl-8 pr-6 py-1.5 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all shadow-sm"
+                                                />
+                                                {gridSearchTerm && (
+                                                    <button 
+                                                        onClick={() => setGridSearchTerm('')} 
+                                                        className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded transition-colors"
+                                                    >
+                                                        <X size={12} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </>
                                     )}
                                 </div>
 
-                                {/* 右側：復原、匯出、發布 */}
-                                <div className="flex bg-slate-50 p-1.5 rounded-lg w-full md:w-auto overflow-x-auto custom-scrollbar border border-slate-200 shadow-sm">
+                                {/* 右側工具列：復原、匯出、發布 */}
+                                <div className="flex items-center bg-slate-50 p-1.5 rounded-lg w-full xl:w-auto overflow-x-auto custom-scrollbar border border-slate-200 shadow-sm shrink-0">
                                     <button 
                                         onClick={handleUndo} 
                                         disabled={undoStack.length === 0} 
-                                        className="p-2 rounded-md transition-all duration-200 text-slate-600 hover:bg-white hover:shadow-sm hover:text-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:shadow-none disabled:hover:text-slate-600"
+                                        className="p-2 rounded-md transition-all duration-200 text-slate-600 hover:bg-white hover:shadow-sm hover:text-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:shadow-none disabled:hover:text-slate-600 shrink-0"
                                         title="復原 (Ctrl+Z)"
                                     >
                                         <Undo2 size={18} />
@@ -1616,14 +1625,14 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                                     <button 
                                         onClick={handleRedo} 
                                         disabled={redoStack.length === 0} 
-                                        className="p-2 rounded-md transition-all duration-200 text-slate-600 hover:bg-white hover:shadow-sm hover:text-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:shadow-none disabled:hover:text-slate-600"
+                                        className="p-2 rounded-md transition-all duration-200 text-slate-600 hover:bg-white hover:shadow-sm hover:text-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:shadow-none disabled:hover:text-slate-600 shrink-0"
                                         title="取消復原 (Ctrl+Y)"
                                     >
                                         <Redo2 size={18} />
                                     </button>
-                                    <div className="w-px h-6 bg-slate-200 mx-2 self-center"></div>
-                                    <button onClick={exportToCSV} className="px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap text-emerald-600 hover:bg-white hover:shadow-sm flex items-center gap-1.5"><Download size={16} /> 匯出 CSV</button>
-                                    <button onClick={handlePublishClick} disabled={isSaving} className="px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-button hover:-translate-y-0.5 flex items-center gap-1.5 disabled:from-indigo-400 disabled:to-violet-400">{isSaving ? <RefreshCw className="animate-spin" size={16} /> : <><Save size={16}/> 發布班表</>}</button>
+                                    <div className="w-px h-6 bg-slate-200 mx-2 self-center shrink-0"></div>
+                                    <button onClick={exportToCSV} className="px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap text-emerald-600 hover:bg-white hover:shadow-sm flex items-center gap-1.5 shrink-0"><Download size={16} /> 匯出 CSV</button>
+                                    <button onClick={handlePublishClick} disabled={isSaving} className="px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-button hover:-translate-y-0.5 flex items-center gap-1.5 shrink-0 disabled:from-indigo-400 disabled:to-violet-400">{isSaving ? <RefreshCw className="animate-spin" size={16} /> : <><Save size={16}/> 發布班表</>}</button>
                                 </div>
                             </div>
                         </div>
