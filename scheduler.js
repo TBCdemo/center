@@ -1,12 +1,13 @@
 /**
- * 教會季排班系統 - 核心引擎 (Scheduler Engine V21 Final + 跨月防連週升維 + 配速優化 + 偏好防線修復)
+ * 教會季排班系統 - 核心引擎 (Scheduler Engine V21 Final + 跨月防連週升維 + 配速優化 + 偏好防線修復 + 執事跨堂特許)
  * 實作優化目標：
  * 1. [天數計算] 導入 totalDays 獨立計算出勤天數，支援同堂兼任以降低出勤日數。
  * 2. [同堂兼任] 實作 _immediateComboFill 主動攔截，並將 Combo 列為絕對最優先。
  * 3. [防呆配速] 「一季三次」單月出勤上限 = 2 天；「一季一次」智慧解禁週順延。
- * 4. [防連週升維] 升級為 7 維度計分陣列，將防連週懲罰放在天數之前，完美解決跨月連週問題，且不破壞家庭連動。
+ * 4. [防連週升維] 升級為 7 維度計分陣列，將防連週懲罰放在天數之前，完美解決跨月連週問題。
  * 5. [互斥隔離] 核心崗位與庶務崗位嚴格隔離，主餐與收奉獻開放自由兼任。
  * 6. [偏好防線] 修復核心崗位繞過 preferred_session 的問題，嚴格執行堂數偏好。
+ * 7. [執事特許] 針對「執事輪值」崗位給予單堂偏好豁免權，確保同一人能順利包辦兩堂。
  */
 
 const sessionsToSchedule = ['第一堂', '第二堂'];
@@ -232,8 +233,9 @@ const ScheduleEngine = {
 
     const dualPref = parseInt(m.dual_service_pref) || 0;
 
-    // 【修正：無論是否為核心崗位，只要是當天第一班，都必須嚴格遵守堂數偏好】
-    if (dayShifts.length === 0) {
+    // 【修正：加入 roleName !== '執事輪值' 豁免條款】
+    // 確保一般崗位嚴格遵守偏好，但執事因為必須包辦兩堂，故允許無視單堂偏好
+    if (dayShifts.length === 0 && roleName !== '執事輪值') {
         if (dualPref === 0 && m.preferred_session && m.preferred_session !== '皆可') {
             const prefStr = String(m.preferred_session);
             if (!prefStr.includes(session.replace('堂', ''))) return false;
@@ -243,11 +245,9 @@ const ScheduleEngine = {
     const dayRoles = dayShifts.map(d => d._positionName);
     const coreRoles = ['司會', 'PPT', '執事輪值'];
 
-    // 核心崗位互斥檢查
     if (dayRoles.some(r => coreRoles.includes(r))) return false;
     if (coreRoles.includes(roleName) && dayShifts.length > 0) return false;
 
-    // 針對非核心崗位的跨堂/雙服事進階檢查
     if (!coreRoles.includes(roleName)) {
         if (dayShifts.length === 1) {
             const firstShift = dayShifts[0];
@@ -731,8 +731,10 @@ const ScheduleEngine = {
       const eligible = members.filter((m) => {
         const currentUsage = state.roleUsage[m.id]?.[deaconId] || 0;
         const neededSlots = slots.filter(s => s.needed > 0);
+        // 執事一季最高 4 次的硬上限
         if (currentUsage + neededSlots.length > 4) return false; 
         
+        // 【修正：恢復 every 檢查，確保候選人必須能同時吃下第一與第二堂】
         return neededSlots.every(s => this._canAssign(m, s, state, context, 0, true));
       });
       
@@ -742,13 +744,8 @@ const ScheduleEngine = {
       scored.sort((a, b) => this._compareScore(a.score, b.score));
       const best = scored[0].m;
       
-      // 【修正：防堵時間差漏洞，改為逐個確認指派】
-      slots.filter(s => s.needed > 0).forEach(s => {
-          if (this._canAssign(best, s, state, context, 0, true)) {
-              this._assign(best, s, state, context);
-          }
-      });
-      
+      // 【修正：批次指派兩堂給同一位最佳候選人】
+      slots.filter(s => s.needed > 0).forEach(s => this._assign(best, s, state, context));
       this._immediateFamilyFill(best, state, context, members);
       limit++;
     }
