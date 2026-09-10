@@ -488,12 +488,19 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
     };
 
     let displayMembers = members.filter(m => {
-        if (m.name && m.name.startsWith('SYSTEM_')) return false;
-    
-        if (!isAdmin) {
-            const memberEmail = m.email ? m.email.trim() : '';
-            if (memberEmail !== currentUserAccount && memberEmail !== currentUserEmail) return false;
-        }
+    if (m.name && m.name.startsWith('SYSTEM_')) return false;
+
+    if (!isAdmin) {
+        // 將資料庫的信箱轉為小寫
+        const memberEmail = m.email ? m.email.trim().toLowerCase() : '';
+        
+        // 將目前登入的 Session 信箱與擷取帳號也轉為小寫
+        const safeUserAccount = currentUserAccount ? currentUserAccount.toLowerCase() : '';
+        const safeUserEmail = currentUserEmail ? currentUserEmail.toLowerCase() : '';
+        
+        // 使用全小寫進行比對
+        if (memberEmail !== safeUserAccount && memberEmail !== safeUserEmail) return false;
+    }
 
         const rawSearchTerm = searchTerm.trim();
         if (!rawSearchTerm) return true;
