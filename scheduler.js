@@ -648,7 +648,7 @@ const ScheduleEngine = {
       if (pref !== 1 && pref !== 2) return;
 
       const dayShifts = state.draft.filter(d => d.service_date === context.dateStr && d.member_id === baseMember.id);
-      if (dayShifts.length >= 2 || dayShifts.some(s => ['司會', 'PPT', '執事輪值'].includes(s._positionName))) return;
+      // 移除對 司會 和 PPT 的封殺，讓他們能進入補位尋找程序 if (dayShifts.length >= 2 || dayShifts.some(s => s._positionName === '執事輪值')) return;
 
       const currentShift = dayShifts[0];
       if (!currentShift) return;
