@@ -8,6 +8,7 @@
  * 5. [互斥隔離] 核心崗位與庶務崗位嚴格隔離，主餐與收奉獻開放自由兼任。
  * 6. [偏好防線] 修復核心崗位繞過 preferred_session 的問題，嚴格執行堂數偏好。
  * 7. [執事特許] 針對「執事輪值」崗位給予單堂偏好豁免權，確保同一人能順利包辦兩堂。
+ * 8. [雙堂徹底執行] 修正核心崗位雙堂連排限制與補位機制，嚴格執行二堂同岡與二堂異崗。
  */
 
 const sessionsToSchedule = ['第一堂', '第二堂'];
@@ -19,7 +20,7 @@ const ScheduleEngine = {
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const dd = String(d.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
+    return `\({yyyy}-\){mm}-${dd}`;
   },
 
   getSundaysInQuarter(y, q) {
@@ -52,7 +53,7 @@ const ScheduleEngine = {
       roleSettings = {},
     } = params;
 
-    const currentQuarterStr = `${year}-Q${quarter}`;
+    const currentQuarterStr = `\({year}-Q\){quarter}`;
     const clonedMembers = JSON.parse(JSON.stringify(effectiveMembers));
 
     clonedMembers.forEach(m => {
@@ -89,9 +90,10 @@ const ScheduleEngine = {
         }
         m.unavailable_dates = unDates.sort();
 
-        if (['一季三次', '一季一次'].includes(m.availability_status)) {
-             m.dual_service_pref = 0; 
-        }
+        // 【修改：註解此段以解除「一季三次」或「一季一次」的單堂強制降級】
+        // if (['一季三次', '一季一次'].includes(m.availability_status)) {
+        //      m.dual_service_pref = 0; 
+        // }
     });
 
     const positions = params.positions || dbData.positions || [];
@@ -233,8 +235,6 @@ const ScheduleEngine = {
 
     const dualPref = parseInt(m.dual_service_pref) || 0;
 
-    // 【修正：加入 roleName !== '執事輪值' 豁免條款】
-    // 確保一般崗位嚴格遵守偏好，但執事因為必須包辦兩堂，故允許無視單堂偏好
     if (dayShifts.length === 0 && roleName !== '執事輪值') {
         if (dualPref === 0 && m.preferred_session && m.preferred_session !== '皆可') {
             const prefStr = String(m.preferred_session);
@@ -245,10 +245,21 @@ const ScheduleEngine = {
     const dayRoles = dayShifts.map(d => d._positionName);
     const coreRoles = ['司會', 'PPT', '執事輪值'];
 
-    if (dayRoles.some(r => coreRoles.includes(r))) return false;
-    if (coreRoles.includes(roleName) && dayShifts.length > 0) return false;
+    // 【修改：重新設計核心防護邏輯，允許二堂同岡 (dualPref === 1) 跨堂連上】
+    const hasCoreRole = dayRoles.some(r => coreRoles.includes(r));
+    const isTargetCoreRole = coreRoles.includes(roleName);
 
-    if (!coreRoles.includes(roleName)) {
+    if ((hasCoreRole || isTargetCoreRole) && dayShifts.length > 0) {
+        const firstShift = dayShifts[0];
+        // 唯一放行條件：二堂同岡，且崗位相同，且堂次不同
+        if (dualPref === 1 && firstShift._positionName === roleName && firstShift.session !== session) {
+            // 通過檢查，不阻擋
+        } else {
+            return false;
+        }
+    }
+
+    if (!coreRoles.includes(roleName) && !hasCoreRole) {
         if (dayShifts.length === 1) {
             const firstShift = dayShifts[0];
             if (dualPref === 1) {
@@ -618,6 +629,10 @@ const ScheduleEngine = {
   },
 
   _immediateComboFill(baseMember, state, context, members) {
+      // 【修改：明確有跨堂雙堂偏好的人，不參與同堂兼任(Combo)機制，以免卡死跨堂配置】
+      const pref = parseInt(baseMember.dual_service_pref) || 0;
+      if (pref === 1 || pref === 2) return;
+
       const comboRoles = ['接待', '收奉獻', '主餐', '新朋友關懷'];
       const dayShifts = state.draft.filter(d => d.service_date === context.dateStr && d.member_id === baseMember.id);
       
@@ -648,7 +663,8 @@ const ScheduleEngine = {
       if (pref !== 1 && pref !== 2) return;
 
       const dayShifts = state.draft.filter(d => d.service_date === context.dateStr && d.member_id === baseMember.id);
-      if (dayShifts.length >= 2 || dayShifts.some(s => ['司會', 'PPT', '執事輪值'].includes(s._positionName))) return;
+      // 【修改：移除對 PPT、司會的封殺限制，僅攔截執事輪值 (因執事有獨立排班函式)】
+      if (dayShifts.length >= 2 || dayShifts.some(s => s._positionName === '執事輪值')) return;
 
       const currentShift = dayShifts[0];
       if (!currentShift) return;
@@ -731,10 +747,7 @@ const ScheduleEngine = {
       const eligible = members.filter((m) => {
         const currentUsage = state.roleUsage[m.id]?.[deaconId] || 0;
         const neededSlots = slots.filter(s => s.needed > 0);
-        // 執事一季最高 4 次的硬上限
         if (currentUsage + neededSlots.length > 4) return false; 
-        
-        // 【修正：恢復 every 檢查，確保候選人必須能同時吃下第一與第二堂】
         return neededSlots.every(s => this._canAssign(m, s, state, context, 0, true));
       });
       
@@ -744,7 +757,6 @@ const ScheduleEngine = {
       scored.sort((a, b) => this._compareScore(a.score, b.score));
       const best = scored[0].m;
       
-      // 【修正：批次指派兩堂給同一位最佳候選人】
       slots.filter(s => s.needed > 0).forEach(s => this._assign(best, s, state, context));
       this._immediateFamilyFill(best, state, context, members);
       limit++;
@@ -762,7 +774,8 @@ const ScheduleEngine = {
        if (pref !== 1 && pref !== 2) return; 
 
        const myShifts = todayShifts.filter(d => d.member_id === m.id);
-       if (myShifts.length >= 2 || myShifts.some(s => ['司會', 'PPT', '執事輪值'].includes(s._positionName))) return;
+       // 【修改：移除對 PPT、司會的封殺限制，僅攔截執事輪值】
+       if (myShifts.length >= 2 || myShifts.some(s => s._positionName === '執事輪值')) return;
 
        const currentShift = myShifts[0];
        const targetSession = currentShift.session === '第一堂' ? '第二堂' : '第一堂';
@@ -941,7 +954,7 @@ const ScheduleEngine = {
     context.dailyAssignments[m.id].push(slot.roleName);
 
     state.draft.push({
-      temp_id: `T_${context.dateStr}_${slot.session}_${slot.posId}_${Math.random()}`,
+      temp_id: `T_\({context.dateStr}_\){slot.session}_\({slot.posId}_\){Math.random()}`,
       service_date: context.dateStr, 
       session: slot.session, 
       member_id: m.id, 
@@ -956,7 +969,7 @@ const ScheduleEngine = {
     context.availableSlots.forEach((slot) => {
       while (slot.needed > 0) {
         state.draft.push({
-          temp_id: `EMPTY_${context.dateStr}_${slot.session}_${slot.posId}_${Math.random()}`,
+          temp_id: `EMPTY_\({context.dateStr}_\){slot.session}_\({slot.posId}_\){Math.random()}`,
           service_date: context.dateStr, 
           session: slot.session, 
           member_id: 'EMPTY_SLOT', 
