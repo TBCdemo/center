@@ -774,7 +774,8 @@ if (coreRoles.includes(roleName) && dayShifts.length > 0) {
        if (pref !== 1 && pref !== 2) return; 
 
        const myShifts = todayShifts.filter(d => d.member_id === m.id);
-       if (myShifts.length >= 2 || myShifts.some(s => ['司會', 'PPT', '執事輪值'].includes(s._positionName))) return;
+       // 解除司會與 PPT 的封殺，讓他們能順利執行雙堂異崗補
+      if (myShifts.length >= 2 || myShifts.some(s => s._positionName === '執事輪值')) return;
 
        const currentShift = myShifts[0];
        const targetSession = currentShift.session === '第一堂' ? '第二堂' : '第一堂';
