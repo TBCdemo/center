@@ -245,8 +245,14 @@ const ScheduleEngine = {
     const dayRoles = dayShifts.map(d => d._positionName);
     const coreRoles = ['司會', 'PPT', '執事輪值'];
 
-    if (dayRoles.some(r => coreRoles.includes(r))) return false;
-    if (coreRoles.includes(roleName) && dayShifts.length > 0) return false;
+    if (coreRoles.includes(roleName) && dayShifts.length > 0) {
+        const firstShift = dayShifts[0];
+        if (dualPref !== 1 || firstShift._positionName !== roleName || firstShift.session === session) {
+            return false;
+        }
+    } else if (dayRoles.some(r => coreRoles.includes(r))) {
+        return false;
+    }
 
     if (!coreRoles.includes(roleName)) {
         if (dayShifts.length === 1) {
