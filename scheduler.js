@@ -19,7 +19,7 @@ const ScheduleEngine = {
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const dd = String(d.getDate()).padStart(2, '0');
-    return `\({yyyy}-\){mm}-${dd}`;
+    return `${yyyy}-${mm}-${dd}`;
   },
 
   getSundaysInQuarter(y, q) {
@@ -52,7 +52,7 @@ const ScheduleEngine = {
       roleSettings = {},
     } = params;
 
-    const currentQuarterStr = `\({year}-Q\){quarter}`;
+    const currentQuarterStr = `${year}-Q${quarter}`;
     const clonedMembers = JSON.parse(JSON.stringify(effectiveMembers));
 
     clonedMembers.forEach(m => {
@@ -245,19 +245,8 @@ const ScheduleEngine = {
     const dayRoles = dayShifts.map(d => d._positionName);
     const coreRoles = ['司會', 'PPT', '執事輪值'];
 
-    // === 修改點 2：開放核心崗位支援雙堂連排 (二堂同岡) ===
-    if (coreRoles.includes(roleName) && dayShifts.length > 0) {
-        const firstShift = dayShifts[0];
-        // 條件：必須是二堂同岡，且上一堂就是現在這個崗位，且是不同堂次才放行
-        if (dualPref === 1 && firstShift._positionName === roleName && firstShift.session !== session) {
-            // 通過檢查，允許跨堂指派同一個核心崗位
-        } else {
-            return false;
-        }
-    } else if (dayRoles.some(r => coreRoles.includes(r))) {
-        // 確保原本排了核心崗位，或是二堂異崗想排第二個核心崗位，則阻擋
-        return false;
-    }
+    if (dayRoles.some(r => coreRoles.includes(r))) return false;
+    if (coreRoles.includes(roleName) && dayShifts.length > 0) return false;
 
     if (!coreRoles.includes(roleName)) {
         if (dayShifts.length === 1) {
@@ -659,10 +648,7 @@ const ScheduleEngine = {
       if (pref !== 1 && pref !== 2) return;
 
       const dayShifts = state.draft.filter(d => d.service_date === context.dateStr && d.member_id === baseMember.id);
-      
-      // === 修改點 3：解除跨堂補位機制的 PPT/司會 封殺 ===
-      // 讓底層 _canAssign 把關，這裡只排除執事輪值
-      if (dayShifts.length >= 2 || dayShifts.some(s => s._positionName === '執事輪值')) return;
+      if (dayShifts.length >= 2 || dayShifts.some(s => ['司會', 'PPT', '執事輪值'].includes(s._positionName))) return;
 
       const currentShift = dayShifts[0];
       if (!currentShift) return;
@@ -776,9 +762,7 @@ const ScheduleEngine = {
        if (pref !== 1 && pref !== 2) return; 
 
        const myShifts = todayShifts.filter(d => d.member_id === m.id);
-       
-       // === 修改點 3：解除跨堂補位機制的 PPT/司會 封殺 ===
-       if (myShifts.length >= 2 || myShifts.some(s => s._positionName === '執事輪值')) return;
+       if (myShifts.length >= 2 || myShifts.some(s => ['司會', 'PPT', '執事輪值'].includes(s._positionName))) return;
 
        const currentShift = myShifts[0];
        const targetSession = currentShift.session === '第一堂' ? '第二堂' : '第一堂';
@@ -957,7 +941,7 @@ const ScheduleEngine = {
     context.dailyAssignments[m.id].push(slot.roleName);
 
     state.draft.push({
-      temp_id: `T_\({context.dateStr}_\){slot.session}_\({slot.posId}_\){Math.random()}`,
+      temp_id: `T_${context.dateStr}_${slot.session}_${slot.posId}_${Math.random()}`,
       service_date: context.dateStr, 
       session: slot.session, 
       member_id: m.id, 
@@ -972,7 +956,7 @@ const ScheduleEngine = {
     context.availableSlots.forEach((slot) => {
       while (slot.needed > 0) {
         state.draft.push({
-          temp_id: `EMPTY_\({context.dateStr}_\){slot.session}_\({slot.posId}_\){Math.random()}`,
+          temp_id: `EMPTY_${context.dateStr}_${slot.session}_${slot.posId}_${Math.random()}`,
           service_date: context.dateStr, 
           session: slot.session, 
           member_id: 'EMPTY_SLOT', 
