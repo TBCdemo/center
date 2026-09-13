@@ -488,14 +488,26 @@ const ScheduleEngine = {
               if (!this._canAssign(m, s1, state, context, 0)) continue;
               if ((state.totalUsage[m.id] || 0) > this._getSkillAvgUsage(state, members, s1.posId) + 0.1) continue;
               
+              // === 新增：建立模擬草稿，消除防護空窗期 ===
+              state.draft.push({
+                  service_date: context.dateStr, 
+                  session: s1.session, 
+                  member_id: m.id, 
+                  position_id: s1.posId,
+                  _positionName: s1.roleName
+              });
+
               let s2 = null;
               const s2Slots = context.availableSlots.filter(s => s.session === '第二堂' && s.needed > 0);
               
               if (p === 1) { 
-                  s2 = s2Slots.find(s => s.roleName === s1.roleName && this._canAssign(m, s, state, context, 0) && (state.totalUsage[m.id] || 0) <= this._getSkillAvgUsage(state, members, s.posId) + 0.1);
+                  s2 = s2Slots.find(s => s.roleName === s1.roleName && this._canAssign(m, s, state, context, 0) && (state.totalUsage[m.id] || 0) <= this._getSkillAvgUsage(state, members, s1.posId) + 0.1);
               } else if (p === 2) { 
-                  s2 = s2Slots.find(s => s.roleName !== s1.roleName && this._canAssign(m, s, state, context, 0) && (state.totalUsage[m.id] || 0) <= this._getSkillAvgUsage(state, members, s.posId) + 0.1);
+                  s2 = s2Slots.find(s => s.roleName !== s1.roleName && this._canAssign(m, s, state, context, 0) && (state.totalUsage[m.id] || 0) <= this._getSkillAvgUsage(state, members, s1.posId) + 0.1);
               }
+
+              // === 移除模擬草稿 ===
+              state.draft.pop();
 
               if (s2) {
                   this._assign(m, s1, state, context);
