@@ -245,27 +245,8 @@ const ScheduleEngine = {
     const dayRoles = dayShifts.map(d => d._positionName);
     const coreRoles = ['司會', 'PPT', '執事輪值'];
 
-    // 判斷當前崗位與已排崗位是否涉及核心 (司會、PPT、執事)
-const isCoreRole = coreRoles.includes(roleName);
-const hasCoreRoleAssigned = dayRoles.some(r => coreRoles.includes(r));
-
-if (dayShifts.length > 0) {
-    const firstShift = dayShifts[0];
-
-    // 同堂防呆：避免同一堂排兩個崗位
-    if (firstShift.session === session) return false;
-
-    if (dualPref === 1) {
-        // 【二堂同崗】：必須完全相同崗位
-        if (firstShift._positionName !== roleName) return false;
-    } else if (dualPref === 2) {
-        // 【二堂異崗】：必須是不同崗位
-        if (firstShift._positionName === roleName) return false;
-    } else {
-        // 【單堂偏好 或 系統強制歸零】：若涉及核心崗位，嚴格阻擋跨堂
-        if (isCoreRole || hasCoreRoleAssigned) return false;
-    }
-}
+    if (dayRoles.some(r => coreRoles.includes(r))) return false;
+    if (coreRoles.includes(roleName) && dayShifts.length > 0) return false;
 
     if (!coreRoles.includes(roleName)) {
         if (dayShifts.length === 1) {
