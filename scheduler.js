@@ -245,8 +245,19 @@ const ScheduleEngine = {
     const dayRoles = dayShifts.map(d => d._positionName);
     const coreRoles = ['司會', 'PPT', '執事輪值'];
 
-    if (dayRoles.some(r => coreRoles.includes(r))) return false;
-    if (coreRoles.includes(roleName) && dayShifts.length > 0) return false;
+    // 重新設計核心防護邏輯，允許二堂同岡 (dualPref === 1) 跨堂連上
+if (coreRoles.includes(roleName) && dayShifts.length > 0) {
+    const firstShift = dayShifts[0];
+    // 條件：必須是二堂同岡，且上一堂就是現在這個崗位，且是不同堂次才放行
+    if (dualPref === 1 && firstShift._positionName === roleName && firstShift.session !== session) {
+        // 通過檢查，不阻擋
+    } else {
+        return false;
+    }
+} else if (dayRoles.some(r => coreRoles.includes(r))) {
+    // 若原先排了核心崗位，或是二堂異崗想排第二個核心崗位，則阻擋
+    return false;
+}
 
     if (!coreRoles.includes(roleName)) {
         if (dayShifts.length === 1) {
@@ -648,7 +659,7 @@ const ScheduleEngine = {
       if (pref !== 1 && pref !== 2) return;
 
       const dayShifts = state.draft.filter(d => d.service_date === context.dateStr && d.member_id === baseMember.id);
-      if (dayShifts.length >= 2 || dayShifts.some(s => ['司會', 'PPT', '執事輪值'].includes(s._positionName))) return;
+      // 移除對 司會 和 PPT 的封殺，讓他們能進入補位尋找程序 if (dayShifts.length >= 2 || dayShifts.some(s => s._positionName === '執事輪值')) return;
 
       const currentShift = dayShifts[0];
       if (!currentShift) return;
