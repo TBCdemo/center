@@ -19,7 +19,7 @@ const ScheduleEngine = {
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const dd = String(d.getDate()).padStart(2, '0');
-    return `\({yyyy}-\){mm}-${dd}`;
+    return `${yyyy}-${mm}-${dd}`;
   },
 
   getSundaysInQuarter(y, q) {
@@ -52,7 +52,7 @@ const ScheduleEngine = {
       roleSettings = {},
     } = params;
 
-    const currentQuarterStr = `\({year}-Q\){quarter}`;
+    const currentQuarterStr = `${year}-Q${quarter}`;
     const clonedMembers = JSON.parse(JSON.stringify(effectiveMembers));
 
     clonedMembers.forEach(m => {
@@ -245,15 +245,8 @@ const ScheduleEngine = {
     const dayRoles = dayShifts.map(d => d._positionName);
     const coreRoles = ['司會', 'PPT', '執事輪值'];
 
-    // 修改：開放核心崗位支援二堂同岡 (dualPref === 1)
-    if (coreRoles.includes(roleName) && dayShifts.length > 0) {
-        const firstShift = dayShifts[0];
-        if (dualPref !== 1 || firstShift._positionName !== roleName || firstShift.session === session) {
-            return false;
-        }
-    } else if (dayRoles.some(r => coreRoles.includes(r))) {
-        return false;
-    }
+    if (dayRoles.some(r => coreRoles.includes(r))) return false;
+    if (coreRoles.includes(roleName) && dayShifts.length > 0) return false;
 
     if (!coreRoles.includes(roleName)) {
         if (dayShifts.length === 1) {
@@ -948,7 +941,7 @@ const ScheduleEngine = {
     context.dailyAssignments[m.id].push(slot.roleName);
 
     state.draft.push({
-      temp_id: `T_\({context.dateStr}_\){slot.session}_\({slot.posId}_\){Math.random()}`,
+      temp_id: `T_${context.dateStr}_${slot.session}_${slot.posId}_${Math.random()}`,
       service_date: context.dateStr, 
       session: slot.session, 
       member_id: m.id, 
@@ -963,7 +956,7 @@ const ScheduleEngine = {
     context.availableSlots.forEach((slot) => {
       while (slot.needed > 0) {
         state.draft.push({
-          temp_id: `EMPTY_\({context.dateStr}_\){slot.session}_\({slot.posId}_\){Math.random()}`,
+          temp_id: `EMPTY_${context.dateStr}_${slot.session}_${slot.posId}_${Math.random()}`,
           service_date: context.dateStr, 
           session: slot.session, 
           member_id: 'EMPTY_SLOT', 
