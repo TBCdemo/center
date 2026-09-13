@@ -659,7 +659,8 @@ if (coreRoles.includes(roleName) && dayShifts.length > 0) {
       if (pref !== 1 && pref !== 2) return;
 
       const dayShifts = state.draft.filter(d => d.service_date === context.dateStr && d.member_id === baseMember.id);
-      // 移除對 司會 和 PPT 的封殺，讓他們能進入補位尋找程序 if (dayShifts.length >= 2 || dayShifts.some(s => s._positionName === '執事輪值')) return;
+      // 解除對 司會 和 PPT 的封殺，確保排滿兩堂或包含執事輪值時不再補位
+    if (dayShifts.length >= 2 || dayShifts.some(s => s._positionName === '執事輪值')) return;
 
       const currentShift = dayShifts[0];
       if (!currentShift) return;
