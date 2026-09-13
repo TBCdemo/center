@@ -259,24 +259,26 @@ const ScheduleEngine = {
             } else {
                 return false; // 阻擋其他所有同堂排班的狀況
             }
-        } else {
-            // 【跨堂判斷】
-            if (dualPref === 1) {
-                // 【二堂同崗】：必須是相同崗位
-                if (firstShift._positionName !== roleName) return false;
-            } else if (dualPref === 2) {
-                // 【二堂異崗】：必須是不同崗位
-                if (firstShift._positionName === roleName) return false;
-            } else {
-                // 【單堂偏好】：若已排班，或涉及核心崗位，嚴格阻擋跨堂
+       } else {
+                // 【跨堂判斷】
                 const isCoreRole = coreRoles.includes(roleName);
                 const hasCoreRoleAssigned = dayRoles.some(r => coreRoles.includes(r));
-                if (isCoreRole || hasCoreRoleAssigned) return false;
-                
-                // 單堂偏好者，若堂次不符原始偏好也擋 (雖然上方已被 if 分流，此行作為雙重保險)
-                if (firstShift.session !== session) return false; 
+
+                if (dualPref === 1) {
+                    // 【二堂同崗】：必須是相同崗位
+                    if (firstShift._positionName !== roleName) return false;
+                } else if (dualPref === 2) {
+                    // 【二堂異崗】：必須是不同崗位，但允許觸碰核心崗位
+                    if (firstShift._positionName === roleName) return false;
+                    
+                    // (選擇性防呆) 若不希望一人同時包辦「兩個」核心崗位(如司會+PPT)，可取消下方註解：
+                    // if (isCoreRole && hasCoreRoleAssigned) return false;
+                } else {
+                    // 【單堂偏好 或 被降級者】：若已排班，或涉及核心崗位，嚴格阻擋跨堂
+                    if (isCoreRole || hasCoreRoleAssigned) return false;
+                    if (firstShift.session !== session) return false; 
+                }
             }
-        }
     }
 
     if (!skipFamilyCheck) {
