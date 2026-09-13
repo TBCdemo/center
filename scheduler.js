@@ -456,75 +456,9 @@ const ScheduleEngine = {
       });
     });
 
-    // === 新增：在一般排班結束後，發動雙堂落單的強制換班修正 ===
-    this._forceSwapForDualService(state, context, members);
-
     this._fillEmptyWarnings(state, context);
   },
-_forceSwapForDualService(state, context, members) {
-      const todayShifts = state.draft.filter(d => d.service_date === context.dateStr && !d.is_empty);
-      const assignedIds = [...new Set(todayShifts.map(d => d.member_id))];
 
-      assignedIds.forEach(mId => {
-          const m = members.find(x => x.id === mId);
-          if (!m) return;
-          
-          const pref = parseInt(m.dual_service_pref) || 0;
-          if (pref !== 1 && pref !== 2) return; 
-
-          const myShifts = todayShifts.filter(d => d.member_id === m.id);
-          if (myShifts.length >= 2) return; // 已經成功排滿兩堂，無需修正
-
-          const currentShift = myShifts[0];
-          const targetSession = currentShift.session === '第一堂' ? '第二堂' : '第一堂';
-          const potentialVictims = todayShifts.filter(d => d.session === targetSession);
-
-          let bestSwap = null;
-          let bestScore = -9999;
-
-          for (let vShift of potentialVictims) {
-              // 條件 1：根據同崗或異崗偏好篩選目標職缺
-              if (pref === 1 && vShift._positionName !== currentShift._positionName) continue;
-              if (pref === 2) {
-                  if (vShift._positionName === currentShift._positionName) continue;
-                  // 異崗嚴格禁止混搭核心崗位
-                  if (['司會', 'PPT', '執事輪值'].includes(vShift._positionName)) continue;
-              }
-
-              // 條件 2：檢查需求者是否有該崗位的技能
-              if (!state.memberSkills[m.id].has(vShift.position_id)) continue;
-
-              const victim = members.find(x => x.id === vShift.member_id);
-              if (!victim) continue;
-
-              // 條件 3：被換掉的「犧牲者」必須是單堂偏好者，且不能是受保護的家族成員
-              const victimPref = parseInt(victim.dual_service_pref) || 0;
-              if (victimPref !== 0) continue;
-              const victimGroupId = state.memberGroups[victim.id];
-              if (victimGroupId && (victimGroupId.startsWith('FA') || victimGroupId.startsWith('FB'))) continue;
-
-              // 條件 4：計算替換分數（優先換掉目前服事次數較多的單堂人員）
-              const victimUsage = state.totalUsage[victim.id] || 0;
-              const mUsage = state.totalUsage[m.id] || 0;
-              const score = victimUsage - mUsage;
-
-              if (score > bestScore) {
-                  bestScore = score;
-                  bestSwap = { 
-                      shift: vShift, 
-                      victim: victim, 
-                      mockSlot: { roleName: vShift._positionName, session: vShift.session, posId: vShift.position_id } 
-                  };
-              }
-          }
-
-          if (bestSwap) {
-              this._replaceAssignment(m, bestSwap.victim.id, bestSwap.shift.temp_id, bestSwap.mockSlot, state, context);
-              // 同步更新 local variables 以防後續邏輯誤判
-              todayShifts.push({ ...bestSwap.shift, member_id: m.id }); 
-          }
-      });
-  },
   _assignDualService(state, context, members) {
       const activeMembers = members.filter(m => !['暫停服事', '安息季'].includes(m.availability_status));
       const avgUsage = activeMembers.length > 0 
@@ -549,37 +483,25 @@ _forceSwapForDualService(state, context, members) {
           let s1Slots = context.availableSlots.filter(s => s.session === '第一堂' && s.needed > 0);
           
           for (let s1 of s1Slots) {
-                  if (!this._canAssign(m, s1, state, context, 0)) continue;
-                  if ((state.totalUsage[m.id] || 0) > this._getSkillAvgUsage(state, members, s1.posId) + 0.1) continue;
-
-                  // === 新增：建立模擬草稿，消除防護空窗期 ===
-                  state.draft.push({
-                      service_date: context.dateStr, 
-                      session: s1.session, 
-                      member_id: m.id, 
-                      position_id: s1.posId,
-                      _positionName: s1.roleName
-                  });
-
-                  let s2 = null;
-                  const s2Slots = context.availableSlots.filter(s => s.session === '第二堂' && s.needed > 0);
-                  
-                  if (p === 1) { 
-                      s2 = s2Slots.find(s => s.roleName === s1.roleName && this._canAssign(m, s, state, context, 0) && (state.totalUsage[m.id] || 0) <= this._getSkillAvgUsage(state, members, s.posId) + 0.1);
-                  } else if (p === 2) { 
-                      s2 = s2Slots.find(s => s.roleName !== s1.roleName && this._canAssign(m, s, state, context, 0) && (state.totalUsage[m.id] || 0) <= this._getSkillAvgUsage(state, members, s.posId) + 0.1);
-                  }
-
-                  // === 移除模擬草稿 ===
-                  state.draft.pop();
-
-                  if (s2) {
-                      this._assign(m, s1, state, context);
-                      this._assign(m, s2, state, context);
-                      this._immediateFamilyFill(m, state, context, members);
-                      break; 
-                  }
+              if (!this._canAssign(m, s1, state, context, 0)) continue;
+              if ((state.totalUsage[m.id] || 0) > this._getSkillAvgUsage(state, members, s1.posId) + 0.1) continue;
+              
+              let s2 = null;
+              const s2Slots = context.availableSlots.filter(s => s.session === '第二堂' && s.needed > 0);
+              
+              if (p === 1) { 
+                  s2 = s2Slots.find(s => s.roleName === s1.roleName && this._canAssign(m, s, state, context, 0) && (state.totalUsage[m.id] || 0) <= this._getSkillAvgUsage(state, members, s.posId) + 0.1);
+              } else if (p === 2) { 
+                  s2 = s2Slots.find(s => s.roleName !== s1.roleName && this._canAssign(m, s, state, context, 0) && (state.totalUsage[m.id] || 0) <= this._getSkillAvgUsage(state, members, s.posId) + 0.1);
               }
+
+              if (s2) {
+                  this._assign(m, s1, state, context);
+                  this._assign(m, s2, state, context);
+                  this._immediateFamilyFill(m, state, context, members);
+                  break; 
+              }
+          }
       }
   },
 
