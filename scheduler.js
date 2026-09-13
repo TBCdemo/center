@@ -245,33 +245,27 @@ const ScheduleEngine = {
     const dayRoles = dayShifts.map(d => d._positionName);
     const coreRoles = ['司會', 'PPT', '執事輪值'];
 
-    // 重新設計核心防護邏輯，允許二堂同岡 (dualPref === 1) 跨堂連上
-if (coreRoles.includes(roleName) && dayShifts.length > 0) {
-    const firstShift = dayShifts[0];
-    // 條件：必須是二堂同岡，且上一堂就是現在這個崗位，且是不同堂次才放行
-    if (dualPref === 1 && firstShift._positionName === roleName && firstShift.session !== session) {
-        // 通過檢查，不阻擋
-    } else {
-        return false;
-    }
-} else if (dayRoles.some(r => coreRoles.includes(r))) {
-    // 若原先排了核心崗位，或是二堂異崗想排第二個核心崗位，則阻擋
-    return false;
-}
+   // === 智慧防護網：統一處理核心與一般崗位的雙堂偏好 ===
+    if (dayShifts.length > 0) {
+        const firstShift = dayShifts[0];
+        
+        // 絕對防呆：禁止同一堂塞兩個崗位
+        if (firstShift.session === session) return false;
 
-    if (!coreRoles.includes(roleName)) {
-        if (dayShifts.length === 1) {
-            const firstShift = dayShifts[0];
-            if (dualPref === 1) {
-                if (firstShift.session === session) return false; 
-                if (firstShift._positionName !== roleName) return false; 
-            } else if (dualPref === 2) {
-                if (firstShift.session === session) return false; 
-                if (firstShift._positionName === roleName) return false; 
-            } else {
-                if (firstShift.session !== session) return false; 
-                if (firstShift._positionName === roleName) return false; 
-            }
+        if (dualPref === 1) {
+            // 【二堂同崗】：必須是相同崗位
+            if (firstShift._positionName !== roleName) return false;
+        } else if (dualPref === 2) {
+            // 【二堂異崗】：必須是不同崗位
+            if (firstShift._positionName === roleName) return false;
+        } else {
+            // 【單堂】：若已排班，或涉及核心崗位，嚴格阻擋跨堂
+            const isCoreRole = coreRoles.includes(roleName);
+            const hasCoreRoleAssigned = dayRoles.some(r => coreRoles.includes(r));
+            if (isCoreRole || hasCoreRoleAssigned) return false;
+            
+            // 單堂偏好者，若堂次不符原始偏好也擋
+            if (firstShift.session !== session) return false; 
         }
     }
 
