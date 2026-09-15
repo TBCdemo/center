@@ -268,12 +268,13 @@ const ScheduleEngine = {
                     // 【二堂同崗】：必須是相同崗位
                     if (firstShift._positionName !== roleName) return false;
                 } else if (dualPref === 2) {
-                    // 【二堂異崗】：必須是不同崗位，但允許觸碰核心崗位
-                    if (firstShift._positionName === roleName) return false;
-                    
-                    // (選擇性防呆) 若不希望一人同時包辦「兩個」核心崗位(如司會+PPT)，可取消下方註解：
-                    // if (isCoreRole && hasCoreRoleAssigned) return false;
-                } else {
+    // 【二堂異崗】：必須是不同崗位，且不可再佔用第二個核心崗位
+    if (firstShift._positionName === roleName) return false;
+
+    // 防呆：核心崗位（司會/PPT/執事輪值）名額稀少，異崗者已佔一個核心崗後，
+    // 第二堂不得再搶第二個核心崗，避免排擠需要「同崗」配對的人
+    if (isCoreRole && hasCoreRoleAssigned) return false;
+} else {
                     // 【單堂偏好 或 被降級者】：若已排班，或涉及核心崗位，嚴格阻擋跨堂
                     if (isCoreRole || hasCoreRoleAssigned) return false;
                     if (firstShift.session !== session) return false; 
@@ -478,7 +479,14 @@ const ScheduleEngine = {
           return true;
       });
 
-      dualMembers.sort((a, b) => (state.totalUsage[a.id] || 0) - (state.totalUsage[b.id] || 0));
+    dualMembers.sort((a, b) => {
+    const pa = parseInt(a.dual_service_pref) || 0;
+    const pb = parseInt(b.dual_service_pref) || 0;
+    // 限制較嚴格者優先：1(二堂同崗) 先於 2(二堂異崗)
+    // 同崗者只能匹配「唯一指定崗位」，若晚處理，該崗位可能已被異崗者佔用而配對失敗
+    if (pa !== pb) return pa - pb;
+    return (state.totalUsage[a.id] || 0) - (state.totalUsage[b.id] || 0);
+});
 
       for (let m of dualMembers) {
           const p = parseInt(m.dual_service_pref);
