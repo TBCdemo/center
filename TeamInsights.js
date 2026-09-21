@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
     Home, Users, Calendar, LogOut, BarChart3, ChevronLeft, 
     UserCheck, LayoutList, TrendingUp, Lightbulb, X, Target, 
@@ -127,6 +127,24 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
         loadQuarterData();
     }, [viewQuarter]);
 
+    // 每位同工「首次出現的季度」（取自 member_quarter_settings 最早的一筆）
+    const memberFirstQuarter = useMemo(() => {
+        const map = {};
+        dbData.quarterSettings.forEach(qs => {
+            if (qs.quarter === 'SYSTEM' || qs.quarter === 'BASE') return;
+            if (!map[qs.member_id] || qs.quarter < map[qs.member_id]) map[qs.member_id] = qs.quarter;
+        });
+        return map;
+    }, [dbData.quarterSettings]);
+
+    // 同工是否已「加入」指定季度：
+    //  - 有季度紀錄 → 從最早那一季起算
+    //  - 完全沒有任何季度紀錄（剛新增）→ 視為從最新一季起算，不影響歷史季度
+    const isMemberInQuarter = useCallback((memberId, qStr) => {
+        const joinQuarter = memberFirstQuarter[memberId] || availableQuarters[0] || viewQuarter;
+        return joinQuarter <= qStr; // 'YYYY-Qn' 字串可直接比較大小
+    }, [memberFirstQuarter, availableQuarters, viewQuarter]);
+
     const matrixStats = useMemo(() => {
         if (dbData.members.length === 0 || availableQuarters.length === 0) return [];
         const realMembers = dbData.members.filter(m => !m.name.startsWith('SYSTEM_'));
@@ -141,13 +159,16 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             const qsMap = {};
             quarterSettings.forEach(qs => { if(qs.quarter === qStr) qsMap[qs.member_id] = qs; });
 
-            realMembers.forEach(m => {
+            // 只計入「已加入該季度」的同工，避免新人回溯灌進歷史季度
+            const quarterMembers = realMembers.filter(m => isMemberInQuarter(m.id, qStr));
+
+            quarterMembers.forEach(m => {
                 const status = qsMap[m.id]?.availability_status || '穩定服事';
                 if (status === '暫停服事') suspended++;
                 else if (status === '安息季') sabbatical++;
             });
 
-            return { total: realMembers.length, active: realMembers.length - suspended - sabbatical, suspended, sabbatical };
+            return { total: quarterMembers.length, active: quarterMembers.length - suspended - sabbatical, suspended, sabbatical };
         };
 
         return availableQuarters.map(qStr => {
@@ -164,7 +185,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                 sabbatical: current.sabbatical, sabbaticalQoQ: calcDiff(current.sabbatical, qoqStat, 'sabbatical'), sabbaticalYoY: calcDiff(current.sabbatical, yoyStat, 'sabbatical'),
             };
         });
-    }, [dbData, availableQuarters]);
+    }, [dbData, availableQuarters, isMemberInQuarter]);
 
     const insights = useMemo(() => {
         const { members, positions, memberPositions, quarterSettings } = dbData;
@@ -174,6 +195,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
 
         const activeMemberIds = new Set();
         realMembers.forEach(m => {
+            if (!isMemberInQuarter(m.id, viewQuarter)) return; // 與人力總覽表口徑一致
             const status = qsMap[m.id]?.availability_status || '穩定服事';
             if (status !== '暫停服事' && status !== '安息季') activeMemberIds.add(m.id);
         });
@@ -281,7 +303,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             positionDistribution, concurrencyData, maxConcurrencyPeople, activeMemberIds,
             globalAvgBurden, recruitmentList, globalDemandSessions 
         };
-    }, [dbData, viewQuarter, requirements, policyLimits]);
+    }, [dbData, viewQuarter, requirements, policyLimits, isMemberInQuarter]);
 
     // 🎯 嚴謹的缺口：只加總紅字，破除跨崗調度的幻覺
     const globalGap = useMemo(() => {
