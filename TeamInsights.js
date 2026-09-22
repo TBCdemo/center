@@ -15,7 +15,7 @@ const INITIAL_REQUIREMENTS = {
     'PPT': { singleSession: 1, freq: 'weekly' },
     '新朋友關懷': { singleSession: 3, freq: 'weekly' },
     '接待': { singleSession: 4, freq: 'weekly' },
-    '收奉獻': { singleSession: 5, freq: 'weekly' },
+    '收奉獻': { singleSession: 4, freq: 'weekly' },
     '主餐': { singleSession: 6, freq: 'monthly' }
 };
 
@@ -213,7 +213,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                     // 核心物理法則：同一天站兩個崗位就算 2 次，因此 FTE 貢獻度被活躍崗位數平分
                     const activePosCount = memberPositions.filter(mp => mp.member_id === m.id && mp.is_active !== false).length;
                     const weight = 1 / (activePosCount || 1); 
-                    const pref = qsMap[m.id]?.preferred_session || '第一堂';
+                    const pref = qsMap[m.id]?.preferred_session || m.preferred_session || '皆可';
                     if (pref === '第一堂') { s1Count++; s1FTE += weight; }
                     else if (pref === '第二堂') { s2Count++; s2FTE += weight; }
                     else { bothCount++; bothFTE += weight; }
@@ -257,13 +257,20 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             const displayRemainingBoth = Math.round(pool * 10) / 10;
             const displayGap = currentReq > 0 ? Math.round((displayS1Gap + displayS2Gap + displayRemainingBoth) * 10) / 10 : Math.round(totalFTE * 10) / 10;
             
-            const s1ShortageSessions = displayS1Gap < 0 ? Math.abs(displayS1Gap) * policyLimit : 0;
-            const s2ShortageSessions = displayS2Gap < 0 ? Math.abs(displayS2Gap) * policyLimit : 0;
+            // 用未四捨五入的原始缺口計算招募人數，避免「先四捨五入、再取整」低估缺口（例如 -1.04 被誤判成 -1.0 只招 1 人）
+            const EPSILON = 1e-9;
+            const s1ShortageSessions = rawS1Gap < 0 ? Math.abs(rawS1Gap) * policyLimit : 0;
+            const s2ShortageSessions = rawS2Gap < 0 ? Math.abs(rawS2Gap) * policyLimit : 0;
             const totalShortageSessions = Math.round((s1ShortageSessions + s2ShortageSessions) * 10) / 10;
             
-            const s1RecruitCount = Math.ceil(s1ShortageSessions / policyLimit);
-            const s2RecruitCount = Math.ceil(s2ShortageSessions / policyLimit);
+            const s1RecruitCount = Math.ceil(s1ShortageSessions / policyLimit - EPSILON);
+            const s2RecruitCount = Math.ceil(s2ShortageSessions / policyLimit - EPSILON);
             const recruitCount = s1RecruitCount + s2RecruitCount;
+
+            // 合計後才取整的「最少需招募」：同一崗位的第一堂、第二堂缺口先加總，再取整一次，
+            // 避免像 -2.3 + -1.7 這種剛好湊成整數的情況，被兩堂各自取整而多算成 5 人（應為 4 人）。
+            const combinedShortageFTE = Math.max(0, -(rawS1Gap < 0 ? rawS1Gap : 0) - (rawS2Gap < 0 ? rawS2Gap : 0));
+            const minRecruitCount = Math.ceil(combinedShortageFTE - EPSILON);
 
             const totalQuarterSlots = demandSessions;
             const avgBurden = totalFTE > 0 ? (totalQuarterSlots / totalFTE) : totalQuarterSlots;
@@ -274,7 +281,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                 id: pos.id, name: pos.name, s1Count, s2Count, bothCount, totalCount,
                 s1FTE, s2FTE, bothFTE, totalFTE, displayS1Gap, displayS2Gap, displayRemainingBoth, displayGap,
                 currentReq, policyLimit, demandSessions, shortageSessions: totalShortageSessions, 
-                recruitCount, s1RecruitCount, s2RecruitCount, displayAvgBurden, isOverloaded
+                recruitCount, s1RecruitCount, s2RecruitCount, minRecruitCount, displayAvgBurden, isOverloaded
             };
         });
 
@@ -305,7 +312,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
         };
     }, [dbData, viewQuarter, requirements, policyLimits, isMemberInQuarter]);
 
-    // 🎯 嚴謹的缺口：只加總紅字，破除跨崗調度的幻覺
+    // 🎯 嚴謹的缺口：只加總紅字，破除跨崗調度的幻覺（各崗位、各堂別無法互相支援）
     const globalGap = useMemo(() => {
         let gap = 0;
         insights.positionDistribution.forEach(p => {
@@ -313,6 +320,18 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             if (p.displayS2Gap < 0) gap += p.displayS2Gap;
         });
         return Math.round(gap * 10) / 10;
+    }, [insights]);
+
+    // 📊 淨缺口：假設所有崗位、堂別之間可以完全互通支援（現實中通常做不到，僅供參考）
+    const netGlobalGap = useMemo(() => {
+        let gap = 0;
+        insights.positionDistribution.forEach(p => { gap += p.displayGap; });
+        return Math.round(gap * 10) / 10;
+    }, [insights]);
+
+    // 📊 最少需招募人數：同一崗位的兩堂缺口先合計、再取整一次（見 minRecruitCount 計算說明）
+    const minTotalRecruitCount = useMemo(() => {
+        return insights.positionDistribution.reduce((sum, p) => sum + p.minRecruitCount, 0);
     }, [insights]);
 
     const dynamicGlobalLimit = useMemo(() => {
@@ -325,9 +344,11 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
         return perfectTotalFTE > 0 ? Math.round((totalDemandSessions / perfectTotalFTE) * 10) / 10 : 6.0;
     }, [insights]);
 
-    const burdenHealthStatus = insights.globalAvgBurden > dynamicGlobalLimit 
-        ? 'danger' 
-        : (insights.globalAvgBurden === dynamicGlobalLimit ? 'warning' : 'healthy');
+    // 警戒區間：超過上限、但幅度在 5% 以內，避免「危險」與「警戒」只差在剛好相等時才出現「警戒」
+    const WARNING_TOLERANCE_RATIO = 0.05;
+    const burdenHealthStatus = insights.globalAvgBurden <= dynamicGlobalLimit
+        ? 'healthy'
+        : (insights.globalAvgBurden <= dynamicGlobalLimit * (1 + WARNING_TOLERANCE_RATIO) ? 'warning' : 'danger');
 
     const burdenStyles = {
         danger: { iconBg: 'bg-rose-100', iconText: 'text-rose-600', valText: 'text-rose-600', badge: 'bg-rose-50 text-rose-600 border border-rose-200', label: '危險' },
@@ -346,17 +367,43 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
         if (!posData) return null;
 
         const isCompat = COMPATIBLE_GROUP.includes(drawerPos);
+        // 每位兼任者的 FTE 是「1 ÷ 兼任崗位數」，單一崗位同工多兼一崗後，兩邊各只剩 0.5 FTE，
+        // 是轉移不是新增，所以：(1) 只能從「有餘裕」的崗位抓人，(2) 抓的人數不能超過來源崗位能承受的餘裕。
+        const HELPER_FTE_CONTRIBUTION = 0.5;
         let potentialHelpersCount = 0;
+        let potentialHelpersFTE = 0;
+        let helperSourceBreakdown = [];
         if (isCompat) {
             const { members, memberPositions, positions } = dbData;
             const realMembers = members.filter(m => !m.name.startsWith('SYSTEM_') && insights.activeMemberIds.has(m.id));
-            realMembers.forEach(m => {
-                const activePos = memberPositions.filter(mp => mp.member_id === m.id && mp.is_active !== false);
-                if (activePos.length === 1) {
-                    const pName = positions.find(p => p.id === activePos[0].position_id)?.name;
-                    if (COMPATIBLE_GROUP.includes(pName) && pName !== drawerPos) potentialHelpersCount++;
+
+            // 只保留有餘裕（displayGap > 0）的來源崗位
+            const surplusSourceNames = COMPATIBLE_GROUP.filter(pName => {
+                if (pName === drawerPos) return false;
+                const pd = insights.positionDistribution.find(p => p.name === pName);
+                return pd && pd.displayGap > 0;
+            });
+
+            surplusSourceNames.forEach(pName => {
+                const pd = insights.positionDistribution.find(p => p.name === pName);
+                const posId = positions.find(p => p.name === pName)?.id;
+
+                // 該崗位裡，只服事這一個崗位的同工，才是真正「可抽調」的人
+                const singlePosMembers = realMembers.filter(m => {
+                    const activePos = memberPositions.filter(mp => mp.member_id === m.id && mp.is_active !== false);
+                    return activePos.length === 1 && activePos[0].position_id === posId;
+                });
+
+                // 來源崗位的餘裕最多能承受幾個人被抽走（每人抽走後，來源少 0.5 FTE）
+                const maxMovableBySurplus = Math.floor((pd.displayGap + 1e-9) / HELPER_FTE_CONTRIBUTION);
+                const helpersFromThisSource = Math.min(singlePosMembers.length, Math.max(0, maxMovableBySurplus));
+
+                if (helpersFromThisSource > 0) {
+                    potentialHelpersCount += helpersFromThisSource;
+                    helperSourceBreakdown.push({ name: pName, count: helpersFromThisSource });
                 }
             });
+            potentialHelpersFTE = Math.round(potentialHelpersCount * HELPER_FTE_CONTRIBUTION * 10) / 10;
         }
 
         const actionPlans = [];
@@ -376,22 +423,18 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
             });
         }
 
-        if (isCompat) {
-            // 1. 先在這裡加上這行：動態計算要顯示的相容崗位
-            const sourcePositions = COMPATIBLE_GROUP.filter(p => p !== drawerPos).join('、');
+        if (isCompat && potentialHelpersCount > 0) {
+            const sourcePositionsText = helperSourceBreakdown.map(s => `${s.name} ${s.count} 位`).join('、');
 
             actionPlans.push({
                 title: "推動「崗位兼任」",
-                icon: <Zap size={16} className={potentialHelpersCount > 0 ? "text-amber-500" : "text-slate-400"} />,
-                isPriority: potentialHelpersCount > 0 && posData.currentReq <= 1,
+                icon: <Zap size={16} className="text-amber-500" />,
+                isPriority: posData.currentReq <= 1,
                 content: (
                     <div className="text-sm text-slate-600 space-y-2">
-                        <p><strong className="text-slate-700">📍 數據支持：</strong>共有 <strong className="text-amber-600 text-base">{potentialHelpersCount} 位</strong> 同工屬於單一崗位。</p>
-                        
-                        {/* 2. 然後在這裡替換內文 */}
-                        <p><strong className="text-slate-700">👉 具體行動：</strong>鼓勵同工 ({sourcePositions}) 解鎖新技能，兼任「{drawerPos}」。</p>
-                        
-                        <p className="text-amber-700 bg-amber-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>100%高效率轉換補齊人力缺口。</p>
+                        <p><strong className="text-slate-700">📍 數據支持：</strong>相容崗位中有餘裕、且只服事單一崗位的同工共 <strong className="text-amber-600 text-base">{potentialHelpersCount} 位</strong>（{sourcePositionsText}）。</p>
+                        <p><strong className="text-slate-700">👉 具體行動：</strong>鼓勵上述同工解鎖新技能，兼任「{drawerPos}」。</p>
+                        <p className="text-amber-700 bg-amber-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>兼任後每人 FTE 會在兩崗位間各半，等於為「{drawerPos}」增加約 <strong>{potentialHelpersFTE} FTE</strong>（非 1:1 補齊，來源崗位的餘裕會相對減少）。</p>
                     </div>
                 )
             });
@@ -678,6 +721,11 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                         <h3 className="text-lg font-bold text-slate-800 flex items-center gap-1.5">
                                             🚨 人力招募目標
                                         </h3>
+                                        {minTotalRecruitCount > 0 && (
+                                            <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                                                最少需招募 {minTotalRecruitCount} 人（依崗位合計後取整）
+                                            </span>
+                                        )}
                                     </div>
                                     <div className="flex flex-wrap gap-2">
                                         {insights.recruitmentList.length > 0 ? (
@@ -722,7 +770,12 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                         <div className={`ml-2 flex items-center gap-1.5 px-3 py-1 rounded-full border shadow-sm ${globalGap < 0 ? 'bg-rose-50 border-rose-200' : 'bg-emerald-50 border-emerald-200'}`}>
                                             {globalGap < 0 ? <AlertCircle size={14} className="text-rose-500"/> : <CheckCircle2 size={14} className="text-emerald-500"/>}
                                             <span className={`text-xs font-extrabold ${globalGap < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                                人力缺口 {globalGap < 0 ? globalGap : '0.0'} FTE
+                                                人力缺口 {globalGap < 0 ? globalGap : '0.0'} FTE（不含跨崗調度）
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-slate-200 bg-slate-50 shadow-sm" title="假設所有崗位、堂別之間可以完全互通支援，現實中通常做不到，僅供參考">
+                                            <span className="text-xs font-bold text-slate-500">
+                                                若可跨崗互通，淨值 {netGlobalGap > 0 ? `+${netGlobalGap}` : netGlobalGap} FTE
                                             </span>
                                         </div>
                                     </div>
