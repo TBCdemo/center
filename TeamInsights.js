@@ -432,9 +432,9 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                 isPriority: posData.currentReq <= 1,
                 content: (
                     <div className="text-sm text-slate-600 space-y-2">
-                        <p><strong className="text-slate-700">📍 數據支持：</strong>相容崗位中有餘裕、且只服事單一崗位的同工共 <strong className="text-amber-600 text-base">{potentialHelpersCount} 位</strong>（{sourcePositionsText}）。</p>
+                        <p><strong className="text-slate-700">📍 數據支持：</strong>在可兼任崗位中，只服事單一崗位的同工共 <strong className="text-amber-600 text-base">{potentialHelpersCount} 位</strong>（{sourcePositionsText}）。</p>
                         <p><strong className="text-slate-700">👉 具體行動：</strong>鼓勵上述同工解鎖新技能，兼任「{drawerPos}」。</p>
-                        <p className="text-amber-700 bg-amber-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>兼任後每人 FTE 會在兩崗位間各半，等於為「{drawerPos}」增加約 <strong>{potentialHelpersFTE} FTE</strong>（非 1:1 補齊，來源崗位的餘裕會相對減少）。</p>
+                        <p className="text-amber-700 bg-amber-50 p-2 rounded text-xs leading-relaxed"><strong className="font-bold">預期效益：</strong>為「{drawerPos}」增加約 <strong>{potentialHelpersFTE} FTE</strong>（非 1:1 補齊人力，以兼任解決人力缺口，代價是原崗位人力會變得比較吃緊）。</p>
                     </div>
                 )
             });
@@ -717,19 +717,19 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                 <div className="w-full h-px xl:w-px xl:h-12 bg-slate-200"></div>
                                 
                                 <div className="flex-1 w-full flex flex-col justify-center">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <h3 className="text-lg font-bold text-slate-800 flex items-center gap-1.5">
-                                            🚨 人力招募目標
-                                        </h3>
-                                        {minTotalRecruitCount > 0 && (
-                                            <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
-                                                最少需招募 {minTotalRecruitCount} 人（依崗位合計後取整）
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="flex flex-wrap gap-2">
-                                        {insights.recruitmentList.length > 0 ? (
-                                            insights.recruitmentList.map(r => (
+    <div className="flex items-center gap-2 mb-2 flex-wrap">
+        <h3 className="text-lg font-bold text-slate-800 flex items-center gap-1.5">
+            🚨 人力招募目標
+        </h3>
+        {minTotalRecruitCount > 0 && (
+            <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                最少需招募 {minTotalRecruitCount} 人（依崗位合計後取整數）
+            </span>
+        )}
+    </div>
+    <div className="flex flex-wrap gap-2">
+        {insights.recruitmentList.length > 0 ? (
+            insights.recruitmentList.map(r => (
                                                 <span key={r.name} className="px-3 py-1 bg-amber-50 border border-amber-200 text-amber-700 text-sm font-bold rounded-full shadow-sm flex items-center gap-1.5">
                                                     {r.name} 
                                                     <span className="bg-amber-500 text-white px-2 py-0.5 rounded text-[13px] font-bold flex items-center gap-1">
@@ -770,12 +770,12 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                                         <div className={`ml-2 flex items-center gap-1.5 px-3 py-1 rounded-full border shadow-sm ${globalGap < 0 ? 'bg-rose-50 border-rose-200' : 'bg-emerald-50 border-emerald-200'}`}>
                                             {globalGap < 0 ? <AlertCircle size={14} className="text-rose-500"/> : <CheckCircle2 size={14} className="text-emerald-500"/>}
                                             <span className={`text-xs font-extrabold ${globalGap < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                                人力缺口 {globalGap < 0 ? globalGap : '0.0'} FTE（不含跨崗調度）
+                                                人力缺口 {globalGap < 0 ? globalGap : '0.0'} FTE（崗位人力不做任何調度）
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-slate-200 bg-slate-50 shadow-sm" title="假設所有崗位、堂別之間可以完全互通支援，現實中通常做不到，僅供參考">
                                             <span className="text-xs font-bold text-slate-500">
-                                                若可跨崗互通，淨值 {netGlobalGap > 0 ? `+${netGlobalGap}` : netGlobalGap} FTE
+                                                崗位人力可以任意調度，淨值 {netGlobalGap > 0 ? `+${netGlobalGap}` : netGlobalGap} FTE
                                             </span>
                                         </div>
                                     </div>
