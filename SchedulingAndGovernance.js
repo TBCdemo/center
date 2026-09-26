@@ -1686,7 +1686,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                                         className={`text-xs font-medium flex items-center gap-1.5 px-2.5 py-1.5 sm:py-1 rounded-md border transition-colors ${isReorderMode ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
                                     >
                                         <GripVertical size={14} className={isReorderMode ? 'text-white' : 'text-indigo-500'}/>
-                                        {isReorderMode ? '交換排序中：點兩下同崗位同工完成交換（再點一次結束）' : '交換排序'}
+                                        {isReorderMode ? '交換排序教學：點選同崗位同工完成交換' : '交換排序'}
                                     </button>
                                     {/* 手機版：卡片／表格檢視切換（橫向拿手機時可切回表格） */}
                                     {activeSessionTab !== '📊 數據分析' && (
@@ -1694,7 +1694,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                                             onClick={() => setMobileTableView(v => !v)}
                                             className="lg:hidden text-xs font-medium flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 transition-colors"
                                         >
-                                            {mobileTableView ? <><LayoutGrid size={14} className="text-indigo-500"/> 切換為卡片檢視</> : <><Table size={14} className="text-indigo-500"/> 切換為表格檢視</>}
+                                            {mobileTableView ? <><LayoutGrid size={14} className="text-indigo-500"/> 卡片檢視</> : <><Table size={14} className="text-indigo-500"/> 表格檢視</>}
                                         </button>
                                     )}
                                 </div>
