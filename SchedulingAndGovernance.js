@@ -1774,44 +1774,51 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                                     <button onClick={handlePublishClick} disabled={isSaving} className="px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-button hover:-translate-y-0.5 flex items-center gap-1.5 shrink-0 disabled:from-indigo-400 disabled:to-violet-400">{isSaving ? <RefreshCw className="animate-spin" size={16} /> : <><Save size={16}/> 發布班表</>}</button>
                                 </div>
 
-                                {/* 手機版「⋯」選單：收合復原/取消復原/匯出/發布 */}
+                                {/* 手機版「⋯」選單：改成從螢幕底部滑出的操作面板，不依附在按鈕旁邊，避免被上層容器裁切或跑位 */}
                                 <div className="relative sm:hidden shrink-0">
                                     <button
-                                        onClick={() => setShowMobileActionsMenu(v => !v)}
+                                        onClick={() => setShowMobileActionsMenu(true)}
                                         className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 shadow-sm"
                                         title="更多操作"
                                     >
                                         <MoreVertical size={20} />
                                     </button>
-                                    {showMobileActionsMenu && (
-                                        <>
-                                            <div className="fixed inset-0 z-30" onClick={() => setShowMobileActionsMenu(false)}></div>
-                                            <div className="absolute right-0 top-full mt-2 z-40 w-48 bg-white rounded-xl border border-slate-200 shadow-hover-soft overflow-hidden">
-                                                <button
-                                                    onClick={() => { handleUndo(); setShowMobileActionsMenu(false); }}
-                                                    disabled={undoStack.length === 0}
-                                                    className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-left"
-                                                ><Undo2 size={16}/> 復原</button>
-                                                <button
-                                                    onClick={() => { handleRedo(); setShowMobileActionsMenu(false); }}
-                                                    disabled={redoStack.length === 0}
-                                                    className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-left border-t border-slate-100"
-                                                ><Redo2 size={16}/> 取消復原</button>
-                                                <button
-                                                    onClick={() => { exportToCSV(); setShowMobileActionsMenu(false); }}
-                                                    className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-emerald-600 hover:bg-emerald-50 text-left border-t border-slate-100"
-                                                ><Download size={16}/> 匯出 CSV</button>
-                                                <button
-                                                    onClick={() => { setShowMobileActionsMenu(false); handlePublishClick(); }}
-                                                    disabled={isSaving}
-                                                    className="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-violet-600 text-left disabled:opacity-60"
-                                                >{isSaving ? <RefreshCw className="animate-spin" size={16} /> : <Save size={16}/>} 發布班表</button>
-                                            </div>
-                                        </>
-                                    )}
                                 </div>
                             </div>
                         </div>
+                    )}
+                    {/* 手機版底部操作面板：復原/取消復原/匯出/發布，用 fixed 貼齊視窗，不會被任何父層 overflow 裁切 */}
+                    {showMobileActionsMenu && (
+                        <>
+                            <div className="fixed inset-0 bg-black/40 z-40 sm:hidden" onClick={() => setShowMobileActionsMenu(false)}></div>
+                            <div className="fixed bottom-0 left-0 right-0 z-50 sm:hidden bg-white rounded-t-2xl border-t border-slate-200 shadow-2xl overflow-hidden pb-[env(safe-area-inset-bottom,12px)]">
+                                <div className="flex justify-center pt-2.5 pb-1"><div className="w-10 h-1 rounded-full bg-slate-200"></div></div>
+                                <p className="px-4 pb-2 text-xs font-semibold text-slate-400">更多操作</p>
+                                <button
+                                    onClick={() => { handleUndo(); setShowMobileActionsMenu(false); }}
+                                    disabled={undoStack.length === 0}
+                                    className="w-full flex items-center gap-3 px-5 py-3.5 text-[15px] text-slate-700 active:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-left border-t border-slate-100"
+                                ><Undo2 size={18}/> 復原</button>
+                                <button
+                                    onClick={() => { handleRedo(); setShowMobileActionsMenu(false); }}
+                                    disabled={redoStack.length === 0}
+                                    className="w-full flex items-center gap-3 px-5 py-3.5 text-[15px] text-slate-700 active:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-left border-t border-slate-100"
+                                ><Redo2 size={18}/> 取消復原</button>
+                                <button
+                                    onClick={() => { exportToCSV(); setShowMobileActionsMenu(false); }}
+                                    className="w-full flex items-center gap-3 px-5 py-3.5 text-[15px] text-emerald-600 active:bg-emerald-50 text-left border-t border-slate-100"
+                                ><Download size={18}/> 匯出 CSV</button>
+                                <button
+                                    onClick={() => { setShowMobileActionsMenu(false); handlePublishClick(); }}
+                                    disabled={isSaving}
+                                    className="w-full flex items-center gap-3 px-5 py-3.5 text-[15px] font-semibold text-white bg-gradient-to-r from-indigo-600 to-violet-600 text-left disabled:opacity-60 border-t border-slate-100"
+                                >{isSaving ? <RefreshCw className="animate-spin" size={18} /> : <Save size={18}/>} 發布班表</button>
+                                <button
+                                    onClick={() => setShowMobileActionsMenu(false)}
+                                    className="w-full px-5 py-3.5 text-[15px] font-medium text-slate-400 active:bg-slate-50 text-center border-t border-slate-100"
+                                >取消</button>
+                            </div>
+                        </>
                     )}
                 </div>
                 
