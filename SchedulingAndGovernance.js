@@ -7,7 +7,7 @@ import {
     Lightbulb, UserCheck, UserX, LayoutList, 
     ArrowUpDown, X, Database, AlertTriangle,
     Home, LogOut, Edit2, Check, ShieldCheck, Undo2, Redo2,
-    ChevronDown, ChevronUp, Plus, Copy, Camera, MoreVertical, LayoutGrid, Table
+    ChevronDown, ChevronUp, Plus, Copy, Camera, MoreVertical, LayoutGrid, Table, Menu
 } from 'lucide-react';
 
 const safeParseJSON = (data, fallback) => {
@@ -77,6 +77,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
     const [reorderPick, setReorderPick] = useState(null); // 第一下點選的名牌，等待第二下完成交換
     const [mobileTableView, setMobileTableView] = useState(false); // 手機版預設卡片檢視；true 時沿用桌機的橫向表格（適合橫向拿手機時看）
     const [showMobileActionsMenu, setShowMobileActionsMenu] = useState(false); // 手機版「⋯」選單：復原/取消復原/匯出/發布
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false); // 手機版左側導覽列：預設收起，改成點漢堡選單開關
     const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', currentName: '', currentDate: '', currentRole: '', newName: '', newDate: '', newRole: '', type: '', onConfirm: null });
     const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -1634,14 +1635,19 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
 
     return (
         <div className="flex h-screen w-full bg-slate-50 overflow-hidden select-none relative">
-            <div className="w-64 bg-slate-900 flex flex-col justify-between shrink-0 border-r border-slate-800 z-30">
+            {/* 手機版遮罩：導覽列展開時顯示，點擊可關閉 */}
+            {isSidebarOpen && (
+                <div className="fixed inset-0 bg-black/40 z-30 lg:hidden" onClick={() => setIsSidebarOpen(false)}></div>
+            )}
+            {/* 導覽列：手機版預設收在畫面外（off-canvas），點漢堡選單才滑出；桌機（lg 以上）固定顯示，不佔用手機的畫面空間 */}
+            <div className={`fixed inset-y-0 left-0 w-64 bg-slate-900 flex flex-col justify-between shrink-0 border-r border-slate-800 z-40 transform transition-transform duration-200 ease-out lg:static lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                 <div className="flex flex-col">
                     <div className="p-6 border-b border-slate-800 flex items-center gap-3 relative overflow-hidden"><div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-indigo-500/10 to-transparent pointer-events-none"></div><span className="text-white font-bold text-base tracking-wider relative z-10">TBC Serve Manager</span></div>
                     <nav className="p-4 space-y-1.5">
-                        <button onClick={goBack} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group"><Home size={18} className="text-slate-400 group-hover:text-indigo-400 transition-colors" /><span>Home</span></button>
-                        <button onClick={goToMembers} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group"><Users size={18} className="text-slate-400 group-hover:text-violet-400 transition-colors" /><span>同工資料中心</span></button>
+                        <button onClick={() => { setIsSidebarOpen(false); goBack(); }} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group"><Home size={18} className="text-slate-400 group-hover:text-indigo-400 transition-colors" /><span>Home</span></button>
+                        <button onClick={() => { setIsSidebarOpen(false); goToMembers(); }} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group"><Users size={18} className="text-slate-400 group-hover:text-violet-400 transition-colors" /><span>同工資料中心</span></button>
                         <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl font-medium text-sm shadow-button"><Calendar size={18} /><span>排班作業中心</span></div>
-                        <button onClick={goToInsights} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
+                        <button onClick={() => { setIsSidebarOpen(false); goToInsights(); }} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
                             <BarChart3 size={18} className="text-slate-400 group-hover:text-sky-400 transition-colors" />
                             <span>人力洞察中心</span>
                         </button>
@@ -1650,10 +1656,14 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                 <div className="p-4 border-t border-slate-800"><button onClick={async () => { if (supabase?.auth?.signOut) { await supabase.auth.signOut(); } window.location.reload(); }} className="w-full flex items-center gap-3 px-4 py-3 text-rose-400 hover:text-rose-300 hover:bg-rose-50/10 rounded-xl font-normal text-sm transition-all text-left group"><LogOut size={18} className="text-rose-400 group-hover:translate-x-0.5 transition-transform" /><span>Sign Out</span></button></div>
             </div>
 
-            <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 relative">
+            <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 relative w-full">
                 <div className="p-6 lg:px-8 lg:py-6 bg-white border-b border-slate-200 shrink-0 shadow-sm z-10">
                     {/* 標題區塊 */}
                     <div className="flex items-center gap-3">
+                        {/* 手機版漢堡選單：點擊滑出左側導覽列 */}
+                        <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 -ml-2 rounded-lg text-slate-600 hover:bg-slate-100 shrink-0" title="開啟選單">
+                            <Menu size={22} />
+                        </button>
                         <h2 className="text-2xl font-extrabold text-slate-900 flex items-center gap-3 tracking-tight">
                             {schedulingPhase === 'setup' ? (<><Calendar className="text-violet-600" size={28}/> 排班作業中心</>) : (<div className="flex items-center gap-2"><button onClick={() => { setSchedulingPhase('setup'); setActiveSlot(null); setGlobalSearchTerm(''); setGridSearchTerm(''); }} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors" title="返回設定"><ChevronLeft size={20} /></button><span>{year}Q{quarter} {appMode === 'schedule' ? '預排預覽' : '編輯預覽'}</span></div>)}
                         </h2>
