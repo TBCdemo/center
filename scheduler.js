@@ -268,13 +268,13 @@ const ScheduleEngine = {
                     // 【二堂同崗】：必須是相同崗位
                     if (firstShift._positionName !== roleName) return false;
                 } else if (dualPref === 2) {
-    // 【二堂異崗】：必須是不同崗位，且不可再佔用第二個核心崗位
-    if (firstShift._positionName === roleName) return false;
+                    // 【二堂異崗】：必須是不同崗位，且不可再佔用第二個核心崗位
+                    if (firstShift._positionName === roleName) return false;
 
-    // 防呆：核心崗位（司會/PPT/執事輪值）名額稀少，異崗者已佔一個核心崗後，
-    // 第二堂不得再搶第二個核心崗，避免排擠需要「同崗」配對的人
-    if (isCoreRole && hasCoreRoleAssigned) return false;
-} else {
+                    // 防呆：核心崗位（司會/PPT/執事輪值）名額稀少，異崗者已佔一個核心崗後，
+                    // 第二堂不得再搶第二個核心崗，避免排擠需要「同崗」配對的人
+                    if (isCoreRole && hasCoreRoleAssigned) return false;
+                } else {
                     // 【單堂偏好 或 被降級者】：若已排班，或涉及核心崗位，嚴格阻擋跨堂
                     if (isCoreRole || hasCoreRoleAssigned) return false;
                     if (firstShift.session !== session) return false; 
@@ -404,10 +404,28 @@ const ScheduleEngine = {
     }
 
     if (isFamily && members) {
+        // 原本：跟「全崗位人才庫平均」比較
         const skillAvg = this._getSkillAvgUsage(state, members, slot.posId);
         if ((state.totalUsage[m.id] || 0) > skillAvg + 0.1) {
             softWeight += 2000; 
         }
+
+        // 新增：直接跟同組家人比次數，落差過大時列為 critical 等級，強制優先排另一半
+        const familyPartners = members.filter(mm => mm.id !== m.id && state.memberGroups[mm.id] === myGroupId);
+        if (familyPartners.length > 0) {
+            const partnerMinUsage = Math.min(...familyPartners.map(p => state.totalUsage[p.id] || 0));
+            const myUsage = state.totalUsage[m.id] || 0;
+            if (myUsage > partnerMinUsage + 1) {
+                criticalWeight += 8000; // 家庭內部落差 > 1 次時，強制優先排另一半
+            }
+        }
+    }
+
+    // 新增：技能越廣、目前次數越高，懲罰越重（不論是否家庭）
+    // 抵銷「選項多 = 更容易被排入」的天生優勢，讓技能多者回歸一般公平排序
+    const skillCount = state.memberSkills[m.id].size;
+    if (skillCount >= 3 && (state.totalUsage[m.id] || 0) > 0) {
+        softWeight += (skillCount - 2) * 300;
     }
 
     const dayRoles = context.dailyAssignments[m.id] || [];
@@ -479,14 +497,14 @@ const ScheduleEngine = {
           return true;
       });
 
-    dualMembers.sort((a, b) => {
-    const pa = parseInt(a.dual_service_pref) || 0;
-    const pb = parseInt(b.dual_service_pref) || 0;
-    // 限制較嚴格者優先：1(二堂同崗) 先於 2(二堂異崗)
-    // 同崗者只能匹配「唯一指定崗位」，若晚處理，該崗位可能已被異崗者佔用而配對失敗
-    if (pa !== pb) return pa - pb;
-    return (state.totalUsage[a.id] || 0) - (state.totalUsage[b.id] || 0);
-});
+      dualMembers.sort((a, b) => {
+          const pa = parseInt(a.dual_service_pref) || 0;
+          const pb = parseInt(b.dual_service_pref) || 0;
+          // 限制較嚴格者優先：1(二堂同崗) 先於 2(二堂異崗)
+          // 同崗者只能匹配「唯一指定崗位」，若晚處理，該崗位可能已被異崗者佔用而配對失敗
+          if (pa !== pb) return pa - pb;
+          return (state.totalUsage[a.id] || 0) - (state.totalUsage[b.id] || 0);
+      });
 
       for (let m of dualMembers) {
           const p = parseInt(m.dual_service_pref);
@@ -538,7 +556,15 @@ const ScheduleEngine = {
           const gid = state.memberGroups[m.id];
           if (gid && (gid.startsWith('FA') || gid.startsWith('FB'))) {
               if (state.lastServedWeek[m.id] === context.weekIndex - 1) return;
-              if ((state.totalUsage[m.id] || 0) > avgUsage + 1.5) return;
+
+              // 改成跟「同組家人」比較，而非全體平均
+              // 只排除「明顯領先自己家人」的那一位，落後的家人永遠不會被這條件擋下
+              const familyPartners = members.filter(mm => mm.id !== m.id && state.memberGroups[mm.id] === gid);
+              const partnerMinUsage = familyPartners.length > 0
+                  ? Math.min(...familyPartners.map(p => state.totalUsage[p.id] || 0))
+                  : (state.totalUsage[m.id] || 0);
+              if ((state.totalUsage[m.id] || 0) > partnerMinUsage + 1) return;
+
               if ((context.dailyAssignments[m.id] || []).length > 0) return;
 
               if (this._isAvailableOnDate(m, context.dateStr)) {
@@ -559,6 +585,11 @@ const ScheduleEngine = {
           if (gMembers.length < 2) continue; 
 
           gMembers.sort((a, b) => {
+              // 先看誰次數少（該優先被排的人排前面，主導角色搜尋方向）
+              const usageDiff = (state.totalUsage[a.id] || 0) - (state.totalUsage[b.id] || 0);
+              if (usageDiff !== 0) return usageDiff;
+
+              // 次數相同時，才依核心技能排序（維持原本邏輯）
               const aCore = (specialIds && (state.memberSkills[a.id]?.has(specialIds.mc) || state.memberSkills[a.id]?.has(specialIds.ppt) || state.memberSkills[a.id]?.has(specialIds.deacon))) ? 1 : 0;
               const bCore = (specialIds && (state.memberSkills[b.id]?.has(specialIds.mc) || state.memberSkills[b.id]?.has(specialIds.ppt) || state.memberSkills[b.id]?.has(specialIds.deacon))) ? 1 : 0;
               return bCore - aCore;
@@ -719,11 +750,16 @@ const ScheduleEngine = {
           return;
       }
 
+      const activeAvg = members.length > 0 
+          ? members.reduce((s, mm) => s + (state.totalUsage[mm.id] || 0), 0) / members.length 
+          : 0;
+
       const unassignedFamily = members.filter(m => 
           m.id !== baseMember.id && 
           state.memberGroups[m.id] === groupId && 
           this._isAvailableOnDate(m, context.dateStr) &&
-          !(context.dailyAssignments[m.id] && context.dailyAssignments[m.id].length > 0)
+          !(context.dailyAssignments[m.id] && context.dailyAssignments[m.id].length > 0) &&
+          (state.totalUsage[m.id] || 0) <= activeAvg + 1 // 次數已明顯超前者不再被順帶塞入
       );
 
       if (unassignedFamily.length === 0) return;
