@@ -9,6 +9,17 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    boxShadow: {
+                        'button': '0 4px 14px 0 rgba(79, 70, 229, 0.3)'
+                    }
+                }
+            }
+        }
+    </script>
     <script src="https://unpkg.com/@babel/standalone@7.22.20/babel.min.js"></script>
 
     <script type="importmap">
@@ -438,14 +449,14 @@
         // --- Views ---
         function LoginView({ name, setName, onLogin, loginError, isSyncing, syncStatus, progress, seasonType, setSeasonType, seasonLabels, systemConfig }) {
           return (
-            <div className="min-h-screen flex items-center justify-center p-6 bg-slate-100">
-              <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md p-10 border border-white">
-                <div className="text-center mb-10">
-                  <div className={`w-24 h-24 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-xl rotate-3 transition-colors duration-500 cursor-default ${seasonType === 'view' ? 'bg-indigo-600 shadow-indigo-200' : 'bg-emerald-600 shadow-emerald-200'}`}>
-                    <Calendar className="w-12 h-12 text-white" />
+            <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50">
+              <div className="bg-white rounded-[2rem] shadow-xl w-full max-w-md p-6 sm:p-8 border border-slate-100">
+                <div className="flex flex-col items-center mb-8">
+                  <div className={`p-4 rounded-xl text-white shadow-button mb-4 transition-colors duration-500 ${seasonType === 'view' ? 'bg-indigo-600' : 'bg-emerald-600'}`}>
+                    <Calendar size={32} />
                   </div>
                   <h2 className="text-2xl font-black text-slate-900 text-center tracking-tight leading-tight">歡迎查詢</h2>
-                  
+
                  {systemConfig.current && systemConfig.next && (
                     <div className="mt-6 flex justify-center animate-in fade-in">
                         <div className="bg-slate-100 p-1.5 rounded-xl inline-flex relative">
@@ -469,19 +480,19 @@
                     </div>
                   )}
 
-                  <p className="text-slate-400 mt-4 text-base font-semibold">
+                  <p className="text-slate-400 mt-4 text-base font-semibold text-center">
                     在安息中服事，在服事中成長
                   </p>
                 </div>
 
-                <form onSubmit={onLogin} className="space-y-4">
+                <form onSubmit={onLogin} className="space-y-4 sm:space-y-5">
                   <div className="relative">
                     <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all font-semibold text-slate-700 placeholder:text-slate-300" placeholder="輸入完整姓名" required />
                   </div>
 
                   {loginError && <div className="flex items-center gap-2 text-red-500 bg-red-50 p-3 rounded-xl text-sm font-bold"><AlertCircle size={16} /><span>{loginError}</span></div>}
-                  <button type="submit" className={`w-full text-white font-black py-5 rounded-2xl shadow-lg transition-all active:scale-95 text-lg ${seasonType === 'view' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100'}`}>
+                  <button type="submit" className={`w-full text-white font-medium py-3.5 rounded-lg shadow-button hover:-translate-y-0.5 transition-all duration-200 text-base ${seasonType === 'view' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
                       查詢
                   </button>
                 </form>
