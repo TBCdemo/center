@@ -1,2 +1,2 @@
 # center
-TBC Serve Manager - Deployed by EZPage
+TBC Serve
