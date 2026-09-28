@@ -66,7 +66,7 @@
           Calendar, User, LogOut, Heart, Monitor, Users, Smile, BookOpen, 
           Coffee, RefreshCw, AlertCircle, ArrowLeft, UserCheck, HandHeart, 
           Clock, Briefcase, Info, Link as LinkIcon, X, Timer, UserX, CalendarPlus,
-          Copy, Check, Home
+          Copy, Check, Home, Menu
         } from 'lucide-react';
         import { createClient } from '@supabase/supabase-js';
 
@@ -407,6 +407,25 @@
             }
           };
 
+          // 手機返回鍵／手勢：進入「找人代班」時新增一筆歷史紀錄，按返回就回到「我的班表」
+          const goSwapSearch = (req) => {
+            setSwapRequest(req);
+            window.history.pushState({ view: 'swapSearch' }, '');
+            setCurrentView('swapSearch');
+          };
+          const goBackToSchedule = () => {
+            if (window.history.state && window.history.state.view === 'swapSearch') {
+              window.history.back();
+            } else {
+              setCurrentView('mySchedule');
+            }
+          };
+          useEffect(() => {
+            const onPop = () => setCurrentView(v => (v === 'swapSearch' ? 'mySchedule' : v));
+            window.addEventListener('popstate', onPop);
+            return () => window.removeEventListener('popstate', onPop);
+          }, []);
+
           const handleLogout = async () => {
             removeLocalData('tbc_user');
             setName('');
@@ -428,7 +447,7 @@
               case 'mySchedule': 
                   return <MyScheduleView 
                       name={name} scheduleData={scheduleData} onLogout={handleLogout} 
-                      onRequestSwap={(req) => { setSwapRequest(req); setCurrentView('swapSearch'); }} 
+                      onRequestSwap={goSwapSearch} 
                       seasonType={seasonType} setSeasonType={setSeasonType} 
                       isSyncing={isSyncing} progress={progress} seasonLabels={seasonLabels} 
                       systemConfig={systemConfig} nextButtonsConfig={nextButtonsConfig}
@@ -436,7 +455,7 @@
               case 'swapSearch': 
                   return <SwapSearchView 
                       name={name} scheduleData={scheduleData} peopleData={peopleData} statsData={statsData} 
-                      onBack={() => setCurrentView('mySchedule')} onLogout={handleLogout} 
+                      onBack={goBackToSchedule} onLogout={handleLogout} 
                       initialRequest={swapRequest} seasonType={seasonType} seasonLabels={seasonLabels} 
                   />;
               default: return null;
@@ -447,31 +466,44 @@
         }
 
         // --- Views ---
-        function NavLinksMenu({ light }) {
+        function NavMenu({ light, onBack, onLogout }) {
           const [open, setOpen] = useState(false);
+          const itemCls = "w-full flex items-center gap-3 px-4 py-3.5 text-sm font-bold text-slate-600 transition-colors text-left";
           return (
             <div className="relative shrink-0">
               <button
                 onClick={() => setOpen(o => !o)}
-                title="更多連結"
+                title="選單"
+                aria-label="選單"
+                aria-expanded={open}
                 className={`w-11 h-11 flex items-center justify-center rounded-xl transition-colors ${
                   light
-                    ? 'bg-white border border-slate-200 text-slate-500 shadow-sm hover:text-indigo-600 hover:border-indigo-200'
-                    : 'bg-slate-100 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50'
-                } ${open ? 'ring-2 ring-indigo-100 text-indigo-600' : ''}`}
+                    ? 'bg-white border border-slate-200 text-slate-600 shadow-sm hover:text-indigo-600'
+                    : 'bg-white/15 text-white hover:bg-white/25'
+                }`}
               >
-                <Home size={20} />
+                {open ? <X size={22} /> : <Menu size={22} />}
               </button>
               {open && (
                 <React.Fragment>
                   <div className="fixed inset-0 z-40" onClick={() => setOpen(false)}></div>
-                  <div className="absolute left-0 top-[calc(100%+8px)] z-50 w-48 bg-white rounded-xl shadow-lg border border-slate-100 overflow-hidden animate-in fade-in">
-                    <a href="./index.html" className="flex items-center gap-2.5 px-4 py-3 text-sm font-bold text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors">
-                      <Home size={16} /> 回首頁
+                  <div className="absolute left-0 top-[calc(100%+8px)] z-50 w-52 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden animate-in fade-in">
+                    {onBack && (
+                      <button onClick={() => { setOpen(false); onBack(); }} className={`${itemCls} hover:bg-indigo-50 hover:text-indigo-600`}>
+                        <Calendar size={18} /> 我的班表
+                      </button>
+                    )}
+                    <a href="./index.html" className={`${itemCls} hover:bg-indigo-50 hover:text-indigo-600 ${onBack ? 'border-t border-slate-50' : ''}`}>
+                      <Home size={18} /> 回首頁
                     </a>
-                    <a href="./manager.html" className="flex items-center gap-2.5 px-4 py-3 text-sm font-bold text-slate-600 hover:bg-emerald-50 hover:text-emerald-600 transition-colors border-t border-slate-50">
-                      <Users size={16} /> 服事管理
+                    <a href="./manager.html" className={`${itemCls} hover:bg-emerald-50 hover:text-emerald-600 border-t border-slate-50`}>
+                      <Users size={18} /> 服事管理
                     </a>
+                    {onLogout && (
+                      <button onClick={() => { setOpen(false); onLogout(); }} className={`${itemCls} hover:bg-red-50 hover:text-red-500 border-t border-slate-100`}>
+                        <LogOut size={18} /> 登出
+                      </button>
+                    )}
                   </div>
                 </React.Fragment>
               )}
@@ -479,11 +511,44 @@
           );
         }
 
+        // 頂部列（漢堡選單 + 標題）＋ 會員資料區，仿 momo 版面
+        function AppHeader({ title, name, seasonType, onBack, onLogout, canSwitch, onSwitch, subText }) {
+          const bg = seasonType === 'view' ? 'bg-indigo-600' : 'bg-emerald-600';
+          return (
+            <React.Fragment>
+              <nav className={`${bg} text-white sticky top-0 z-50 transition-colors duration-500`} style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+                <div className="max-w-2xl mx-auto w-full px-4 sm:px-6 py-3 flex items-center justify-between">
+                  <NavMenu onBack={onBack} onLogout={onLogout} />
+                  <h1 className="text-lg font-black tracking-tight">{title}</h1>
+                  <div className="w-11 h-11 flex items-center justify-center shrink-0">
+                    {canSwitch && (
+                      <button onClick={onSwitch} title="查詢切換" aria-label="查詢切換" className="w-11 h-11 flex items-center justify-center rounded-xl bg-white/15 hover:bg-white/25 transition-colors">
+                        <RefreshCw size={20} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </nav>
+              <div className={`${bg} text-white transition-colors duration-500`}>
+                <div className="max-w-2xl mx-auto w-full px-4 sm:px-6 pt-1 pb-6 flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                    <User size={32} />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-2xl font-black truncate">{name}</h2>
+                    {subText && <p className="text-sm font-medium text-white/80 mt-0.5">{subText}</p>}
+                  </div>
+                </div>
+              </div>
+            </React.Fragment>
+          );
+        }
+
         function LoginView({ name, setName, onLogin, loginError, isSyncing, syncStatus, progress, seasonType, setSeasonType, seasonLabels, systemConfig }) {
           return (
             <div className="relative min-h-screen flex items-center justify-center p-6 bg-slate-50">
               <div className="absolute top-4 left-4 sm:top-6 sm:left-6 z-20">
-                <NavLinksMenu light />
+                <NavMenu light />
               </div>
               <div className="bg-white rounded-[2rem] shadow-xl w-full max-w-md p-6 sm:p-8 border border-slate-100">
                 <div className="flex flex-col items-center mb-8">
@@ -730,41 +795,15 @@
 
           return (
             <div className="min-h-screen bg-slate-50 flex flex-col">
-              <nav className="bg-white/90 backdrop-blur sticky top-0 z-50 border-b border-slate-100 shadow-sm">
-                <div className="max-w-2xl mx-auto w-full px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <NavLinksMenu />
-                    <div className={`p-2 rounded-xl text-white ${seasonType === 'view' ? 'bg-indigo-600' : 'bg-emerald-600'}`}>
-                      <User size={20} />
-                    </div>
-                    <div className="flex flex-col">
-                        <div className="flex items-center gap-2">
-                            <p className="text-[10px] text-slate-400 font-bold uppercase">System User</p>
-                            {systemConfig.current && systemConfig.next && (
-                                <button 
-                                  onClick={() => setSeasonType(seasonType === 'view' ? 'next' : 'view')}
-                                  className={`text-[10px] px-2 py-0.5 rounded-full font-bold border transition-colors flex items-center gap-1 ${
-                                      seasonType === 'view' 
-                                      ? 'bg-indigo-50 text-indigo-600 border-indigo-100 hover:bg-indigo-100' 
-                                      : 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100'
-                                  }`}
-                                >
-                                  <RefreshCw size={8} />
-                                  查詢切換
-                                </button>
-                            )}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <h2 className="text-lg font-black text-slate-800">{name}</h2>
-                        </div>
-                    </div>
-                  </div>
-                  <button onClick={onLogout} className="h-11 flex items-center gap-2 bg-slate-100 px-3 rounded-xl text-slate-500 font-bold hover:text-red-500 hover:bg-red-50 transition-colors shrink-0">
-                      <LogOut size={18}/>
-                      <span className="hidden sm:inline">登出</span>
-                  </button>
-                </div>
-              </nav>
+              <AppHeader
+                title="我的服事"
+                name={name}
+                seasonType={seasonType}
+                onLogout={onLogout}
+                canSwitch={!!(systemConfig.current && systemConfig.next)}
+                onSwitch={() => setSeasonType(seasonType === 'view' ? 'next' : 'view')}
+                subText={seasonType === 'view' ? `${seasonLabels.current} 班表` : `${seasonLabels.next} 預排班表`}
+              />
 
               <main className="flex-grow p-4 sm:p-6 space-y-4 max-w-2xl mx-auto w-full">
                 <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
@@ -1128,18 +1167,14 @@
 
           return (
             <div className="min-h-screen bg-slate-50 flex flex-col">
-              <nav className="bg-white/90 backdrop-blur sticky top-0 z-50 border-b border-slate-100 shadow-sm">
-                <div className="max-w-2xl mx-auto w-full px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <button onClick={onBack} className="w-11 h-11 flex items-center justify-center bg-slate-100 rounded-xl text-slate-600 hover:bg-slate-200 transition-colors shrink-0" title="回我的班表"><ArrowLeft size={20}/></button>
-                    <NavLinksMenu />
-                    <div>
-                        <h2 className="text-xl font-black text-slate-800">找人代班</h2>
-                    </div>
-                  </div>
-                  <button onClick={onLogout} className="h-11 flex items-center gap-2 bg-slate-100 px-3 sm:px-4 rounded-xl text-slate-500 font-bold hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"><LogOut size={18}/><span className="hidden sm:inline">登出</span></button>
-                </div>
-              </nav>
+              <AppHeader
+                title="找人代班"
+                name={name}
+                seasonType={seasonType}
+                onBack={onBack}
+                onLogout={onLogout}
+                subText={seasonType === 'view' ? `${seasonLabels.current} 班表` : `${seasonLabels.next} 預排班表`}
+              />
               <main className="flex-grow p-6 space-y-6 max-w-2xl mx-auto w-full">
                 <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-200">
                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">幫今天的服事找合適人選：</h3>
