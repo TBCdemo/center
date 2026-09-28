@@ -497,7 +497,7 @@
                       <Home size={18} /> 回首頁
                     </a>
                     <a href="./manager.html" className={`${itemCls} hover:bg-emerald-50 hover:text-emerald-600 border-t border-slate-50`}>
-                      <Users size={18} /> 個人設定
+                      <Users size={18} /> 服事管理
                     </a>
                     {onLogout && (
                       <button onClick={() => { setOpen(false); onLogout(); }} className={`${itemCls} hover:bg-red-50 hover:text-red-500 border-t border-slate-100`}>
@@ -546,7 +546,7 @@
 
         function LoginView({ name, setName, onLogin, loginError, isSyncing, syncStatus, progress, seasonType, setSeasonType, seasonLabels, systemConfig }) {
           return (
-            <div className="relative min-h-screen flex flex-col items-center justify-center p-6 bg-slate-50">
+            <div className="relative min-h-screen flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6 bg-slate-50">
               <div className="w-full max-w-md flex items-center justify-between mb-4 relative z-20">
                 <NavMenu light />
                 <span className="text-lg font-black tracking-tight text-slate-800">TBC Serve</span>
