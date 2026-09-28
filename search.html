@@ -802,7 +802,6 @@
                 onLogout={onLogout}
                 canSwitch={!!(systemConfig.current && systemConfig.next)}
                 onSwitch={() => setSeasonType(seasonType === 'view' ? 'next' : 'view')}
-                subText={seasonType === 'view' ? `${seasonLabels.current} 服事班表` : `${seasonLabels.next} 預排班表`}
               />
 
               <main className="flex-grow p-4 sm:p-6 space-y-4 max-w-2xl mx-auto w-full">
@@ -1173,7 +1172,6 @@
                 seasonType={seasonType}
                 onBack={onBack}
                 onLogout={onLogout}
-                subText={seasonType === 'view' ? `${seasonLabels.current} 班表` : `${seasonLabels.next} 預排班表`}
               />
               <main className="flex-grow p-6 space-y-6 max-w-2xl mx-auto w-full">
                 <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-200">
