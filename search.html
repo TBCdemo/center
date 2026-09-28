@@ -802,7 +802,7 @@
                 onLogout={onLogout}
                 canSwitch={!!(systemConfig.current && systemConfig.next)}
                 onSwitch={() => setSeasonType(seasonType === 'view' ? 'next' : 'view')}
-                subText={seasonType === 'view' ? `${seasonLabels.current} 班表` : `${seasonLabels.next} 預排班表`}
+                subText={seasonType === 'view' ? `${seasonLabels.current} 服事班表` : `${seasonLabels.next} 預排班表`}
               />
 
               <main className="flex-grow p-4 sm:p-6 space-y-4 max-w-2xl mx-auto w-full">
