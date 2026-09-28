@@ -83,9 +83,9 @@
     <script type="text/babel" data-type="module" src="./TeamInsights.js"></script>
 
     <script type="text/babel" data-type="module">
-        import React, { useState, useEffect } from 'react';
+        import React, { useState, useEffect, useRef } from 'react';
         import { createRoot } from 'react-dom/client';
-        import { Activity, LogOut, AlertCircle, User, Lock, Users, Calendar, ArrowRight, ShieldCheck, Eye, EyeOff, BarChart3 } from 'lucide-react';
+        import { Activity, LogOut, AlertCircle, User, Lock, Users, Calendar, ArrowRight, ShieldCheck, Eye, EyeOff, BarChart3, Menu, X, Home } from 'lucide-react';
         import { createClient } from '@supabase/supabase-js';
 
         // ==========================================
@@ -188,6 +188,71 @@
         );
 
         // ==========================================
+        // 共用導覽元件（與「我的服事」同一套版面：漢堡選單 + 會員資料區）
+        // ==========================================
+        const NavMenu = ({ light, onLogout }) => {
+            const [open, setOpen] = useState(false);
+            const itemCls = "w-full flex items-center gap-3 px-4 py-3.5 text-sm font-bold text-slate-600 transition-colors text-left";
+            return (
+                <div className="relative shrink-0">
+                    <button
+                        onClick={() => setOpen(o => !o)}
+                        title="選單"
+                        aria-label="選單"
+                        aria-expanded={open}
+                        className={`w-11 h-11 flex items-center justify-center rounded-xl transition-colors ${
+                            light
+                                ? 'bg-white border border-slate-200 text-slate-600 shadow-sm hover:text-emerald-600'
+                                : 'bg-white/15 text-white hover:bg-white/25'
+                        }`}
+                    >
+                        {open ? <X size={22} /> : <Menu size={22} />}
+                    </button>
+                    {open && (
+                        <React.Fragment>
+                            <div className="fixed inset-0 z-40" onClick={() => setOpen(false)}></div>
+                            <div className="absolute left-0 top-[calc(100%+8px)] z-50 w-52 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden animate-fade-in">
+                                <a href="./index.html" className={`${itemCls} hover:bg-emerald-50 hover:text-emerald-600`}>
+                                    <Home size={18} /> 回首頁
+                                </a>
+                                <a href="./search.html" className={`${itemCls} hover:bg-indigo-50 hover:text-indigo-600 border-t border-slate-50`}>
+                                    <Calendar size={18} /> 我的服事
+                                </a>
+                                {onLogout && (
+                                    <button onClick={() => { setOpen(false); onLogout(); }} className={`${itemCls} hover:bg-red-50 hover:text-red-500 border-t border-slate-100`}>
+                                        <LogOut size={18} /> 登出
+                                    </button>
+                                )}
+                            </div>
+                        </React.Fragment>
+                    )}
+                </div>
+            );
+        };
+
+        const AppHeader = ({ title, name, onLogout }) => (
+            <React.Fragment>
+                <nav className="bg-emerald-600 text-white sticky top-0 z-50" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+                    <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 py-3 flex items-center justify-between">
+                        <NavMenu onLogout={onLogout} />
+                        <h1 className="text-lg font-black tracking-tight">{title}</h1>
+                        <div className="w-11 h-11 shrink-0"></div>
+                    </div>
+                </nav>
+                <div className="bg-emerald-600 text-white relative z-10">
+                    <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 pt-1 pb-6 flex items-center gap-4">
+                        <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                            <User size={32} />
+                        </div>
+                        <div className="min-w-0">
+                            <h2 className="text-2xl font-black truncate">{name}</h2>
+                        </div>
+                    </div>
+                </div>
+            </React.Fragment>
+        );
+
+        // ==========================================
         // 登入元件 AuthScreen
         // ==========================================
         const AuthScreen = () => {
@@ -262,6 +327,7 @@
             return (
                 <div className="fixed inset-0 bg-slate-50 overflow-y-auto custom-scrollbar">
                     <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 py-8 relative">
+                        <div className="absolute top-4 left-4 sm:top-6 sm:left-6 z-20"><NavMenu light /></div>
                         <div className="fixed top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-indigo-600/10 blur-[120px] pointer-events-none"></div>
                         <div className="fixed bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-emerald-600/10 blur-[120px] pointer-events-none"></div>
 
@@ -504,6 +570,25 @@
 
             const handleLogout = async () => { await supabase.auth.signOut(); window.location.reload(); };
 
+            // 手機返回鍵／手勢：從管理首頁進入各工作中心時新增一筆歷史紀錄，按返回就回管理首頁
+            const prevAppRef = useRef('members');
+            useEffect(() => {
+                if (isAdmin && prevAppRef.current === 'home' && currentApp !== 'home') {
+                    window.history.pushState({ app: currentApp }, '');
+                }
+                prevAppRef.current = currentApp;
+            }, [currentApp]);
+            useEffect(() => {
+                if (!isAdmin) return;
+                const onPop = () => setCurrentApp(prev => (prev !== 'home' ? 'home' : prev));
+                window.addEventListener('popstate', onPop);
+                return () => window.removeEventListener('popstate', onPop);
+            }, [isAdmin]);
+            const goHome = () => {
+                if (window.history.state && window.history.state.app) window.history.back();
+                else setCurrentApp('home');
+            };
+
             // 強制導航保護
             useEffect(() => {
                 if (!isRoleChecking && !isAdmin && currentApp !== 'members') {
@@ -525,10 +610,7 @@
                         <div className="absolute top-[10%] left-[5%] w-[40vw] h-[40vw] rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none"></div>
                         <div className="absolute bottom-[10%] right-[5%] w-[40vw] h-[40vw] rounded-full bg-emerald-500/10 blur-[120px] pointer-events-none"></div>
 
-                        <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 sm:px-8 py-4 flex justify-between items-center shadow-sm shrink-0 relative z-20">
-                            <div className="flex items-center gap-3"><Activity className="text-indigo-600" size={28} /><h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">TBC Serve Manager</h1></div>
-                            <button onClick={handleLogout} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-normal px-3 sm:px-4 py-2 rounded-lg hover:bg-slate-100 transition-colors"><LogOut size={18} /> <span className="hidden sm:inline">Sign Out</span></button>
-                        </header>
+                        <AppHeader title="服事管理" name={extractAccountFromEmail(session?.user?.email)} onLogout={handleLogout} />
                         
                         <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12 animate-fade-in flex flex-col justify-start relative z-10">
                             <div className="mb-8 sm:mb-10 text-center sm:text-left">
@@ -651,7 +733,7 @@
                                 ? <MemberDataCenterComp 
                                     session={session} 
                                     isAdmin={isAdmin} 
-                                    goBack={isAdmin ? () => setCurrentApp('home') : handleLogout} 
+                                    goBack={isAdmin ? goHome : handleLogout} 
                                     goToSchedule={() => setCurrentApp('scheduling')} 
                                     goToInsights={() => setCurrentApp('insights')} 
                                     supabase={supabase} 
@@ -664,7 +746,7 @@
                             SchedulingAndGovernanceComp 
                                 ? <SchedulingAndGovernanceComp 
                                     session={session} 
-                                    goBack={() => setCurrentApp('home')} 
+                                    goBack={goHome} 
                                     goToMembers={() => setCurrentApp('members')} 
                                     goToInsights={() => setCurrentApp('insights')} 
                                     supabase={supabase} 
@@ -678,7 +760,7 @@
                             TeamInsightsComp 
                                 ? <TeamInsightsComp 
                                     session={session} 
-                                    goBack={() => setCurrentApp('home')} 
+                                    goBack={goHome} 
                                     goToMembers={() => setCurrentApp('members')} 
                                     goToSchedule={() => setCurrentApp('scheduling')} 
                                     supabase={supabase} 
