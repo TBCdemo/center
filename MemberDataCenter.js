@@ -629,18 +629,22 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
                             </button>
                         )}
                         
-                        <button 
-                            onClick={goBack} 
-                            className={`${isAdmin ? 'hidden md:block' : 'block'} p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors`} 
-                            title={isAdmin ? "返回首頁" : "登出系統"}
-                        >
-                            {isAdmin ? <ChevronLeft size={24} /> : <LogOut size={22} className="ml-0.5" />}
-                        </button>
-                        
-                        <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 flex items-center gap-2 sm:gap-3 tracking-tight">
-                            <Users className="text-indigo-600 hidden sm:block" size={28}/> 
-                            <span className="truncate">同工資料中心</span>
-                        </h2>
+                        {isAdmin && (
+                            <React.Fragment>
+                                <button 
+                                    onClick={goBack} 
+                                    className="hidden md:block p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors" 
+                                    title="返回首頁"
+                                >
+                                    <ChevronLeft size={24} />
+                                </button>
+                                
+                                <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 flex items-center gap-2 sm:gap-3 tracking-tight">
+                                    <Users className="text-indigo-600 hidden sm:block" size={28}/> 
+                                    <span className="truncate">同工資料中心</span>
+                                </h2>
+                            </React.Fragment>
+                        )}
                     </div>
                     
                     <div className="flex items-center gap-3 overflow-x-auto w-full md:w-auto no-scrollbar pb-1 md:pb-0">
