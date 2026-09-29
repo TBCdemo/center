@@ -647,9 +647,9 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
                         )}
                     </div>
                     
-                    <div className={`flex items-center gap-3 overflow-x-auto no-scrollbar pb-1 md:pb-0 ${isAdmin ? 'w-full md:w-auto' : 'w-full max-w-6xl mx-auto px-4 sm:px-6'}`}>
+                    <div className={`flex items-center gap-3 overflow-x-auto no-scrollbar pb-1 md:pb-0 ${isAdmin ? 'w-full md:w-auto' : 'w-full max-w-2xl mx-auto px-4 sm:px-6'}`}>
                         {!isAdmin && (
-                            <div className="grid grid-cols-3 gap-2 w-full md:w-[calc((100%-1.5rem)/2)] lg:w-[calc((100%-3rem)/3)] shrink-0">
+                            <div className="grid grid-cols-3 gap-2 w-full shrink-0">
                                 <div className={`flex flex-col items-center justify-center gap-1.5 py-3 rounded-xl border shadow-sm ${isSubmissionOpen ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-red-50 border-red-100 text-red-600'}`}>
                                     {isSubmissionOpen ? <Unlock size={22} /> : <Lock size={22} />}
                                     <span className="text-xs font-bold whitespace-nowrap">{isSubmissionOpen ? '開放填寫' : '暫停填寫'}</span>
@@ -746,7 +746,7 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
                     {isLoading && members.length === 0 ? (
                         <div className="text-center py-20 text-slate-400 font-medium animate-pulse">Loading...</div>
                     ) : (
-                        <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 ${isAdmin ? '' : 'max-w-6xl mx-auto w-full px-4 sm:px-6'}`}>
+                        <div className={`grid gap-4 sm:gap-6 ${isAdmin ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 max-w-2xl mx-auto w-full px-4 sm:px-6'}`}>
                             {displayMembers.map(member => {
                                 const settings = quarterSettings.find(s => s.member_id === member.id) || DEFAULT_MEMBER;
                                 const ownedPosList = memberPositions.filter(mp => mp.member_id === member.id).map(mp => {
