@@ -85,7 +85,7 @@
     <script type="text/babel" data-type="module">
         import React, { useState, useEffect, useRef } from 'react';
         import { createRoot } from 'react-dom/client';
-        import { Activity, LogOut, AlertCircle, User, Lock, Users, Calendar, ArrowRight, ShieldCheck, Eye, EyeOff, BarChart3, Menu, X, Home } from 'lucide-react';
+        import { Activity, LogOut, AlertCircle, User, Lock, Users, Calendar, ArrowRight, ShieldCheck, Eye, EyeOff, BarChart3, Menu, X, Home, Check } from 'lucide-react';
         import { createClient } from '@supabase/supabase-js';
 
         // ==========================================
@@ -123,6 +123,21 @@
 
         const formatEmailForAuth = (acc) => { if (!acc) return ''; const trimmed = acc.trim(); return trimmed.includes('@') ? trimmed : `${trimmed}${constants.VIRTUAL_DOMAIN}`; };
         const extractAccountFromEmail = (email) => { if (!email) return ''; return email.endsWith(constants.VIRTUAL_DOMAIN) ? email.replace(constants.VIRTUAL_DOMAIN, '') : email; };
+        // 將登入帳號（手機或 email）轉成遮蔽顯示格式，例如 0937***448 或 yam*******@gmail.com
+        const maskAccountForDisplay = (rawEmail) => {
+            if (!rawEmail) return null;
+            if (rawEmail.endsWith(constants.VIRTUAL_DOMAIN)) {
+                const phone = extractAccountFromEmail(rawEmail);
+                const masked = phone.length >= 7 ? `${phone.slice(0, 4)}***${phone.slice(-3)}` : phone;
+                return { label: '手機號碼', masked, verified: true };
+            }
+            const atIndex = rawEmail.indexOf('@');
+            if (atIndex === -1) return { label: 'Email帳號', masked: rawEmail, verified: false };
+            const local = rawEmail.slice(0, atIndex);
+            const domain = rawEmail.slice(atIndex + 1);
+            const maskedLocal = `${local.slice(0, 3)}${'*'.repeat(7)}`;
+            return { label: 'Email帳號', masked: `${maskedLocal}@${domain}`, verified: false };
+        };
         
         const utils = {
             fetchAllData, formatEmailForAuth, extractAccountFromEmail,
@@ -230,27 +245,43 @@
             );
         };
 
-        const AppHeader = ({ title, name, onLogout }) => (
-            <React.Fragment>
-                <nav className="bg-emerald-600 text-white sticky top-0 z-50" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
-                    <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 py-3 flex items-center justify-between">
-                        <NavMenu onLogout={onLogout} />
-                        <h1 className="text-lg font-black tracking-tight">{title}</h1>
-                        <div className="w-11 h-11 shrink-0"></div>
-                    </div>
-                </nav>
-                <div className="bg-emerald-600 text-white relative z-10">
-                    <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 pt-1 pb-6 flex items-center gap-4">
-                        <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-                            <User size={32} />
+        const AppHeader = ({ title, name, account, onLogout }) => {
+            const accountInfo = account ? maskAccountForDisplay(account) : null;
+            return (
+                <React.Fragment>
+                    <nav className="bg-emerald-600 text-white sticky top-0 z-50" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+                        <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 py-3 flex items-center justify-between">
+                            <NavMenu onLogout={onLogout} />
+                            <h1 className="text-lg font-black tracking-tight">{title}</h1>
+                            <div className="w-11 h-11 shrink-0"></div>
                         </div>
-                        <div className="min-w-0">
-                            <h2 className="text-2xl font-black truncate">{name}</h2>
+                    </nav>
+                    <div className="bg-emerald-600 text-white relative z-10">
+                        <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 pt-1 pb-6 flex items-center gap-4">
+                            <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                                <User size={32} />
+                            </div>
+                            <div className="min-w-0">
+                                <h2 className="text-2xl font-black truncate">{name}</h2>
+                                {accountInfo && (
+                                    <div className="mt-1.5">
+                                        <p className="text-[11px] font-bold text-white/60 uppercase tracking-wide">{accountInfo.label}</p>
+                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                            <p className="text-sm font-semibold text-white/90 truncate">{accountInfo.masked}</p>
+                                            {accountInfo.verified && (
+                                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-white bg-white/15 px-1.5 py-0.5 rounded-full shrink-0">
+                                                    <Check size={11} /> 已認證
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
-            </React.Fragment>
-        );
+                </React.Fragment>
+            );
+        };
 
         // ==========================================
         // 登入元件 AuthScreen
@@ -757,7 +788,7 @@
             return (
                 <div className={`flex ${!isAdmin ? 'flex-col' : ''} h-[100dvh] w-full bg-slate-50 overflow-hidden relative`}>
                     {!isAdmin && (
-                        <AppHeader title="個人設定" name={myName || extractAccountFromEmail(session?.user?.email)} onLogout={handleLogout} />
+                        <AppHeader title="個人設定" name={myName || extractAccountFromEmail(session?.user?.email)} account={session?.user?.email} onLogout={handleLogout} />
                     )}
                     {/* 這裡改為 overflow-y-auto 與 custom-scrollbar，確保內容過長時可正常滾動 */}
                     <main className="flex-1 flex flex-col min-h-0 overflow-y-auto custom-scrollbar relative z-10">
