@@ -265,14 +265,8 @@
                                 <h2 className="text-2xl font-black truncate">{name}</h2>
                                 {accountInfo && (
                                     <div className="mt-1.5">
-                                        <p className="text-[11px] font-bold text-white/60 uppercase tracking-wide">{accountInfo.label}</p>
                                         <div className="flex items-center gap-1.5 mt-0.5">
                                             <p className="text-sm font-semibold text-white/90 truncate">{accountInfo.masked}</p>
-                                            {accountInfo.verified && (
-                                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-white bg-white/15 px-1.5 py-0.5 rounded-full shrink-0">
-                                                    <Check size={11} /> 已認證
-                                                </span>
-                                            )}
                                         </div>
                                     </div>
                                 )}

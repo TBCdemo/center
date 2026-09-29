@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-    Users, Copy, Trash2, CalendarX, Search, X, Edit2, ShieldCheck, 
+    Users, Copy, Trash2, CalendarX, Search, X, Edit2, Edit3, ShieldCheck, 
     Check, Save, CheckCircle2, AlertCircle, UserPlus, User, ChevronLeft,
     Home, LogOut, Calendar, Lock, Unlock, Menu, BarChart3
 } from 'lucide-react';
@@ -649,23 +649,26 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
                     
                     <div className="flex items-center gap-3 overflow-x-auto w-full md:w-auto no-scrollbar pb-1 md:pb-0">
                         {!isAdmin && (
-                            <div className="flex items-center bg-slate-50 p-1.5 rounded-lg border border-slate-200 shadow-sm shrink-0">
-                                <div className={`h-8 px-4 rounded-md text-xs font-medium whitespace-nowrap flex items-center gap-2 shadow-sm bg-white ${isSubmissionOpen ? 'text-emerald-600' : 'text-red-600'}`}>
-                                    {isSubmissionOpen ? (
-                                        <>
-                                            <span className="relative flex h-2.5 w-2.5">
-                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                                            </span>
-                                            Open Now
-                                        </>
-                                    ) : (
-                                        <>
-                                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
-                                            View Only
-                                        </>
-                                    )}
+                            <div className="grid grid-cols-3 gap-2 w-full md:w-96 shrink-0">
+                                <div className={`flex flex-col items-center justify-center gap-1.5 py-3 rounded-xl border shadow-sm ${isSubmissionOpen ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-red-50 border-red-100 text-red-600'}`}>
+                                    {isSubmissionOpen ? <Unlock size={22} /> : <Lock size={22} />}
+                                    <span className="text-xs font-bold whitespace-nowrap">{isSubmissionOpen ? '開放填寫' : '暫停填寫'}</span>
                                 </div>
+                                <button
+                                    onClick={() => setIsLargeFont(!isLargeFont)}
+                                    className={`flex flex-col items-center justify-center gap-1.5 py-3 rounded-xl border shadow-sm transition-all duration-200 ${isLargeFont ? 'bg-indigo-50 border-indigo-100 text-indigo-600' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}
+                                >
+                                    <span className="font-bold text-[20px] leading-[22px] h-[22px]">Aa</span>
+                                    <span className="text-xs font-bold whitespace-nowrap">{isLargeFont ? '標準文字' : '放大文字'}</span>
+                                </button>
+                                <button
+                                    onClick={() => displayMembers[0] && openEditModal(displayMembers[0])}
+                                    disabled={!isSubmissionOpen || !displayMembers[0]}
+                                    className="flex flex-col items-center justify-center gap-1.5 py-3 rounded-xl border shadow-sm transition-all duration-200 bg-pink-50 border-pink-100 text-pink-600 hover:bg-pink-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    <Edit3 size={22} />
+                                    <span className="text-xs font-bold whitespace-nowrap">編輯資料</span>
+                                </button>
                             </div>
                         )}
 
@@ -716,6 +719,7 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
                             </div>
                         )}
 
+                        {isAdmin && (
                         <div className="flex items-center bg-slate-50 p-1.5 rounded-lg border border-slate-200 shadow-sm shrink-0">
                             <button 
                                 onClick={() => setIsLargeFont(!isLargeFont)} 
@@ -724,6 +728,7 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
                                 <span className="font-bold text-[14px] leading-none">Aa</span> {isLargeFont ? '標準' : '較大'}
                             </button>
                         </div>
+                        )}
                     </div>
                 </div>
 
@@ -779,9 +784,6 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
                                     <div key={member.id} className="bg-white rounded-xl p-4 sm:p-6 shadow-soft border border-slate-100 hover:shadow-hover-soft hover:-translate-y-1 transition-all duration-200 relative group">
                                         <div className="flex justify-between items-start mb-3">
                                             <div className={!isAdmin ? 'flex items-center gap-3' : ''}>
-                                                {!isAdmin && (isAdmin || isSubmissionOpen) && (
-                                                    <button onClick={() => openEditModal(member)} className="p-2.5 bg-slate-50 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors shrink-0"><Edit2 size={16}/></button>
-                                                )}
                                                 <div>
                                                     {isAdmin && (
                                                         <h3 className={`${isLargeFont ? 'text-2xl sm:text-3xl' : 'text-xl sm:text-2xl'} font-bold text-slate-900 flex items-center gap-2 flex-wrap leading-tight`}>
