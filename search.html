@@ -14,14 +14,8 @@
             theme: {
                 extend: {
                     colors: {
-                        // 主色 #8806CE（覆寫 indigo，全站既有 indigo-* class 自動換色）
-                        indigo: { 50:'#F9F0FD',100:'#F1DEFA',200:'#E2C2F5',300:'#CC9AEC',400:'#B36AE2',500:'#9D32D6',600:'#8806CE',700:'#6F05A8',800:'#590486',900:'#45036A',950:'#2A0240' },
-                        // 輔助綠 #81B776（覆寫 emerald；400 為圖片原色，600 以上供白字/文字使用）
-                        emerald: { 50:'#F0F7EE',100:'#DAEBD6',200:'#B5D7AD',300:'#98C88E',400:'#81B776',500:'#5E9A52',600:'#3F7A34',700:'#325F29',800:'#274A21',900:'#1D3819' },
-                        // 李紫 #DE90DB（取代 sky，用在第三張卡片與漸層終點）
-                        sky: { 50:'#FBF1FA',100:'#F6DFF4',200:'#EDC3EA',300:'#E4A9E0',400:'#DE90DB',500:'#C464C0',600:'#A03F9C',700:'#7E307B' },
-                        // 帶紫調的中性灰
-                        slate: { 50:'#FCFCFC',100:'#F5F5F5',200:'#E8E8E8',300:'#D0C3DC',400:'#9C8CAD',500:'#6F5F82',600:'#54466A',700:'#3F3350',800:'#2A2038',900:'#1A1225' }
+                        indigo: {50: '#f7eefc', 100: '#eddaf8', 200: '#d9afef', 300: '#c17ee6', 400: '#a747db', 500: '#941fd3', 600: '#8806ce', 700: '#7205ad', 800: '#5c048c', 900: '#49036f'},
+                        emerald: {50: '#f6faf5', 100: '#ecf4ea', 200: '#d7e8d3', 300: '#bddab8', 400: '#a2ca9a', 500: '#8ebe84', 600: '#81b776', 700: '#6c9a63', 800: '#587c50', 900: '#466340'},
                     },
                     boxShadow: {
                         'button': '0 4px 14px 0 rgba(136, 6, 206, 0.3)'
@@ -44,16 +38,16 @@
     </script>
 
     <style>
-        body { background-color: #FFFFFF; font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { background-color: #f8fafc; font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
         .animate-in { animation: fadeIn 0.5s ease-out forwards; opacity: 0; }
         @keyframes fadeIn { 
             from { opacity: 0; transform: translateY(10px); } 
             to { opacity: 1; transform: translateY(0); } 
         }
         ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #F5F5F5; }
-        ::-webkit-scrollbar-thumb { background: #D0C3DC; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #9C8CAD; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 </head>
 <body>
@@ -858,15 +852,15 @@
                 </div>
 
                 {showImportGuide && (
-                    <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex gap-3 items-start animate-in fade-in relative">
-                        <Info size={18} className="text-indigo-500 mt-0.5 shrink-0" />
-                        <div className="text-sm text-indigo-700 font-semibold leading-relaxed pr-6">
+                    <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex gap-3 items-start animate-in fade-in relative">
+                        <Info size={18} className="text-blue-500 mt-0.5 shrink-0" />
+                        <div className="text-sm text-blue-700 font-semibold leading-relaxed pr-6">
                             <p className="mb-1">行事曆檔案（.ics）已下載，匯入教學如下：</p>
                             <p className="mb-0.5">📅 <span className="font-black">電腦版Google 日曆：</span>開啟 calendar.google.com，點左側「其他日曆」旁的「＋」→「匯入」，選擇下載的檔案。</p>
                             <p className="mb-0.5">📅 <span className="font-black">手機版Google 日曆：</span>開啟下載的 .ics 檔案，點「新增全部」。</p>
                             <p className="mb-0.5">🍎 <span className="font-black">iPhone / Apple 日曆：</span>開啟下載的 .ics 檔案，點「加入所有」。</p>
                                                    </div>
-                        <button onClick={() => setShowImportGuide(false)} className="absolute top-3 right-3 text-indigo-400 hover:text-indigo-600">
+                        <button onClick={() => setShowImportGuide(false)} className="absolute top-3 right-3 text-blue-400 hover:text-blue-600">
                             <X size={16} />
                         </button>
                     </div>

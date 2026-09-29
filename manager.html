@@ -18,14 +18,8 @@
             theme: {
                 extend: {
                     colors: {
-                        // 主色 #8806CE（覆寫 indigo，全站既有 indigo-* class 自動換色）
-                        indigo: { 50:'#F9F0FD',100:'#F1DEFA',200:'#E2C2F5',300:'#CC9AEC',400:'#B36AE2',500:'#9D32D6',600:'#8806CE',700:'#6F05A8',800:'#590486',900:'#45036A',950:'#2A0240' },
-                        // 輔助綠 #81B776（覆寫 emerald；400 為圖片原色，600 以上供白字/文字使用）
-                        emerald: { 50:'#F0F7EE',100:'#DAEBD6',200:'#B5D7AD',300:'#98C88E',400:'#81B776',500:'#5E9A52',600:'#3F7A34',700:'#325F29',800:'#274A21',900:'#1D3819' },
-                        // 李紫 #DE90DB（取代 sky，用在第三張卡片與漸層終點）
-                        sky: { 50:'#FBF1FA',100:'#F6DFF4',200:'#EDC3EA',300:'#E4A9E0',400:'#DE90DB',500:'#C464C0',600:'#A03F9C',700:'#7E307B' },
-                        // 帶紫調的中性灰
-                        slate: { 50:'#FCFCFC',100:'#F5F5F5',200:'#E8E8E8',300:'#D0C3DC',400:'#9C8CAD',500:'#6F5F82',600:'#54466A',700:'#3F3350',800:'#2A2038',900:'#1A1225' }
+                        indigo: {50: '#f7eefc', 100: '#eddaf8', 200: '#d9afef', 300: '#c17ee6', 400: '#a747db', 500: '#941fd3', 600: '#8806ce', 700: '#7205ad', 800: '#5c048c', 900: '#49036f'},
+                        emerald: {50: '#f6faf5', 100: '#ecf4ea', 200: '#d7e8d3', 300: '#bddab8', 400: '#a2ca9a', 500: '#8ebe84', 600: '#81b776', 700: '#6c9a63', 800: '#587c50', 900: '#466340'},
                     },
                     fontFamily: {
                         sans: ['"Noto Sans TC"', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'sans-serif'],
@@ -53,7 +47,7 @@
     </script>
     <style type="text/tailwindcss">
         /* 移除 overflow: hidden 讓全域可以正常捲動，防止卡住 */
-        body { background-color: #FFFFFF; font-family: "Noto Sans TC", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: #f8fafc; font-family: "Noto Sans TC", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
         
         .schedule-table th { @apply px-3 py-4 bg-slate-200/80 text-slate-800 text-xs md:text-sm font-medium uppercase tracking-wider text-center border-b-2 border-slate-300; }
         .schedule-table td { @apply px-3 py-2.5 text-xs md:text-sm text-slate-700 border-b border-slate-200 vertical-top transition-all duration-300; }
@@ -65,7 +59,7 @@
         .name-tag.emergency { @apply text-orange-600; }
         .name-tag.empty-slot { @apply text-red-500 font-bold animate-pulse; }
         .name-tag.conflict { @apply text-rose-600 font-bold !important; }
-        .name-tag.orphan { color: #0A7AD0 !important; @apply font-bold; }
+        .name-tag.orphan { @apply text-sky-600 font-bold !important; }
         
         @keyframes slideInRight { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
         .animate-panel-right { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
@@ -80,8 +74,8 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .custom-scrollbar::-webkit-scrollbar, ::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track, ::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb, ::-webkit-scrollbar-thumb { background-color: #D0C3DC; border-radius: 20px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:hover { background-color: #9C8CAD; }
+        .custom-scrollbar::-webkit-scrollbar-thumb, ::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
         input, select, textarea { font-size: 16px !important; }
     </style>
 </head>
@@ -387,7 +381,7 @@
 
                         <div className="bg-white max-w-md w-full rounded-[2rem] shadow-xl p-6 sm:p-8 border border-slate-100 animate-fade-in z-10 relative">
                             <div className="flex flex-col items-center mb-8">
-                                <div className="bg-gradient-to-br from-indigo-600 to-sky-400 p-4 rounded-xl text-white shadow-button mb-4"><Activity size={32} /></div>
+                                <div className="bg-gradient-to-br from-indigo-600 to-emerald-600 p-4 rounded-xl text-white shadow-button mb-4"><Activity size={32} /></div>
                                 <h1 className="text-2xl font-black text-slate-900 text-center tracking-tight leading-tight">歡迎登入</h1>
                             </div>
 
@@ -459,7 +453,7 @@
                                     </div>
                                 )}
 
-                                <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-600 to-sky-400 hover:opacity-95 disabled:from-indigo-400 disabled:to-emerald-400 text-white font-medium py-3.5 rounded-lg shadow-button hover:-translate-y-0.5 transition-all duration-200 mt-4 text-base">
+                                <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-600 to-emerald-600 hover:opacity-95 disabled:from-indigo-400 disabled:to-emerald-400 text-white font-medium py-3.5 rounded-lg shadow-button hover:-translate-y-0.5 transition-all duration-200 mt-4 text-base">
                                     {loading ? '處理中...' : (isSignUp ? '註冊' : '登入')}
                                 </button>
                             </form>
@@ -694,7 +688,7 @@
                         <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12 animate-fade-in flex flex-col justify-start relative z-10">
                             <div className="mb-8 sm:mb-10 text-center sm:text-left">
                                 <h2 className="text-3xl sm:text-5xl font-black mb-3 tracking-tight text-slate-900">
-                                    Welcome <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-sky-400">back</span>
+                                    Welcome <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-emerald-600">back</span>
                                 </h2>
                                 <p className="text-slate-500 font-normal text-sm sm:text-base">Select a workspace to continue your management tasks.</p>
                             </div>
@@ -750,7 +744,7 @@
                                     >
                                         <span className="font-bold text-base">服事班表 ({seasonLabels.current})</span>
                                         <div className="flex items-center gap-2 shrink-0">
-                                            <div className={`w-2.5 h-2.5 rounded-full transition-colors ${systemConfig.current ? 'bg-indigo-500 shadow-[0_0_10px_rgba(136,6,206,0.7)]' : 'bg-slate-300'}`}></div>
+                                            <div className={`w-2.5 h-2.5 rounded-full transition-colors ${systemConfig.current ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]' : 'bg-slate-300'}`}></div>
                                             <span className="text-sm font-extrabold w-10 text-right">{systemConfig.current ? 'Open' : 'Close'}</span>
                                         </div>
                                     </button>
@@ -768,7 +762,7 @@
                                     >
                                         <span className="font-bold text-base">預排班表 ({seasonLabels.next})</span>
                                         <div className="flex items-center gap-2 shrink-0">
-                                            <div className={`w-2.5 h-2.5 rounded-full transition-colors ${systemConfig.next ? 'bg-emerald-500 shadow-[0_0_10px_rgba(94,154,82,0.7)]' : 'bg-slate-300'}`}></div>
+                                            <div className={`w-2.5 h-2.5 rounded-full transition-colors ${systemConfig.next ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]' : 'bg-slate-300'}`}></div>
                                             <span className="text-sm font-extrabold w-10 text-right">{systemConfig.next ? 'Open' : 'Close'}</span>
                                         </div>
                                     </button>
@@ -787,7 +781,7 @@
                                         >
                                             <span className="font-bold text-base">加入行事曆 / 換班查詢</span>
                                             <div className="flex items-center gap-2 shrink-0">
-                                                <div className={`w-2.5 h-2.5 rounded-full transition-colors ${nextButtonsConfig ? 'bg-indigo-500 shadow-[0_0_10px_rgba(136,6,206,0.7)]' : 'bg-slate-300'}`}></div>
+                                                <div className={`w-2.5 h-2.5 rounded-full transition-colors ${nextButtonsConfig ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]' : 'bg-slate-300'}`}></div>
                                                 <span className="text-sm font-extrabold w-10 text-right">{nextButtonsConfig ? 'Open' : 'Close'}</span>
                                             </div>
                                         </button>
