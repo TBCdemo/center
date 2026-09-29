@@ -864,7 +864,7 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
                             <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0 sticky top-0 z-10">
                                 <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                                     {editingMember ? <Edit2 size={20} className="text-indigo-600"/> : <UserPlus size={20} className="text-indigo-600"/>}
-                                    {editingMember ? '編輯同工資料' : '新增同工'}
+                                    {editingMember ? '編輯資料' : '新增同工'}
                                 </h2>
                                 <button onClick={closeModal} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors"><X size={20}/></button>
                             </div>
