@@ -95,6 +95,20 @@
         const SUPABASE_KEY = "sb_publishable_GwDMLoXcHaTzQDCcQlDuGw_4J9mwiaA"; 
         const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        // 與「我的服事」(search.html) 共用的登入身分：寫入同一個 tbc_user，進入我的服事時就不用再登入
+        const setSharedUser = (name) => {
+            if (!name) return;
+            try { localStorage.setItem('tbc_user', name); } catch (e) {}
+            try {
+                const d = new Date(); d.setTime(d.getTime() + 30 * 24 * 60 * 60 * 1000);
+                document.cookie = `tbc_user=${encodeURIComponent(name)}; expires=${d.toUTCString()}; path=/`;
+            } catch (e) {}
+        };
+        const clearSharedUser = () => {
+            try { localStorage.removeItem('tbc_user'); } catch (e) {}
+            try { document.cookie = 'tbc_user=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'; } catch (e) {}
+        };
+
         const constants = {
             VIRTUAL_DOMAIN: "@tbc.gmail.com",
             sessionsToSchedule: ['第一堂', '第二堂'],
@@ -485,7 +499,7 @@
                             const me = (m.email || '').trim().toLowerCase();
                             return me === emailLower || me === accountLower;
                         });
-                        if (mine?.name) setMyName(mine.name);
+                        if (mine?.name) { setMyName(mine.name); setSharedUser(mine.name); }
                     } catch (err) {
                         console.error('讀取本人姓名失敗:', err);
                     }
@@ -620,7 +634,7 @@
                 }
             };
 
-            const handleLogout = async () => { await supabase.auth.signOut(); window.location.reload(); };
+            const handleLogout = async () => { clearSharedUser(); await supabase.auth.signOut(); window.location.reload(); };
 
             // 手機返回鍵／手勢：從管理首頁進入各工作中心時新增一筆歷史紀錄，按返回就回管理首頁
             const prevAppRef = useRef('members');
