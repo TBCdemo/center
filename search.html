@@ -511,9 +511,30 @@
           );
         }
 
+        // 將登入帳號（手機或 email）轉成遮蔽顯示格式，與「個人設定」相同，例如 0922***575
+        const VIRTUAL_DOMAIN = "@tbc.gmail.com";
+        const maskAccountForDisplay = (rawEmail) => {
+          if (!rawEmail) return '';
+          if (rawEmail.endsWith(VIRTUAL_DOMAIN)) {
+            const phone = rawEmail.replace(VIRTUAL_DOMAIN, '');
+            return phone.length >= 7 ? `${phone.slice(0, 4)}***${phone.slice(-3)}` : phone;
+          }
+          const atIndex = rawEmail.indexOf('@');
+          if (atIndex === -1) return rawEmail;
+          return `${rawEmail.slice(0, 3)}${'*'.repeat(7)}@${rawEmail.slice(atIndex + 1)}`;
+        };
+
         // 頂部列（漢堡選單 + 標題）＋ 會員資料區，仿 momo 版面
         function AppHeader({ title, name, seasonType, onBack, onLogout, canSwitch, onSwitch, subText }) {
           const bg = seasonType === 'view' ? 'bg-indigo-600' : 'bg-emerald-600';
+          const [maskedAccount, setMaskedAccount] = useState('');
+          useEffect(() => {
+            let alive = true;
+            supabase.auth.getSession().then(({ data }) => {
+              if (alive) setMaskedAccount(maskAccountForDisplay(data?.session?.user?.email));
+            }).catch(() => {});
+            return () => { alive = false; };
+          }, []);
           return (
             <React.Fragment>
               <nav className={`${bg} text-white sticky top-0 z-50 transition-colors duration-500`} style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
@@ -536,6 +557,7 @@
                   </div>
                   <div className="min-w-0">
                     <h2 className="text-2xl font-black truncate">{name}</h2>
+                    {maskedAccount && <p className="text-sm font-semibold text-white/90 mt-1.5 truncate">{maskedAccount}</p>}
                     {subText && <p className="text-sm font-medium text-white/80 mt-0.5">{subText}</p>}
                   </div>
                 </div>
