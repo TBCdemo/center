@@ -17,14 +17,24 @@
         tailwind.config = {
             theme: {
                 extend: {
+                    colors: {
+                        // 主色 #8806CE（覆寫 indigo，全站既有 indigo-* class 自動換色）
+                        indigo: { 50:'#F9F0FD',100:'#F1DEFA',200:'#E2C2F5',300:'#CC9AEC',400:'#B36AE2',500:'#A645DA',600:'#8806CE',700:'#6F05A8',800:'#590486',900:'#45036A',950:'#2A0240' },
+                        // 輔助色 #ACF39D（覆寫 emerald，深階保留文字對比）
+                        emerald: { 50:'#EEFCE9',100:'#D3F9C9',200:'#ACF39D',300:'#8BE477',400:'#6FD35A',500:'#4CAF3A',600:'#2F7D1F',700:'#256318',800:'#1D4E14',900:'#163A10' },
+                        // 橄欖 #B0C592（取代 sky）
+                        sky: { 50:'#F4F8EC',100:'#E6EED4',200:'#D3E0B8',300:'#B0C592',400:'#96AE72',500:'#7C9558',600:'#5F7841',700:'#4B5F33' },
+                        // 帶紫調的中性灰
+                        slate: { 50:'#FAF7FD',100:'#F4EFF9',200:'#E8DFF0',300:'#D0C3DC',400:'#9C8CAD',500:'#6F5F82',600:'#54466A',700:'#3F3350',800:'#2A2038',900:'#1A1225' }
+                    },
                     fontFamily: {
                         sans: ['"Noto Sans TC"', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'sans-serif'],
                     },
                     boxShadow: {
-                        'soft': '0 4px 20px -2px rgba(79, 70, 229, 0.1)',
-                        'hover-soft': '0 10px 25px -5px rgba(79, 70, 229, 0.15), 0 8px 10px -6px rgba(79, 70, 229, 0.1)',
-                        'button': '0 4px 14px 0 rgba(79, 70, 229, 0.3)',
-                        'glow': '0 0 20px rgba(79,70,229,0.5)'
+                        'soft': '0 4px 20px -2px rgba(136, 6, 206, 0.1)',
+                        'hover-soft': '0 10px 25px -5px rgba(136, 6, 206, 0.15), 0 8px 10px -6px rgba(136, 6, 206, 0.1)',
+                        'button': '0 4px 14px 0 rgba(136, 6, 206, 0.3)',
+                        'glow': '0 0 20px rgba(136,6,206,0.5)'
                     }
                 }
             }
@@ -43,7 +53,7 @@
     </script>
     <style type="text/tailwindcss">
         /* 移除 overflow: hidden 讓全域可以正常捲動，防止卡住 */
-        body { background-color: #f8fafc; font-family: "Noto Sans TC", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: #FAF6FE; font-family: "Noto Sans TC", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
         
         .schedule-table th { @apply px-3 py-4 bg-slate-200/80 text-slate-800 text-xs md:text-sm font-medium uppercase tracking-wider text-center border-b-2 border-slate-300; }
         .schedule-table td { @apply px-3 py-2.5 text-xs md:text-sm text-slate-700 border-b border-slate-200 vertical-top transition-all duration-300; }
@@ -70,8 +80,8 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .custom-scrollbar::-webkit-scrollbar, ::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track, ::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb, ::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
+        .custom-scrollbar::-webkit-scrollbar-thumb, ::-webkit-scrollbar-thumb { background-color: #D0C3DC; border-radius: 20px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:hover { background-color: #9C8CAD; }
         input, select, textarea { font-size: 16px !important; }
     </style>
 </head>
@@ -740,7 +750,7 @@
                                     >
                                         <span className="font-bold text-base">服事班表 ({seasonLabels.current})</span>
                                         <div className="flex items-center gap-2 shrink-0">
-                                            <div className={`w-2.5 h-2.5 rounded-full transition-colors ${systemConfig.current ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]' : 'bg-slate-300'}`}></div>
+                                            <div className={`w-2.5 h-2.5 rounded-full transition-colors ${systemConfig.current ? 'bg-indigo-500 shadow-[0_0_10px_rgba(136,6,206,0.7)]' : 'bg-slate-300'}`}></div>
                                             <span className="text-sm font-extrabold w-10 text-right">{systemConfig.current ? 'Open' : 'Close'}</span>
                                         </div>
                                     </button>
@@ -758,7 +768,7 @@
                                     >
                                         <span className="font-bold text-base">預排班表 ({seasonLabels.next})</span>
                                         <div className="flex items-center gap-2 shrink-0">
-                                            <div className={`w-2.5 h-2.5 rounded-full transition-colors ${systemConfig.next ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]' : 'bg-slate-300'}`}></div>
+                                            <div className={`w-2.5 h-2.5 rounded-full transition-colors ${systemConfig.next ? 'bg-emerald-500 shadow-[0_0_10px_rgba(76,175,58,0.7)]' : 'bg-slate-300'}`}></div>
                                             <span className="text-sm font-extrabold w-10 text-right">{systemConfig.next ? 'Open' : 'Close'}</span>
                                         </div>
                                     </button>
@@ -777,7 +787,7 @@
                                         >
                                             <span className="font-bold text-base">加入行事曆 / 換班查詢</span>
                                             <div className="flex items-center gap-2 shrink-0">
-                                                <div className={`w-2.5 h-2.5 rounded-full transition-colors ${nextButtonsConfig ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]' : 'bg-slate-300'}`}></div>
+                                                <div className={`w-2.5 h-2.5 rounded-full transition-colors ${nextButtonsConfig ? 'bg-indigo-500 shadow-[0_0_10px_rgba(136,6,206,0.7)]' : 'bg-slate-300'}`}></div>
                                                 <span className="text-sm font-extrabold w-10 text-right">{nextButtonsConfig ? 'Open' : 'Close'}</span>
                                             </div>
                                         </button>
