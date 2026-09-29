@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>個人設定</title>
+    <title>服事管理</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -445,6 +445,28 @@
             const [isAdmin, setIsAdmin] = useState(false);
             const [isRoleChecking, setIsRoleChecking] = useState(true);
             const [currentApp, setCurrentApp] = useState('members'); 
+            const [myName, setMyName] = useState('');
+
+            // 依登入帳號（電話或 email）比對 members 表，找出本人姓名，供一般同工頁首顯示
+            useEffect(() => {
+                const loadMyName = async () => {
+                    if (!session?.user?.email) return;
+                    const emailLower = session.user.email.trim().toLowerCase();
+                    const accountLower = extractAccountFromEmail(session.user.email).trim().toLowerCase();
+                    try {
+                        const { data, error } = await supabase.from('members').select('name, email');
+                        if (error) throw error;
+                        const mine = (data || []).find(m => {
+                            const me = (m.email || '').trim().toLowerCase();
+                            return me === emailLower || me === accountLower;
+                        });
+                        if (mine?.name) setMyName(mine.name);
+                    } catch (err) {
+                        console.error('讀取本人姓名失敗:', err);
+                    }
+                };
+                loadMyName();
+            }, [session?.user?.email]);
 
             // --- 系統控制面板專用狀態 ---
             const [systemConfig, setSystemConfig] = useState({ current: true, next: false });
@@ -735,7 +757,7 @@
             return (
                 <div className={`flex ${!isAdmin ? 'flex-col' : ''} h-[100dvh] w-full bg-slate-50 overflow-hidden relative`}>
                     {!isAdmin && (
-                        <AppHeader title="個人設定" name={extractAccountFromEmail(session?.user?.email)} onLogout={handleLogout} />
+                        <AppHeader title="個人設定" name={myName || extractAccountFromEmail(session?.user?.email)} onLogout={handleLogout} />
                     )}
                     {/* 這裡改為 overflow-y-auto 與 custom-scrollbar，確保內容過長時可正常滾動 */}
                     <main className="flex-1 flex flex-col min-h-0 overflow-y-auto custom-scrollbar relative z-10">
