@@ -9,6 +9,13 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
     const { fetchAllData, extractAccountFromEmail, generateBaseQuarters, getNextQuarter, getCurrentQuarter, getSundaysInQuarter, getHolidayName } = utils;
     const { ADMIN_ACCOUNT, DEFAULT_MEMBER, SESSION_OPTIONS, STATUS_OPTIONS } = constants;
 
+    // 同工填寫季度：今天 +1 個月所在的季度（9/1–11/30→Q4、12/1–2/28→隔年Q1、3/1–5/31→Q2、6/1–8/31→Q3）
+    const getSubmissionQuarter = () => {
+        const d = new Date();
+        const shifted = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+        return `${shifted.getFullYear()}-Q${Math.floor(shifted.getMonth() / 3) + 1}`;
+    };
+
     const FINAL_STATUS_OPTIONS = [...new Set([
         ...(STATUS_OPTIONS || []), 
         '穩定服事', 
@@ -26,7 +33,7 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     const [quarterOptions, setQuarterOptions] = useState(['BASE']);
-    const initialQuarter = isAdmin ? getCurrentQuarter() : getNextQuarter(getCurrentQuarter());
+    const initialQuarter = isAdmin ? getCurrentQuarter() : getSubmissionQuarter();
     const [viewQuarter, setViewQuarter] = useState(initialQuarter); 
     
     const [members, setMembers] = useState([]);
@@ -260,7 +267,7 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
             setIsDeleteQuarterModalOpen(false);
             
             if (quartersToDelete.includes(viewQuarter)) {
-                setViewQuarter(isAdmin ? getCurrentQuarter() : getNextQuarter(getCurrentQuarter()));
+                setViewQuarter(isAdmin ? getCurrentQuarter() : getSubmissionQuarter());
             } else {
                 loadData(); 
             }
