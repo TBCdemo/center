@@ -1094,7 +1094,7 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
                                                         <span className={`text-base sm:text-sm font-bold ${textClass}`}>{shortDate}</span>
                                                         
                                                         {isSystemBlocked ? (
-                                                            <span className="text-xs font-normal mt-1 text-center leading-tight text-indigo-500">跨團隊服事</span>
+                                                            <span className="text-xs font-normal mt-1 text-center leading-tight text-indigo-500">不便服事日</span>
                                                         ) : holidayName ? (
                                                             <span className={`text-xs font-normal mt-1 text-center leading-tight ${isChecked ? 'text-orange-500' : 'text-slate-400'}`}>{holidayName}</span>
                                                         ) : null}
