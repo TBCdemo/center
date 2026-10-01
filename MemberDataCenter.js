@@ -65,6 +65,13 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
     const [formData, setFormData] = useState({ ...DEFAULT_MEMBER, unavailable_weeks: [] });
     const [formPositions, setFormPositions] = useState({}); 
 
+    // 帳號為電話時，系統登入 Email 為「電話@tbc.gmail.com」；帳號本身是 Email 則直接使用
+    const toAuthEmail = (account) => {
+        const v = (account || '').trim().toLowerCase();
+        if (!v) return '';
+        return v.includes('@') ? v : `${v}@tbc.gmail.com`;
+    };
+
     const loadData = async () => {
         setIsLoading(true);
         try {
@@ -828,10 +835,10 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
                                                 <div className="flex gap-1.5 transition-opacity opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
                                                     {(isAdmin || isSubmissionOpen) && <button onClick={() => openEditModal(member)} className="p-2.5 bg-slate-50 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"><Edit2 size={16}/></button>}
                                                     {member.email && (() => {
-                                                        const hasPassword = authEmails.has(member.email.trim().toLowerCase());
+                                                        const hasPassword = authEmails.has(toAuthEmail(member.email));
                                                         return (
                                                             <button 
-                                                                onClick={() => hasPassword && handleResetAuth(member.email, member.name)} 
+                                                                onClick={() => hasPassword && handleResetAuth(toAuthEmail(member.email), member.name)} 
                                                                 disabled={!hasPassword}
                                                                 title={hasPassword ? '已設定密碼（點擊重設）' : '尚未設定密碼'}
                                                                 className={`p-2.5 bg-slate-50 rounded-lg transition-colors ${hasPassword ? 'hover:bg-amber-50 text-slate-400 hover:text-amber-600' : 'text-slate-300 cursor-default'}`}
