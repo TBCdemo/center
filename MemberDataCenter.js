@@ -1165,9 +1165,11 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
                 )}
 
                 {message.text && (
-                    <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-[110] px-5 py-3 rounded-xl font-medium shadow-soft animate-fade-in flex items-start gap-2 max-w-[90vw] w-max ${message.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`}>
+                    <div className="fixed top-24 inset-x-0 z-[110] flex justify-center px-4 pointer-events-none">
+                    <div className={`px-5 py-3 rounded-xl font-medium shadow-soft animate-fade-in flex items-start gap-2 max-w-full w-max ${message.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`}>
                         <div className="shrink-0 mt-0.5">{message.type === 'success' ? <CheckCircle2 size={18}/> : <AlertCircle size={18}/>}</div>
                         <div className="text-sm leading-snug break-words flex-1">{message.text}</div>
+                    </div>
                     </div>
                 )}
                 
