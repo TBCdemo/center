@@ -1185,7 +1185,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
             >
                 <div className="flex items-center gap-2 font-bold text-slate-700">
                     <ShieldCheck size={18} className="text-indigo-500" />
-                    崗位人數設定
+                    崗位設定
                 </div>
                 {isPositionsPanelOpen ? <ChevronUp size={18} className="text-slate-400"/> : <ChevronDown size={18} className="text-slate-400"/>}
             </button>
@@ -1213,7 +1213,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                                 <div key={pos.id || pos.temp_id} className={`flex items-center gap-3 ${paused ? 'opacity-60' : ''}`}>
                                     <div className="flex-1 px-3 py-2 text-sm font-bold text-slate-700 bg-slate-50 border border-slate-100 rounded-lg select-none flex items-center gap-2">
                                         {pos.name}
-                                        {paused && <span className="text-[11px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">已暫停</span>}
+                                        {paused && <span className="text-[11px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">暫停</span>}
                                     </div>
                                     <div className="flex items-center gap-3 shrink-0">
                                         <input 
@@ -1232,14 +1232,14 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                                         />
                                         <button
                                             onClick={() => handleTogglePausePosition(pos)}
-                                            title={paused ? '恢復此崗位' : '暫停此崗位'}
+                                            title={paused ? 'ㄑ啟用' : '暫停'}
                                             className={`p-2 rounded-lg transition-colors ${paused ? 'text-emerald-600 hover:bg-emerald-50' : 'text-amber-600 hover:bg-amber-50'}`}
                                         >
                                             {paused ? <Play size={16}/> : <Pause size={16}/>}
                                         </button>
                                         <button
                                             onClick={() => setDeleteTarget(pos)}
-                                            title="刪除此崗位"
+                                            title="刪除"
                                             className="p-2 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
                                         >
                                             <Trash2 size={16}/>
@@ -1270,7 +1270,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                                 <Plus size={16}/> 新增
                             </button>
                         </div>
-                        <p className="text-xs text-slate-400 mt-2">暫停：預排時不再排這個崗位，舊班表與同工設定都保留，隨時可恢復。刪除：永久移除，無法復原。</p>
+                        <p className="text-xs text-slate-400 mt-2">暫停：預排作業時不排入，編輯作業原崗位、人數設定都保留。</p>
                     </div>
 
                     {/* 儲存按鈕置底 */}
