@@ -247,8 +247,8 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                 const nextAll = (prev.allPositions || prev.positions).map(p => p.id === pos.id ? { ...p, is_active: nextActive } : p);
                 return { ...prev, positions: nextAll.filter(isPosActive), allPositions: nextAll };
             });
-            showQuickToast(nextActive ? '已恢復崗位' : '已暫停崗位');
-        } catch (err) { setErrorMsg('更新崗位狀態失敗：' + err.message); }
+            showQuickToast(nextActive ? '崗位啟用' : '崗位暫停');
+        } catch (err) { setErrorMsg('崗位更新失敗：' + err.message); }
     };
 
     // 刪除崗位：先清掉同工的此崗位設定，再刪崗位本身
