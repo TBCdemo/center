@@ -1037,7 +1037,7 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
                                                     {pos.name}
                                                     {isAdmin && isBtnActive && <span className="w-2 h-2 rounded-full bg-indigo-500 ml-1"></span>}
                                                     {isAdmin && isBtnInactive && <span className="text-[10px] ml-1 opacity-60">暫停</span>}
-                                                    {pos.is_active === false && <span className="text-[10px] ml-1 px-1 bg-amber-100 text-amber-700 rounded">崗位暫停中</span>}
+                                                    {pos.is_active === false && <span className="text-[10px] ml-1 px-1 bg-amber-100 text-amber-700 rounded">全會暫停</span>}
                                                 </button>
                                             );
                                         })}
