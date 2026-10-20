@@ -269,7 +269,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                 };
             });
             setDeleteTarget(null);
-            showQuickToast('已刪除崗位');
+            showQuickToast('崗位刪除');
         } catch (err) { setErrorMsg('刪除崗位失敗：' + err.message); }
         finally { setIsDeletingPosition(false); }
     };
@@ -2043,8 +2043,8 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                         <div className="bg-white rounded-2xl p-6 md:p-8 max-w-md w-full shadow-hover-soft animate-pop border border-slate-100">
                             <div className="flex items-center gap-3 mb-4 text-red-600"><AlertTriangle size={28} /><h3 className="text-2xl font-bold text-slate-900">刪除崗位</h3></div>
                             <p className="text-sm text-slate-600 leading-relaxed mb-6">
-                                確定要永久刪除「<b>{deleteTarget.name}</b>」嗎？所有同工的這個崗位設定也會一併清除，無法復原。<br/>
-                                如果只是暫時不排，建議改用「暫停」。
+                                確定永久刪除「<b>{deleteTarget.name}</b>」嗎？所有同工的崗位設定將一併清除，無法復原。<br/>
+                                如果崗位只是暫時不排班，建議改用「暫停」。
                             </p>
                             <div className="flex gap-3">
                                 <button onClick={() => setDeleteTarget(null)} disabled={isDeletingPosition} className="flex-1 py-3 px-4 font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 text-sm">取消</button>
