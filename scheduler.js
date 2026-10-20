@@ -452,12 +452,18 @@ const ScheduleEngine = {
   },
 
   _runSchedulingPipeline(state, context, members, specialIds) {
+    // 內建順序之外的新崗位（後台新增的）接在後面，避免被略過
+    const dynamicRoleOrder = [
+      ...roleOrder,
+      ...[...new Set(context.availableSlots.map(s => s.roleName))]
+        .filter(n => !roleOrder.includes(n) && n !== '執事輪值')
+    ];
     this._assignDeacons(state, context, members, specialIds.deacon);
     this._assignDualService(state, context, members);
     this._assignFamilyGroups(state, context, members, specialIds); 
 
     sessionsToSchedule.forEach((sess) => {
-      roleOrder.forEach(roleName => {
+      dynamicRoleOrder.forEach(roleName => {
         const slots = context.availableSlots.filter(s => s.session === sess && s.roleName === roleName && s.needed > 0);
         slots.forEach(slot => {
              this._fillSlot(slot, members, state, context, 0);
@@ -469,7 +475,7 @@ const ScheduleEngine = {
     this._enforceFamily(state, context, members);
 
     sessionsToSchedule.forEach((sess) => {
-      roleOrder.forEach(roleName => {
+      dynamicRoleOrder.forEach(roleName => {
         const slots = context.availableSlots.filter(s => s.session === sess && s.roleName === roleName && s.needed > 0);
         slots.forEach(slot => {
             this._fillSlot(slot, members, state, context, 1);

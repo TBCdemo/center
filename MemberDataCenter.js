@@ -779,7 +779,7 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
                                 const settings = quarterSettings.find(s => s.member_id === member.id) || DEFAULT_MEMBER;
                                 const ownedPosList = memberPositions.filter(mp => mp.member_id === member.id).map(mp => {
                                     const p = positions.find(pos => pos.id === mp.position_id);
-                                    return p ? { name: p.name, isActive: mp.is_active !== false } : null;
+                                    return p ? { name: p.name, posPaused: p.is_active === false, isActive: mp.is_active !== false && p.is_active !== false } : null;
                                 }).filter(Boolean);
 
                                 let safeDates = [];
@@ -858,7 +858,7 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
                                                     {ownedPosList.length > 0 ? ownedPosList.map(p => (
                                                         <span key={p.name} className={`${isLargeFont ? 'text-base px-3 py-2' : 'text-sm px-2.5 py-1.5'} font-medium rounded-lg border flex items-center gap-1.5 ${p.isActive ? 'bg-white border-slate-200 text-slate-700 shadow-sm' : 'bg-slate-100 border-slate-200 border-dashed text-slate-400'}`}>
                                                             {p.name} 
-                                                            {isAdmin && !p.isActive && <span className={`${isLargeFont ? 'text-xs px-1.5' : 'text-[10px] px-1'} bg-slate-200 text-slate-500 rounded`}>暫停</span>}
+                                                            {isAdmin && !p.isActive && <span className={`${isLargeFont ? 'text-xs px-1.5' : 'text-[10px] px-1'} bg-slate-200 text-slate-500 rounded`}>{p.posPaused ? '崗位暫停' : '暫停'}</span>}
                                                             {isAdmin && (p.name.includes('新朋友') && settings.newcomer_rule > 0) && (
                                                                 <span className={`${isLargeFont ? 'text-xs' : 'text-[10px]'} text-indigo-500 ml-0.5`}>(主責)</span>
                                                             )}
@@ -1037,6 +1037,7 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
                                                     {pos.name}
                                                     {isAdmin && isBtnActive && <span className="w-2 h-2 rounded-full bg-indigo-500 ml-1"></span>}
                                                     {isAdmin && isBtnInactive && <span className="text-[10px] ml-1 opacity-60">暫停</span>}
+                                                    {pos.is_active === false && <span className="text-[10px] ml-1 px-1 bg-amber-100 text-amber-700 rounded">崗位暫停中</span>}
                                                 </button>
                                             );
                                         })}

@@ -7,7 +7,7 @@ import {
     Lightbulb, UserCheck, UserX, LayoutList, 
     ArrowUpDown, X, Database, AlertTriangle,
     Home, LogOut, Edit2, Check, ShieldCheck, Undo2, Redo2,
-    ChevronDown, ChevronUp, Plus, Copy, Camera, MoreVertical, LayoutGrid, Table, Menu
+    ChevronDown, ChevronUp, Plus, Copy, Camera, MoreVertical, LayoutGrid, Table, Menu, Trash2, Pause
 } from 'lucide-react';
 
 const safeParseJSON = (data, fallback) => {
@@ -15,6 +15,11 @@ const safeParseJSON = (data, fallback) => {
     if (typeof data !== 'string') return data;
     try { return JSON.parse(data); } catch (e) { return fallback; }
 };
+
+// 核心崗位：不能被刪除或暫停（排班引擎有特別處理）
+const CORE_POSITIONS = ['司會', '執事輪值', 'PPT'];
+// 崗位是否「啟用中」（沒有填的舊資料一律當作啟用）
+const isPosActive = (p) => p.is_active !== false;
 
 // 自訂崗位固定排序順序
 const POSITION_ORDER = ['司會', '執事輪值', '接待', '收奉獻', '主餐', 'PPT', '新朋友關懷'];
@@ -60,6 +65,11 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
     const [isPositionsPanelOpen, setIsPositionsPanelOpen] = useState(false);
     const [editPositions, setEditPositions] = useState([]);
     const [isSavingPositions, setIsSavingPositions] = useState(false);
+    const [newPosName, setNewPosName] = useState('');
+    const [newPosMin, setNewPosMin] = useState(1);
+    const [newPosMax, setNewPosMax] = useState(1);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [isDeletingPosition, setIsDeletingPosition] = useState(false);
     // -------------------------
 
     const [activeSlot, setActiveSlot] = useState(null); 
@@ -107,7 +117,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                 const positions = sortPositions(rawPositions);
 
                 setDbData({ 
-                    members: members || [], positions: positions || [], memberPositions: memberPositions || [], 
+                    members: members || [], positions: positions.filter(isPosActive), allPositions: positions, memberPositions: memberPositions || [], 
                     existingSchedules: [], memberQuarterSettings: quarterSettings || []
                 });
             } catch (err) { setErrorMsg('讀取資料庫失敗。請確保網路連線。'); } 
@@ -117,10 +127,11 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
     }, [year, quarter]); 
 
     useEffect(() => {
-        if (dbData.positions && dbData.positions.length > 0) {
-            setEditPositions(dbData.positions);
+        const all = dbData.allPositions || dbData.positions;
+        if (all && all.length > 0) {
+            setEditPositions(all.map(p => ({ ...p })));
         }
-    }, [dbData.positions]);
+    }, [dbData.allPositions, dbData.positions]);
 
     useEffect(() => {
         const checkScheduleExists = async () => {
@@ -185,7 +196,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
             if (error) throw error;
 
             const sortedData = sortPositions(data);
-            setDbData(prev => ({ ...prev, positions: sortedData }));
+            setDbData(prev => ({ ...prev, positions: sortedData.filter(isPosActive), allPositions: sortedData }));
             setIsPositionsPanelOpen(false);
             setToastMessage('儲存成功');
             setShowSuccessToast(true);
@@ -195,6 +206,72 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
         } finally {
             setIsSavingPositions(false);
         }
+    };
+
+    const showQuickToast = (msg) => {
+        setToastMessage(msg); setShowSuccessToast(true); setTimeout(() => setShowSuccessToast(false), 2000);
+    };
+    const showQuickError = (msg) => { setErrorMsg(msg); setTimeout(() => setErrorMsg(''), 3000); };
+
+    // 新增崗位：寫入 positions 資料表
+    const handleAddPosition = async () => {
+        const name = newPosName.trim();
+        if (!name) { showQuickError('請輸入崗位名稱'); return; }
+        const all = dbData.allPositions || dbData.positions;
+        if (all.some(p => (p.name || '').trim() === name)) { showQuickError('已有同名的崗位'); return; }
+        setIsSavingPositions(true);
+        try {
+            const min = Math.max(0, parseInt(newPosMin) || 0);
+            const max = Math.max(1, parseInt(newPosMax) || 1, min);
+            const { data, error } = await supabase.from('positions')
+                .insert({ name, min_people: min, max_people: max, is_active: true }).select();
+            if (error) throw error;
+            setDbData(prev => {
+                const nextAll = sortPositions([...(prev.allPositions || prev.positions), ...data]);
+                return { ...prev, positions: nextAll.filter(isPosActive), allPositions: nextAll };
+            });
+            setNewPosName(''); setNewPosMin(1); setNewPosMax(1);
+            showQuickToast('已新增崗位');
+        } catch (err) { setErrorMsg('新增崗位失敗：' + err.message); }
+        finally { setIsSavingPositions(false); }
+    };
+
+    // 暫停 / 恢復崗位：只改 is_active，不動任何歷史資料
+    const handleTogglePausePosition = async (pos) => {
+        const nextActive = !isPosActive(pos);
+        try {
+            const { data, error } = await supabase.from('positions').update({ is_active: nextActive }).eq('id', pos.id).select();
+            if (error) throw error;
+            if (!data || data.length === 0) throw new Error('沒有權限修改，或資料已不存在');
+            setDbData(prev => {
+                const nextAll = (prev.allPositions || prev.positions).map(p => p.id === pos.id ? { ...p, is_active: nextActive } : p);
+                return { ...prev, positions: nextAll.filter(isPosActive), allPositions: nextAll };
+            });
+            showQuickToast(nextActive ? '已恢復崗位' : '已暫停崗位');
+        } catch (err) { setErrorMsg('更新崗位狀態失敗：' + err.message); }
+    };
+
+    // 刪除崗位：先清掉同工的此崗位設定，再刪崗位本身
+    const executeDeletePosition = async () => {
+        if (!deleteTarget) return;
+        setIsDeletingPosition(true);
+        try {
+            const { error: e1 } = await supabase.from('member_positions').delete().eq('position_id', deleteTarget.id);
+            if (e1) throw e1;
+            const { data, error: e2 } = await supabase.from('positions').delete().eq('id', deleteTarget.id).select();
+            if (e2) throw e2;
+            if (!data || data.length === 0) throw new Error('沒有權限刪除，或資料已不存在');
+            setDbData(prev => {
+                const nextAll = (prev.allPositions || prev.positions).filter(p => p.id !== deleteTarget.id);
+                return {
+                    ...prev, positions: nextAll.filter(isPosActive), allPositions: nextAll,
+                    memberPositions: prev.memberPositions.filter(mp => mp.position_id !== deleteTarget.id)
+                };
+            });
+            setDeleteTarget(null);
+            showQuickToast('已刪除崗位');
+        } catch (err) { setErrorMsg('刪除崗位失敗：' + err.message); }
+        finally { setIsDeletingPosition(false); }
     };
     // -------------------------
 
@@ -272,21 +349,22 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
             ]);
 
             const pData = sortPositions(rawPData);
-
-            setDbData({ 
-                members: mData || [], positions: pData || [], memberPositions: mpData || [], 
-                existingSchedules: [], memberQuarterSettings: qsData || []
-            });
-
             let activeSchedules = [];
             const archiveMem = (mData || []).find(m => m.name === 'SYSTEM_SCHEDULE_ARCHIVE');
-            
             if (archiveMem) {
                 const archiveQs = (qsData || []).find(q => q.member_id === archiveMem.id && q.quarter === targetQuarter);
                 if (archiveQs && archiveQs.unavailable_dates) {
                     activeSchedules = safeParseJSON(archiveQs.unavailable_dates, []);
                 }
             }
+            // 暫停的崗位：只有「這季班表真的有排人」才顯示，避免舊資料在重新發布時消失
+            const usedPosNames = new Set((activeSchedules || []).map(s => s.p));
+            const visiblePData = pData.filter(p => isPosActive(p) || usedPosNames.has((p.name || '').trim()));
+
+            setDbData({ 
+                members: mData || [], positions: visiblePData, allPositions: pData, memberPositions: mpData || [], 
+                existingSchedules: [], memberQuarterSettings: qsData || []
+            });
 
             if (!activeSchedules || activeSchedules.length === 0) {
                 setErrorMsg(`⚠️ 尚未建立 ${targetQuarter} 排班資料，請至「預排作業」新增並發布。`); setIsLoading(false); return;
@@ -299,7 +377,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
             // [新增區塊]：自動推導該季度歷史班表的「實際最大崗位人數」
             // ==========================================
             const historicalMaxPeople = {};
-            (pData || []).forEach(pos => {
+            visiblePData.forEach(pos => {
                 const posName = (pos.name || '').trim();
                 let maxCount = 0;
                 sundays.forEach(sunday => {
@@ -316,7 +394,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
             sundays.forEach(sunday => {
                 const dateStr = window.ScheduleEngine ? window.ScheduleEngine.formatDate(sunday) : sunday.toISOString().split('T')[0];
                 sessionsToSchedule.forEach(session => {
-                    (pData || []).forEach(pos => {
+                    visiblePData.forEach(pos => {
                         const posName = (pos.name || '').trim();
                         if (!posName) return;
                         if (posName === '主餐' && sunday.getDate() > 7) return; 
@@ -338,7 +416,8 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                             });
                         });
                         
-                        const missingCount = maxPeople - existingForSlot.length;
+                        // 暫停中的崗位只還原既有排班，不產生新的空缺
+                        const missingCount = isPosActive(pos) ? maxPeople - existingForSlot.length : 0;
                         for (let i = 0; i < missingCount; i++) {
                             reconstructed.push({
                                 temp_id: `EMPTY_${dateStr}_${session}_${pos.id}_${Math.random()}`, service_date: dateStr, session: session, member_id: 'EMPTY_SLOT', position_id: pos.id,
@@ -937,6 +1016,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
             const parts = key.split('_');
             const posId = parts[2];
             const pos = dbData.positions.find(p => p.id == posId);
+            if (pos && !isPosActive(pos)) continue; // 暫停的崗位不檢查最少人數
             const min = pos?.min_people !== undefined ? pos.min_people : 1;
             const filled = counts[key] || 0;
             if (filled < min) {
@@ -1118,6 +1198,7 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                         <div className="flex items-center gap-4 shrink-0 text-center pr-1">
                             <div className="w-14 text-[13px] font-bold text-slate-500">最少</div>
                             <div className="w-14 text-[13px] font-bold text-slate-500">最多</div>
+                            <div className="w-[76px]"></div>
                         </div>
                     </div>
                     
@@ -1125,12 +1206,14 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                     <div className="space-y-3 max-h-64 overflow-y-auto custom-scrollbar px-1">
                         {editPositions.map((pos, idx) => {
                             // 隱藏固定不需調整的崗位
-                            if (['司會', '執事輪值', 'PPT'].includes(pos.name)) return null;
+                            if (CORE_POSITIONS.includes(pos.name)) return null;
+                            const paused = !isPosActive(pos);
                             
                             return (
-                                <div key={pos.id || pos.temp_id} className="flex items-center gap-3">
-                                    <div className="flex-1 px-3 py-2 text-sm font-bold text-slate-700 bg-slate-50 border border-slate-100 rounded-lg select-none">
+                                <div key={pos.id || pos.temp_id} className={`flex items-center gap-3 ${paused ? 'opacity-60' : ''}`}>
+                                    <div className="flex-1 px-3 py-2 text-sm font-bold text-slate-700 bg-slate-50 border border-slate-100 rounded-lg select-none flex items-center gap-2">
                                         {pos.name}
+                                        {paused && <span className="text-[11px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">已暫停</span>}
                                     </div>
                                     <div className="flex items-center gap-3 shrink-0">
                                         <input 
@@ -1147,10 +1230,47 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                                             onChange={e => handlePositionChange(idx, 'max_people', e.target.value)}
                                             className="w-16 bg-white border border-slate-200 rounded-lg py-2 text-center text-sm font-bold text-slate-900 outline-none focus:border-indigo-500 shadow-sm transition-colors"
                                         />
+                                        <button
+                                            onClick={() => handleTogglePausePosition(pos)}
+                                            title={paused ? '恢復此崗位' : '暫停此崗位'}
+                                            className={`p-2 rounded-lg transition-colors ${paused ? 'text-emerald-600 hover:bg-emerald-50' : 'text-amber-600 hover:bg-amber-50'}`}
+                                        >
+                                            {paused ? <Play size={16}/> : <Pause size={16}/>}
+                                        </button>
+                                        <button
+                                            onClick={() => setDeleteTarget(pos)}
+                                            title="刪除此崗位"
+                                            className="p-2 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+                                        >
+                                            <Trash2 size={16}/>
+                                        </button>
                                     </div>
                                 </div>
                             );
                         })}
+                    </div>
+
+                    {/* 新增崗位 */}
+                    <div className="pt-4 border-t border-slate-100">
+                        <div className="text-[13px] font-bold text-slate-500 mb-2">新增崗位</div>
+                        <div className="flex flex-wrap items-center gap-3">
+                            <input
+                                type="text" value={newPosName} placeholder="崗位名稱"
+                                onChange={e => setNewPosName(e.target.value)}
+                                className="flex-1 min-w-[140px] bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-900 outline-none focus:border-indigo-500 shadow-sm"
+                            />
+                            <input type="number" min="0" value={newPosMin} onChange={e => setNewPosMin(e.target.value)} title="最少人數"
+                                className="w-16 bg-white border border-slate-200 rounded-lg py-2 text-center text-sm font-bold text-slate-900 outline-none focus:border-indigo-500 shadow-sm" />
+                            <input type="number" min="1" value={newPosMax} onChange={e => setNewPosMax(e.target.value)} title="最多人數"
+                                className="w-16 bg-white border border-slate-200 rounded-lg py-2 text-center text-sm font-bold text-slate-900 outline-none focus:border-indigo-500 shadow-sm" />
+                            <button
+                                onClick={handleAddPosition} disabled={isSavingPositions}
+                                className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-all flex items-center gap-1 disabled:opacity-50 active:scale-95"
+                            >
+                                <Plus size={16}/> 新增
+                            </button>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-2">暫停：預排時不再排這個崗位，舊班表與同工設定都保留，隨時可恢復。刪除：永久移除，無法復原。</p>
                     </div>
 
                     {/* 儲存按鈕置底 */}
@@ -1918,6 +2038,22 @@ const SchedulingAndGovernance = ({ session, goBack, goToMembers, goToInsights, s
                     </div>
                 )}
                 
+                {deleteTarget && (
+                    <div className="fixed inset-0 z-[210] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in">
+                        <div className="bg-white rounded-2xl p-6 md:p-8 max-w-md w-full shadow-hover-soft animate-pop border border-slate-100">
+                            <div className="flex items-center gap-3 mb-4 text-red-600"><AlertTriangle size={28} /><h3 className="text-2xl font-bold text-slate-900">刪除崗位</h3></div>
+                            <p className="text-sm text-slate-600 leading-relaxed mb-6">
+                                確定要永久刪除「<b>{deleteTarget.name}</b>」嗎？所有同工的這個崗位設定也會一併清除，無法復原。<br/>
+                                如果只是暫時不排，建議改用「暫停」。
+                            </p>
+                            <div className="flex gap-3">
+                                <button onClick={() => setDeleteTarget(null)} disabled={isDeletingPosition} className="flex-1 py-3 px-4 font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 text-sm">取消</button>
+                                <button onClick={executeDeletePosition} disabled={isDeletingPosition} className="flex-1 py-3 px-4 font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 text-sm disabled:opacity-50">{isDeletingPosition ? '刪除中...' : '確認刪除'}</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {publishConfirmOpen && (
                     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in">
                         <div className="bg-white rounded-2xl p-6 md:p-8 max-w-md w-full shadow-hover-soft animate-pop border border-slate-100">

@@ -203,7 +203,7 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
 
         let globalDemandSessions = 0;
 
-        const rawPositions = positions.map(pos => {
+        const rawPositions = positions.filter(pos => pos.is_active !== false).map(pos => {
             let s1Count = 0, s2Count = 0, bothCount = 0;
             let s1FTE = 0, s2FTE = 0, bothFTE = 0;
             
