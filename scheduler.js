@@ -108,7 +108,7 @@ const ScheduleEngine = {
       openingWeek: {}, 
     };
 
-    this._prepareData(state, clonedMembers, effectiveMemberPositions, sundays);
+    this._prepareData(state, clonedMembers, effectiveMemberPositions, sundays, positions);
 
     const specialIds = {
       deacon: positions.find((p) => String(p?.name || '').trim() === '執事輪值')?.id,
@@ -130,14 +130,18 @@ const ScheduleEngine = {
       this._runSchedulingPipeline(state, context, clonedMembers, specialIds);
     });
 
+    // 救援機制：整季排完後，替「0 次」的同工從服事較多的人手上換一個位子
+    this._rescueUnscheduled(state, clonedMembers, sundays);
+
     this._applyVisualFlags(state.draft, clonedMembers);
     this._sortFinalDraft(state.draft, clonedMembers);
 
     return state.draft;
   },
 
-  _prepareData(state, members, memberPositions, sundays) {
+  _prepareData(state, members, memberPositions, sundays, positions = []) {
     state.membersList = members; 
+    const openingLoad = {}; // 記錄每週已被「一季一次」同工選走的次數，用來錯開
     members.forEach((m) => {
       state.totalUsage[m.id] = 0;
       state.totalDays[m.id] = 0; 
@@ -151,17 +155,29 @@ const ScheduleEngine = {
       }
 
       if (m.availability_status === '一季一次') {
+          // 這位同工「真的有位子可排」的崗位（暫停的崗位不算；主餐只在每月第一個主日有位子）
+          const mySkillPos = positions.filter(p => state.memberSkills[m.id].has(p.id));
+          const hasSlotOnWeek = (sunday) => mySkillPos.some(p => {
+              const name = String(p.name || '').trim();
+              if (name === '主餐' && sunday.getDate() > 7) return false;
+              return (p.max_people || 0) > 0;
+          });
+
           const availableWeeks = [];
           sundays.forEach((sunday, idx) => {
               const dateStr = this.formatDate(sunday);
-              if (this._isAvailableOnDate(m, dateStr)) {
+              if (this._isAvailableOnDate(m, dateStr) && hasSlotOnWeek(sunday)) {
                   availableWeeks.push(idx);
               }
           });
           
           if (availableWeeks.length > 0) {
-              const randomIdx = Math.floor(Math.random() * availableWeeks.length);
-              state.openingWeek[m.id] = availableWeeks[randomIdx];
+              // 優先選「目前被選走最少次」的週，避免多位一季一次同工擠在同一週搶同一個位子
+              const minLoad = Math.min(...availableWeeks.map(w => openingLoad[w] || 0));
+              const bestWeeks = availableWeeks.filter(w => (openingLoad[w] || 0) === minLoad);
+              const pick = bestWeeks[Math.floor(Math.random() * bestWeeks.length)];
+              state.openingWeek[m.id] = pick;
+              openingLoad[pick] = (openingLoad[pick] || 0) + 1;
           } else {
               state.openingWeek[m.id] = 0; 
           }
@@ -1031,6 +1047,95 @@ const ScheduleEngine = {
       _positionName: slot.roleName, 
       is_emergency: isEmergency
     });
+  },
+
+  // ==========================================================
+  // 救援機制：整季都沒被排到（0 次）的同工，嘗試換到別人手上的位子
+  // 安全條件（任一不符就不換）：
+  //   1. 被換掉的人，整季至少還有 2 個服事日（換掉一天後仍有服事）
+  //   2. 被換掉的那一天，他只有這 1 個班（不拆散「二堂同崗/異崗」配對）
+  //   3. 不動核心崗位（司會/PPT/執事輪值）
+  //   4. 雙方都不是家庭組（FA/FB），避免打亂家人同進同出的安排
+  //   5. 換過去的人必須通過 _canAssign 全部規則（有空、有勾崗位、堂別偏好、單月上限…）
+  // ==========================================================
+  _rescueUnscheduled(state, members, sundays) {
+    const coreRoles = ['司會', 'PPT', '執事輪值'];
+    const isFamily = (id) => {
+      const g = state.memberGroups[id];
+      return !!g && (String(g).startsWith('FA') || String(g).startsWith('FB'));
+    };
+    const dayCount = (id) => new Set(state.draft.filter(d => !d.is_empty && d.member_id === id).map(d => d.service_date)).size;
+
+    const unscheduled = members.filter(m =>
+      !['暫停服事', '安息季'].includes(m.availability_status) &&
+      state.memberSkills[m.id] && state.memberSkills[m.id].size > 0 &&
+      !isFamily(m.id) &&
+      (state.totalDays[m.id] || 0) === 0 &&
+      dayCount(m.id) === 0
+    );
+    if (unscheduled.length === 0) return;
+
+    const dateToWeek = {};
+    sundays.forEach((sd, i) => { dateToWeek[this.formatDate(sd)] = i; });
+
+    unscheduled.sort(() => Math.random() - 0.5);
+
+    for (const m of unscheduled) {
+      // 候選：服事日數 ≥ 2、當天只有 1 個班的非核心位子；日數越多的人優先被換
+      const candidates = [];
+      state.draft.forEach((d, idx) => {
+        if (d.is_empty || d.member_id === m.id) return;
+        if (coreRoles.includes(d._positionName)) return;
+        if (!state.memberSkills[m.id].has(d.position_id)) return;
+        if (isFamily(d.member_id)) return;
+        const donorShiftsThatDay = state.draft.filter(x => !x.is_empty && x.member_id === d.member_id && x.service_date === d.service_date);
+        if (donorShiftsThatDay.length !== 1) return;
+        const donorDays = dayCount(d.member_id);
+        if (donorDays < 2) return;
+        candidates.push({ idx, d, donorDays, donorUsage: state.totalUsage[d.member_id] || 0 });
+      });
+      candidates.sort((a, b) => (b.donorDays - a.donorDays) || (b.donorUsage - a.donorUsage));
+
+      for (const c of candidates) {
+        const d = state.draft[c.idx];
+        if (!d || d.member_id === m.id) continue;
+        const donorId = d.member_id;
+
+        // 先暫時拿掉原本的班，檢查換過去合不合規則
+        const removed = state.draft.splice(c.idx, 1)[0];
+        const daily = {};
+        state.draft.filter(x => !x.is_empty && x.service_date === removed.service_date).forEach(x => {
+          if (!daily[x.member_id]) daily[x.member_id] = [];
+          daily[x.member_id].push(x._positionName);
+        });
+        const context = {
+          dateStr: removed.service_date,
+          weekIndex: dateToWeek[removed.service_date] || 0,
+          totalWeeks: sundays.length,
+          dailyAssignments: daily,
+        };
+        const slot = { roleName: removed._positionName, session: removed.session, posId: removed.position_id, needed: 1, assigned: [] };
+
+        let ok = false;
+        try { ok = this._canAssign(m, slot, state, context, 0, true); } catch (e) { ok = false; }
+
+        if (ok) {
+          // 換人：更新班表與統計
+          const swapped = { ...removed, member_id: m.id, _memberName: m.name };
+          state.draft.splice(c.idx, 0, swapped);
+          state.totalUsage[donorId] = Math.max(0, (state.totalUsage[donorId] || 0) - 1);
+          state.totalDays[donorId] = Math.max(0, (state.totalDays[donorId] || 0) - 1);
+          if (state.roleUsage[donorId]) state.roleUsage[donorId][removed.position_id] = Math.max(0, (state.roleUsage[donorId][removed.position_id] || 0) - 1);
+          state.totalUsage[m.id] = (state.totalUsage[m.id] || 0) + 1;
+          state.totalDays[m.id] = (state.totalDays[m.id] || 0) + 1;
+          state.roleUsage[m.id][removed.position_id] = (state.roleUsage[m.id][removed.position_id] || 0) + 1;
+          break;
+        } else {
+          // 不合規則：原封不動放回去
+          state.draft.splice(c.idx, 0, removed);
+        }
+      }
+    }
   },
 
   _fillEmptyWarnings(state, context) {
