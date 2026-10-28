@@ -1,0 +1,1575 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>守望花園</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@babel/standalone@7.22.20/babel.min.js"></script>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "react": "https://esm.sh/react@18.2.0",
+            "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+            "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2"
+        }
+    }
+    </script>
+
+    <style type="text/tailwindcss">
+        body { background-color: #fafafa; font-family: "Noto Sans TC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; -webkit-tap-highlight-color: transparent; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.25s ease-out forwards; }
+        /* 手機上輸入框字級 16px，避免 iOS 自動放大畫面 */
+        @keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.35); } 100% { transform: scale(1); } }
+        .animate-pop { animation: pop 0.35s ease-out; }
+        @media (prefers-reduced-motion: reduce) { .animate-pop { animation: none; } }
+        input, textarea, select { font-size: 16px !important; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { createClient } from '@supabase/supabase-js';
+
+        // ==========================================
+        // 連線設定（與 manager.html 相同的公開金鑰）
+        // 資料安全不靠這把金鑰，而是靠資料庫裡的警衛規則與權限窗口。
+        // 因為與 manager.html 同網站、同專案，登入狀態會自動共用。
+        // ==========================================
+        const SUPABASE_URL = "https://jtjgqrqbewbgxscytkod.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_TcixlGOMSLBSZNoMNOp6Ng_B-N4Tw1K";
+        const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+        const VIRTUAL_DOMAIN = "@tbc.gmail.com";
+        const formatEmailForAuth = (acc) => { const t = (acc || '').trim(); return t.includes('@') ? t : `${t}${VIRTUAL_DOMAIN}`; };
+
+        const CATEGORIES = [
+            { id: 'all', label: '全部' },
+            { id: 'kingdom', label: '國度' },
+            { id: 'outreach', label: '宣教' },
+            { id: 'church', label: '教會' },
+            { id: 'fellowship', label: '團契' },
+            { id: 'personal', label: '個人' },
+            { id: 'thanks', label: '感恩' },
+        ];
+        const SUBMIT_CATEGORIES = CATEGORIES.filter(c => c.id !== 'all');
+        const categoryLabel = (id) => CATEGORIES.find(c => c.id === id)?.label || '';
+        // 匿名貼文顯示的名字
+        const ANON_NAME = '一位需要禱告的朋友';
+
+        const STATUS = {
+            pending:  { label: '待審查', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+            approved: { label: '已核准', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+            returned: { label: '已退回', cls: 'bg-red-50 text-red-700 border-red-200' },
+        };
+        const ACTION_LABEL = {
+            submitted: '貼文', approved: '核准', returned: '退回',
+            resubmitted: '編輯重新送審', visibility_changed: '誰可以看到貼文變更',
+            category_changed: '分類變更', privacy_changed: '隱私設定變更', content_edited: '內容修改',
+        };
+
+        // 訪客代號：每個瀏覽器一組隨機代號，存在本機，用來避免同一人對同一則重複回應。
+        // 不需要登入，也不含任何個人資料。若瀏覽器不允許儲存，就只在這次開啟頁面期間有效。
+        let memoryVisitorId = null;
+        const makeUuid = () => (window.crypto && crypto.randomUUID)
+            ? crypto.randomUUID()
+            : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16); });
+        const getVisitorId = () => {
+            try {
+                let id = localStorage.getItem('tbc_prayer_visitor');
+                if (!id || !/^[0-9a-f-]{36}$/i.test(id)) { id = makeUuid(); localStorage.setItem('tbc_prayer_visitor', id); }
+                return id;
+            } catch (e) {
+                if (!memoryVisitorId) memoryVisitorId = makeUuid();
+                return memoryVisitorId;
+            }
+        };
+        const REVIEWER_ROLES = ['admin', 'leader', 'pastor'];
+
+        const pad = (n) => String(n).padStart(2, '0');
+        const formatDate = (iso) => {
+            const d = new Date(iso);
+            return isNaN(d) ? '' : `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        };
+        const formatDateTime = (iso) => {
+            const d = new Date(iso);
+            return isNaN(d) ? '' : `${formatDate(iso)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        };
+
+        // 共用按鈕狀態樣式：hover / active / focus-visible / disabled
+        const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2";
+        const disabledCls = "disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none";
+        const btnPrimary = `px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 transition-colors duration-150 ${disabledCls} ${focusRing}`;
+        const btnDark = `px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-zinc-900 hover:bg-zinc-700 active:bg-zinc-800 transition-colors duration-150 ${disabledCls} ${focusRing}`;
+        const btnOutline = `px-4 py-2.5 rounded-xl text-sm font-bold border border-zinc-200 text-zinc-700 bg-white hover:bg-zinc-50 active:bg-zinc-100 transition-colors duration-150 ${disabledCls} ${focusRing}`;
+        // 大按鈕（兩顆等寬並排）：取消＝淺灰框、主要動作＝深灰底白字、退回＝淡紅底紅字
+        const btnCancelWhite = `h-12 rounded-lg inline-flex items-center justify-center gap-2 border border-slate-300 bg-white text-slate-600 text-base font-medium hover:bg-slate-50 active:bg-slate-100 transition-colors duration-150 ${disabledCls} ${focusRing}`;
+        const btnCancel = `h-12 rounded-lg border border-slate-300 bg-slate-50 text-slate-600 text-base font-medium hover:bg-slate-100 active:bg-slate-200 transition-colors duration-150 ${disabledCls} ${focusRing}`;
+        const btnSubmitDark = `h-12 rounded-lg inline-flex items-center justify-center gap-2 bg-slate-700 text-white text-base font-medium hover:bg-slate-800 active:bg-slate-900 transition-colors duration-150 ${disabledCls} ${focusRing}`;
+        const btnReturnSoft = `h-12 rounded-lg bg-red-100 text-red-700 text-base font-medium hover:bg-red-200 active:bg-red-300 transition-colors duration-150 ${disabledCls} ${focusRing}`;
+        // 卡片右上角的小按鈕（編輯、取消、儲存、編輯重新送審）
+        const btnGhost = `inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium text-zinc-600 bg-zinc-50 hover:bg-zinc-100 active:bg-zinc-200 transition-colors duration-150 ${disabledCls} ${focusRing}`;
+        const btnDanger = `px-4 py-2.5 rounded-xl text-sm font-bold border border-red-200 text-red-700 bg-white hover:bg-red-50 active:bg-red-100 transition-colors duration-150 ${disabledCls} ${focusRing}`;
+        const inputCls = "w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-zinc-800 font-medium hover:border-zinc-300 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 transition-colors duration-150";
+
+        // ==========================================
+        // 小圖示（內嵌 SVG）
+        // ==========================================
+        const Icon = ({ d, size = 18 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{d}</svg>
+        );
+        const SearchIcon = (p) => <Icon {...p} d={<React.Fragment><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></React.Fragment>} />;
+        const ArrowLeft = (p) => <Icon {...p} d={<React.Fragment><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></React.Fragment>} />;
+        const AlertIcon = (p) => <Icon {...p} d={<React.Fragment><circle cx="12" cy="12" r="10" /><path d="M12 8v4" /><path d="M12 16h.01" /></React.Fragment>} />;
+        const InboxIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M22 12h-6l-2 3h-4l-2-3H2" /><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1Z" /></React.Fragment>} />;
+        const LockIcon = (p) => <Icon {...p} d={<React.Fragment><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></React.Fragment>} />;
+        const CheckIcon = (p) => <Icon {...p} d={<path d="M20 6 9 17l-5-5" />} />;
+        const BellIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M10.268 21a2 2 0 0 0 3.464 0" /><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" /></React.Fragment>} />;
+        const MenuIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M4 12h16" /><path d="M4 18h16" /><path d="M4 6h16" /></React.Fragment>} />;
+        const SquarePlusIcon = (p) => <Icon {...p} d={<React.Fragment><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M8 12h8" /><path d="M12 8v8" /></React.Fragment>} />;
+        const UserIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></React.Fragment>} />;
+        const ClockIcon = (p) => <Icon {...p} d={<React.Fragment><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></React.Fragment>} />;
+        const SlidersIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M10 5H3" /><path d="M12 19H3" /><path d="M14 3v4" /><path d="M16 17v4" /><path d="M21 12h-9" /><path d="M21 19h-5" /><path d="M21 5h-7" /><path d="M8 10v4" /><path d="M8 12H3" /></React.Fragment>} />;
+        const XIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M18 6 6 18" /><path d="m6 6 12 12" /></React.Fragment>} />;
+        const EyeIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /><circle cx="12" cy="12" r="3" /></React.Fragment>} />;
+        const EyeOffIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49" /><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" /><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143" /><path d="m2 2 20 20" /></React.Fragment>} />;
+        const ClipboardCheckIcon = (p) => <Icon {...p} d={<React.Fragment><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><path d="m9 14 2 2 4-4" /></React.Fragment>} />;
+        const HouseIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></React.Fragment>} />;
+        const SproutIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M7 20h10" /><path d="M10 20c5.5-2.5.8-6.4 3-10" /><path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z" /><path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z" /></React.Fragment>} />;
+        const LogOutIcon = (p) => <Icon {...p} d={<React.Fragment><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /></React.Fragment>} />;
+        const LogInIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" /><path d="m10 17 5-5-5-5" /><path d="M15 12H3" /></React.Fragment>} />;
+        const PencilIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /><path d="m15 5 4 4" /></React.Fragment>} />;
+        const TagIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" /><circle cx="7.5" cy="7.5" r=".5" fill="currentColor" /></React.Fragment>} />;
+        const EarthIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M21.54 15H17a2 2 0 0 0-2 2v4.54" /><path d="M7 3.34V5a3 3 0 0 0 3 3a2 2 0 0 1 2 2c0 1.1.9 2 2 2a2 2 0 0 0 2-2c0-1.1.9-2 2-2h3.17" /><path d="M11 21.95V18a2 2 0 0 0-2-2a2 2 0 0 1-2-2v-1a2 2 0 0 0-2-2H2.05" /><circle cx="12" cy="12" r="10" /></React.Fragment>} />;
+        const SendIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z" /><path d="m21.854 2.147-10.94 10.939" /></React.Fragment>} />;
+        const ChurchIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M10 9h4" /><path d="M12 7v5" /><path d="M14 22v-4a2 2 0 0 0-4 0v4" /><path d="M18 22V5.618a1 1 0 0 0-.553-.894l-4.553-2.277a2 2 0 0 0-1.788 0L6.553 4.724A1 1 0 0 0 6 5.618V22" /><path d="m18 7 3.447 1.724a1 1 0 0 1 .553.894V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9.618a1 1 0 0 1 .553-.894L6 7" /></React.Fragment>} />;
+        const UsersIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></React.Fragment>} />;
+        const SmileIcon = (p) => <Icon {...p} d={<React.Fragment><circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2" /></React.Fragment>} />;
+        const TrashIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></React.Fragment>} />;
+        const GiftIcon = (p) => <Icon {...p} d={<React.Fragment><rect x="3" y="8" width="18" height="4" rx="1" /><path d="M12 8v13" /><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7" /><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5" /></React.Fragment>} />;
+        const FootprintsIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z" /><path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z" /><path d="M16 17h4" /><path d="M4 13h4" /></React.Fragment>} />;
+        const CrossIcon = (p) => <Icon {...p} d={<path d="M4 9a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h4a1 1 0 0 1 1 1v4a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-4a1 1 0 0 1 1-1h4a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2h-4a1 1 0 0 1-1-1V4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4a1 1 0 0 1-1 1z" />} />;
+        const HandHeartIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M11 14h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 16" /><path d="m7 20 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9" /><path d="m2 15 6 6" /><path d="M19.5 8.5c.7-.7 1.5-1.6 1.5-2.7A2.73 2.73 0 0 0 16 4a2.78 2.78 0 0 0-5 1.8c0 1.2.8 2 1.5 2.8L16 12Z" /></React.Fragment>} />;
+        const UsersRoundIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M18 21a8 8 0 0 0-16 0" /><circle cx="10" cy="8" r="5" /><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3" /></React.Fragment>} />;
+        const CircleHelpIcon = (p) => <Icon {...p} d={<React.Fragment><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></React.Fragment>} />;
+        const CircleCheckIcon = (p) => <Icon {...p} d={<React.Fragment><circle cx="12" cy="12" r="10" /><path d="m9 12 2 2 4-4" /></React.Fragment>} />;
+        const CircleXIcon = (p) => <Icon {...p} d={<React.Fragment><circle cx="12" cy="12" r="10" /><path d="m15 9-6 6" /><path d="m9 9 6 6" /></React.Fragment>} />;
+        const UndoIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" /></React.Fragment>} />;
+        const XMarkIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M18 6 6 18" /><path d="m6 6 12 12" /></React.Fragment>} />;
+        const ActivityIcon = (p) => <Icon {...p} d={<path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" />} />;
+
+        // 日期區間：開始日 00:00:00 到結束日 23:59:59（以瀏覽器所在時區計算）
+        const dayStartISO = (d) => new Date(`${d}T00:00:00`).toISOString();
+        const dayEndISO = (d) => new Date(`${d}T23:59:59.999`).toISOString();
+
+        // ==========================================
+        // 資料存取：全部透過資料庫的窗口（函式）或受警衛規則保護的查詢
+        // ==========================================
+        // 登入過期時通知畫面請使用者重新登入，而不是只顯示看不懂的錯誤
+        const fail = (error) => {
+            if (error && (error.status === 401 || /jwt expired|invalid jwt/i.test(error.message || ''))) window.dispatchEvent(new Event('tbc-auth-expired'));
+            throw error;
+        };
+        const rpc = async (name, args) => {
+            const { data, error } = await supabase.rpc(name, args);
+            if (error) fail(error);
+            return data;
+        };
+        const api = {
+            search: async (keyword, category, from, to) => {
+                const args = { p_keyword: keyword, p_category: category, p_visitor: getVisitorId() };
+                if (from) args.p_from = dayStartISO(from);
+                if (to) args.p_to = dayEndISO(to);
+                return (await rpc('search_public_prayers', args)) || [];
+            },
+            detail: async (id) => { const d = await rpc('get_public_prayer', { p_id: id, p_visitor: getVisitorId() }); return (d && d[0]) || null; },
+            respond: async (postId) => { const d = await rpc('respond_prayer', { p_post_id: postId, p_visitor: getVisitorId() }); return d && d[0]; },
+            setCategory: (id, category) => rpc('set_prayer_category', { p_id: id, p_category: category }),
+            editContent: (id, content) => rpc('edit_prayer_content', { p_id: id, p_content: content }),
+            setPrivacy: (id, showName) => rpc('set_prayer_privacy', { p_id: id, p_show_name: showName }),
+            submit: (v) => rpc('submit_prayer', { p_content: v.content, p_category: v.category, p_is_public: v.is_public, p_show_name: v.show_name }),
+            resubmit: (id, v) => rpc('resubmit_prayer', { p_id: id, p_content: v.content, p_category: v.category, p_is_public: v.is_public, p_show_name: v.show_name }),
+            approve: (id, isPublic) => rpc('approve_prayer', { p_id: id, p_is_public: isPublic }),
+            returnPost: (id, reason) => rpc('return_prayer', { p_id: id, p_reason: reason }),
+            deletePost: (id) => rpc('delete_prayer', { p_id: id }),
+            setVisibility: (id, isPublic) => rpc('set_prayer_visibility', { p_id: id, p_is_public: isPublic }),
+            myPosts: async (uid) => {
+                const { data, error } = await supabase.from('prayer_posts').select('*').eq('author_uid', uid).order('created_at', { ascending: false });
+                if (error) fail(error);
+                return data || [];
+            },
+            postsByStatus: async (status) => {
+                const { data, error } = await supabase.from('prayer_posts').select('*').eq('review_status', status).order('created_at', { ascending: false });
+                if (error) fail(error);
+                return data || [];
+            },
+            logsOfPost: async (id) => {
+                const { data, error } = await supabase.from('prayer_review_logs').select('*').eq('post_id', id).order('created_at', { ascending: true });
+                if (error) fail(error);
+                return data || [];
+            },
+            latestReturnReasons: async (ids) => {
+                if (!ids.length) return {};
+                const { data, error } = await supabase.from('prayer_review_logs').select('post_id, reason, actor_name, created_at').eq('action', 'returned').in('post_id', ids).order('created_at', { ascending: true });
+                if (error) fail(error);
+                const map = {};
+                (data || []).forEach(l => { map[l.post_id] = l; }); // 依時間排序，最後一筆就是最新的
+                return map;
+            },
+            notifications: async () => {
+                const { data, error } = await supabase.from('prayer_notifications').select('*').eq('is_read', false).order('created_at', { ascending: false }).limit(100);
+                if (error) fail(error);
+                return data || [];
+            },
+            // 審查者搜尋：所有狀態的貼文，比對內容或貼文者姓名（資料庫規則只允許審查角色讀取全部）
+            searchAllPosts: async (keyword) => {
+                const kw = keyword.replace(/[%*_,()"\\]/g, ' ').trim().slice(0, 100);
+                if (!kw) return [];
+                const { data, error } = await supabase.from('prayer_posts').select('*')
+                    .or(`content.ilike.*${kw}*,author_name.ilike.*${kw}*`)
+                    .order('created_at', { ascending: false }).limit(50);
+                if (error) fail(error);
+                return data || [];
+            },
+            postsByIds: async (ids) => {
+                if (!ids.length) return [];
+                const { data, error } = await supabase.from('prayer_posts').select('*').in('id', ids);
+                if (error) fail(error);
+                return data || [];
+            },
+            unreadCount: async () => {
+                const { count, error } = await supabase.from('prayer_notifications').select('id', { count: 'exact', head: true }).eq('is_read', false);
+                if (error) fail(error);
+                return count || 0;
+            },
+            markRead: (id) => rpc('mark_prayer_notification_read', { p_id: id }),
+            markAllRead: () => rpc('mark_all_prayer_notifications_read', {}),
+            pendingCount: async () => {
+                const { count, error } = await supabase.from('prayer_posts').select('id', { count: 'exact', head: true }).eq('review_status', 'pending');
+                if (error) fail(error);
+                return count || 0;
+            },
+        };
+
+        // ==========================================
+        // 共用小元件
+        // ==========================================
+        const CategoryBadge = ({ id }) => (
+            <span className="inline-flex items-center text-xs font-bold px-2.5 py-1 rounded-md bg-zinc-100 text-zinc-600">{categoryLabel(id)}</span>
+        );
+        const CategoryTag = ({ id }) => (
+            <span className="inline-flex items-center gap-1.5 text-sm shrink-0"><TagIcon size={18} /><span className="sr-only">分類：</span>{categoryLabel(id)}</span>
+        );
+        // 貼文頭像：用「分類」的圖示（像 Threads 的大頭貼）
+        const CATEGORY_ICON = { kingdom: EarthIcon, outreach: FootprintsIcon, church: ChurchIcon, fellowship: UsersRoundIcon, personal: UserIcon, thanks: GiftIcon };
+        const CategoryAvatar = ({ id }) => {
+            const I = CATEGORY_ICON[id] || UserIcon;
+            return (
+                <span className="w-10 h-10 shrink-0 rounded-full bg-zinc-100 text-zinc-600 flex items-center justify-center" title={categoryLabel(id)} role="img" aria-label={`分類：${categoryLabel(id)}`}>
+                    <I size={20} />
+                </span>
+            );
+        };
+        // 圖示＋文字（文字顏色沿用原本各狀態的設定）
+        const STATUS_ICON = { pending: CircleHelpIcon, approved: CircleCheckIcon, returned: CircleXIcon };
+        const STATUS_TEXT = { pending: 'text-amber-700', approved: 'text-emerald-700', returned: 'text-red-700' };
+        const StatusLabel = ({ status }) => {
+            const I = STATUS_ICON[status];
+            if (!I) return null;
+            return <span className={`inline-flex items-center gap-1.5 text-sm shrink-0 ${STATUS_TEXT[status]}`}><I size={18} />{STATUS[status].label}</span>;
+        };
+        const StatusBadge = ({ status }) => (
+            <span className={`inline-flex items-center text-xs font-bold px-2.5 py-1 rounded-md border ${STATUS[status]?.cls || ''}`}>{STATUS[status]?.label || status}</span>
+        );
+        const VisibilityBadge = ({ isPublic }) => (
+            <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-md bg-zinc-100 text-zinc-600">
+                {!isPublic && <LockIcon size={12} />}{isPublic ? '公開' : '不公開'}
+            </span>
+        );
+
+        const SkeletonCard = () => (
+            <div className="bg-white p-5 rounded-xl border border-zinc-200 animate-pulse" aria-hidden="true">
+                <div className="h-5 w-3/5 bg-zinc-200 rounded mb-3"></div>
+                <div className="h-3.5 w-full bg-zinc-100 rounded mb-2"></div>
+                <div className="h-3.5 w-4/5 bg-zinc-100 rounded mb-5"></div>
+                <div className="h-3 w-1/3 bg-zinc-100 rounded"></div>
+            </div>
+        );
+        const Skeletons = () => <div className="flex flex-col gap-4"><SkeletonCard /><SkeletonCard /><SkeletonCard /></div>;
+
+        const ErrorBox = ({ message, onRetry }) => (
+            <div role="alert" className="bg-white border border-red-200 rounded-xl p-6 flex flex-col items-start gap-3">
+                <div className="flex items-center gap-2 text-red-600 font-bold"><AlertIcon /> {message}</div>
+                {onRetry && <button onClick={onRetry} className={btnDark}>重新載入</button>}
+            </div>
+        );
+        const InlineError = ({ message }) => message ? (
+            <div role="alert" className="flex items-start gap-2 text-sm font-medium text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2.5">
+                <span className="mt-0.5 shrink-0"><AlertIcon size={16} /></span><span>{message}</span>
+            </div>
+        ) : null;
+
+        const EmptyBox = ({ message, action }) => (
+            <div className="bg-white border border-zinc-200 rounded-xl py-14 px-6 text-center flex flex-col items-center gap-4">
+                <span className="text-zinc-300"><InboxIcon size={40} /></span>
+                <p className="text-zinc-600 font-medium">{message}</p>
+                {action}
+            </div>
+        );
+
+        const PageShell = ({ children, back }) => (
+            <main className="max-w-2xl mx-auto w-full px-4 sm:px-6 pt-8 pb-20 animate-fade-in">
+                {back}
+                {children}
+            </main>
+        );
+        const BackButton = ({ onClick, label = '返回' }) => (
+            <button onClick={onClick} className={`inline-flex items-center gap-2 px-3 py-2 -ml-3 mb-6 rounded-lg text-sm font-bold text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 active:bg-zinc-200 transition-colors duration-150 ${focusRing}`}>
+                <ArrowLeft size={16} /> {label}
+            </button>
+        );
+
+        const TabBar = ({ tabs, value, onChange }) => (
+            <div className="flex overflow-x-auto no-scrollbar gap-2 mb-6" role="tablist">
+                {tabs.map(t => {
+                    const active = value === t.id;
+                    return (
+                        <button key={t.id} role="tab" aria-selected={active} onClick={() => onChange(t.id)}
+                            className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap border transition-colors duration-150 active:scale-[0.98] ${focusRing} ${active ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300'}`}>
+                            {t.label}
+                        </button>
+                    );
+                })}
+            </div>
+        );
+
+        const NeedLogin = ({ onLogin }) => (
+            <EmptyBox message="需要登入" action={<button onClick={onLogin} className={btnDark}>登入</button>} />
+        );
+
+        // ==========================================
+        // 登入畫面（沿用 manager.html 的登入設計；帳號規則相同：電話號碼或 Email）
+        // 註冊仍在 manager.html 進行
+        // ==========================================
+        const LoginModal = ({ onClose }) => {
+            const [account, setAccount] = useState('');
+            const [password, setPassword] = useState('');
+            const [showPassword, setShowPassword] = useState(false);
+            const [busy, setBusy] = useState(false);
+            const [error, setError] = useState('');
+
+            const submit = async (e) => {
+                e.preventDefault();
+                setBusy(true); setError('');
+                const { error } = await supabase.auth.signInWithPassword({ email: formatEmailForAuth(account), password });
+                setBusy(false);
+                if (error) {
+                    setError(error.message.includes('Invalid login credentials') ? '登入失敗：帳號或密碼錯誤' : '登入發生問題，稍後再試');
+                    return;
+                }
+                onClose();
+            };
+
+            useEffect(() => {
+                const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+                window.addEventListener('keydown', onKey);
+                return () => window.removeEventListener('keydown', onKey);
+            }, [onClose]);
+
+            const fieldCls = "w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3.5 outline-none hover:border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-colors duration-150 font-semibold text-slate-700";
+            return (
+                <div className="fixed inset-0 z-50 bg-slate-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="login-title">
+                    <div className="min-h-full w-full flex flex-col items-center justify-start sm:justify-center p-4 py-4 sm:py-8 relative">
+                        <div className="fixed top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-indigo-600/10 blur-[120px] pointer-events-none"></div>
+                        <div className="fixed bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-emerald-600/10 blur-[120px] pointer-events-none"></div>
+
+                        <div className="w-full max-w-md flex items-center justify-between mb-4 relative z-20">
+                            <button type="button" onClick={onClose} aria-label="關閉登入畫面"
+                                className={`w-11 h-11 shrink-0 flex items-center justify-center rounded-2xl bg-white border border-slate-100 shadow-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100 transition-colors duration-150 ${focusRing}`}>
+                                <XIcon size={22} />
+                            </button>
+                            <span id="login-title" className="text-lg font-black tracking-tight text-slate-800">歡迎登入</span>
+                            <div className="w-11 h-11 shrink-0"></div>
+                        </div>
+
+                        <div className="bg-white max-w-md w-full rounded-[2rem] shadow-xl p-6 sm:p-8 border border-slate-100 animate-fade-in z-10 relative">
+                            <form onSubmit={submit} className="space-y-4 sm:space-y-5">
+                                <div className="space-y-1.5">
+                                    <label htmlFor="login-account" className="text-xs font-bold text-slate-500 tracking-wider ml-1">帳號</label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"><UserIcon size={18} /></span>
+                                        <input id="login-account" type="text" value={account} onChange={(e) => setAccount(e.target.value)} className={fieldCls} placeholder="電話號碼或電子郵件" required autoFocus autoComplete="username" />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label htmlFor="login-password" className="text-xs font-bold text-slate-500 tracking-wider ml-1">密碼</label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"><LockIcon size={18} /></span>
+                                        <input id="login-password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} className={`${fieldCls} pr-12`} placeholder="6位以上英數組合" required autoComplete="current-password" />
+                                        <button type="button" onClick={() => setShowPassword(s => !s)} aria-label={showPassword ? '隱藏密碼' : '顯示密碼'}
+                                            className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg text-slate-400 hover:text-indigo-600 active:bg-slate-100 transition-colors duration-150 ${focusRing}`}>
+                                            {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <InlineError message={error} />
+
+                                <button type="submit" disabled={busy}
+                                    className={`w-full bg-gradient-to-r from-indigo-600 to-emerald-600 hover:opacity-95 active:opacity-90 text-white font-medium py-3.5 rounded-lg shadow-md transition-opacity duration-150 mt-4 text-base ${disabledCls} ${focusRing}`}>
+                                    {busy ? '處理中' : '登入'}
+                                </button>
+                            </form>
+
+                            <div className="mt-6 flex flex-col gap-4 text-center">
+                                <div className="text-sm font-medium text-slate-500">
+                                    首次設定密碼？請<a href="./manager.html#signup" className={`font-bold text-indigo-600 hover:text-indigo-700 transition-colors duration-150 py-1 px-0.5 rounded ${focusRing}`}>點這裡</a>
+                                </div>
+                                <div className="text-xs font-medium text-slate-400 pt-4 border-t border-slate-100/80">沒有帳號、忘記密碼？請聯絡行政辦公室</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // ==========================================
+        // 「我已禱告」按鈕（免登入；一次、不可取消；次數由資料庫計算）
+        // ==========================================
+        // 禱告圖示：愛心。未禱告＝灰色線條；已禱告＝綠色實心
+        const PrayIcon = ({ size = 18, filled }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5" />
+            </svg>
+        );
+
+        // 像 IG 的愛心：點圖示立即變色並加一；按過就不能取消。失敗時會自動還原並由卡片顯示提示。
+        const PrayButton = ({ postId, count, responded, onResponded, onError }) => {
+            const [local, setLocal] = useState({ count, responded });
+            const [popping, setPopping] = useState(false);
+            useEffect(() => { setLocal({ count, responded }); }, [count, responded]);
+
+            const click = async () => {
+                if (local.responded) return;
+                const before = local;
+                setLocal({ count: before.count + 1, responded: true });
+                setPopping(true); setTimeout(() => setPopping(false), 400);
+                if (onError) onError('');
+                try {
+                    const r = await api.respond(postId);
+                    const n = Number(r?.response_count ?? before.count + 1);
+                    setLocal({ count: n, responded: true });
+                    onResponded(n);
+                } catch (err) {
+                    setLocal(before);
+                    if (onError) onError(err.message || '暫時無法送出，稍後再試');
+                }
+            };
+
+            const label = local.responded ? `已禱告，禱告回應次數 ${local.count}` : `我已禱告，目前禱告回應次數 ${local.count}`;
+            return (
+                <div className="flex items-center gap-1.5">
+                    <button type="button" onClick={click} aria-pressed={local.responded} aria-label={label} title={local.responded ? '已禱告' : '一起禱告'}
+                        className={`-ml-2.5 p-2.5 rounded-full transition-colors duration-150 ${focusRing} ${popping ? 'animate-pop' : ''} ${local.responded ? 'text-red-500 cursor-default' : 'text-zinc-400 hover:text-red-500 hover:bg-red-50 active:bg-red-100'}`}>
+                        <PrayIcon filled={local.responded} />
+                    </button>
+                    <span className={`text-sm font-mono tabular-nums font-bold ${local.responded ? 'text-zinc-900' : 'text-zinc-500'}`}>{local.count}</span>
+                </div>
+            );
+        };
+
+        // ==========================================
+        // 貼文卡片（像 IG）：內文固定顯示 3 行，「...更多」就地展開、「較少」就地收合，不會跳頁。
+        // 卡片底部由左到右：禱告（圖示＋次數）、貼文者、時間，都只有圖示沒有文字。
+        // ==========================================
+        // 時間像 Threads：幾分鐘、幾小時、幾天；超過 7 天顯示年月日
+        const formatAgo = (iso) => {
+            const d = new Date(iso);
+            if (isNaN(d)) return '';
+            const sec = Math.max(0, (Date.now() - d.getTime()) / 1000);
+            if (sec < 60) return '剛剛';
+            if (sec < 3600) return `${Math.floor(sec / 60)}分鐘`;
+            if (sec < 86400) return `${Math.floor(sec / 3600)}小時`;
+            if (sec < 86400 * 7) return `${Math.floor(sec / 86400)}天`;
+            return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())}`;
+        };
+
+        // 內文固定顯示 3 行；超過才出現「...更多」，就地展開，展開後最後出現「較少」
+        const ClampText = ({ text }) => {
+            const [expanded, setExpanded] = useState(false);
+            const [clamped, setClamped] = useState(false);
+            const textRef = useRef(null);
+
+            // 量一量：內文超過 3 行才需要「...更多」
+            const measure = useCallback(() => {
+                const el = textRef.current;
+                if (el) setClamped(el.scrollHeight > el.clientHeight + 1);
+            }, []);
+            useLayoutEffect(() => { if (!expanded) measure(); }, [expanded, text, measure]);
+            useEffect(() => {
+                window.addEventListener('resize', measure);
+                if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
+                return () => window.removeEventListener('resize', measure);
+            }, [measure]);
+
+            const moreCls = `text-[15px] leading-6 font-bold text-zinc-400 hover:text-zinc-700 active:text-zinc-900 transition-colors duration-150 rounded ${focusRing}`;
+            return expanded ? (
+                <p className="text-[15px] leading-6 text-zinc-700 whitespace-pre-line break-words">
+                    {text}
+                    <button type="button" onClick={() => setExpanded(false)} aria-expanded="true" className={`ml-2 ${moreCls}`}>較少</button>
+                </p>
+            ) : (
+                <div className="relative">
+                    <p ref={textRef} className="text-[15px] leading-6 text-zinc-700 whitespace-pre-line break-words line-clamp-3">{text}</p>
+                    {clamped && (
+                        <button type="button" onClick={() => setExpanded(true)} aria-expanded="false"
+                            className={`absolute right-0 bottom-0 pl-10 bg-gradient-to-l from-white from-70% to-transparent ${moreCls}`}>...更多</button>
+                    )}
+                </div>
+            );
+        };
+
+        // 日期區間輸入：「開始」「結束」（一般搜尋與審查搜尋共用）
+        const DateRange = ({ from, to, onFrom, onTo, className = '' }) => {
+            const fieldCls = "w-full bg-zinc-100 rounded-xl px-3 py-2.5 text-sm text-zinc-900 font-medium hover:bg-zinc-200/70 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 transition-colors duration-150";
+            return (
+                <div className={`grid grid-cols-2 gap-3 ${className}`} role="group" aria-label="日期區間">
+                    <label className="flex flex-col gap-1 min-w-0">
+                        <span className="text-xs font-bold text-zinc-500">開始</span>
+                        <input type="date" value={from} onChange={(e) => onFrom(e.target.value)} max={to || undefined} className={fieldCls} />
+                    </label>
+                    <label className="flex flex-col gap-1 min-w-0">
+                        <span className="text-xs font-bold text-zinc-500">結束</span>
+                        <input type="date" value={to} onChange={(e) => onTo(e.target.value)} min={from || undefined} className={fieldCls} />
+                    </label>
+                </div>
+            );
+        };
+
+        // 彈出視窗：確認刪除貼文（點背景、按 Esc 或「取消」都會關閉）
+        const ConfirmModal = ({ title, confirmLabel, busy, error, onCancel, onConfirm }) => {
+            useEffect(() => {
+                const onKey = (e) => { if (e.key === 'Escape' && !busy) onCancel(); };
+                window.addEventListener('keydown', onKey);
+                return () => window.removeEventListener('keydown', onKey);
+            }, [busy, onCancel]);
+            return (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 animate-fade-in" onClick={() => { if (!busy) onCancel(); }}>
+                    <div role="alertdialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}
+                        className="w-full max-w-xs bg-white rounded-2xl shadow-xl border border-zinc-100 p-6 flex flex-col gap-5">
+                        <h3 className="text-lg font-black text-zinc-900 text-center">{title}</h3>
+                        <InlineError message={error} />
+                        <div className="grid grid-cols-2 gap-3">
+                            <button type="button" onClick={onCancel} disabled={busy} autoFocus className={btnCancelWhite}>取消</button>
+                            <button type="button" onClick={onConfirm} disabled={busy} className={btnReturnSoft}>{busy ? '刪除中' : confirmLabel}</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const PostCard = ({ p, onResponded }) => {
+            const [error, setError] = useState('');
+            const text = p.content ?? p.summary ?? '';
+            const name = !p.display_name || p.display_name === '匿名' ? ANON_NAME : p.display_name;
+            return (
+                <li className="bg-white rounded-xl border border-zinc-200 shadow-sm p-4 sm:p-5">
+                    <div className="flex items-center gap-3 mb-2.5">
+                        <CategoryAvatar id={p.category} />
+                        <span className="text-[15px] font-bold text-zinc-900 truncate min-w-0">{name}</span>
+                    </div>
+
+                    <ClampText text={text} />
+
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-3 text-zinc-500">
+                        <PrayButton postId={p.id} count={Number(p.response_count) || 0} responded={!!p.has_responded} onResponded={onResponded} onError={setError} />
+                        <span className="inline-flex items-center gap-1.5 text-sm tabular-nums shrink-0">
+                            <ClockIcon size={18} /><span className="sr-only">時間：</span>{formatAgo(p.created_at)}
+                        </span>
+                    </div>
+                    {error && <div className="mt-2"><InlineError message={error} /></div>}
+                </li>
+            );
+        };
+
+        // ==========================================
+        // 首頁：最新禱告（像 Facebook 動態）
+        // ==========================================
+        const HomeView = ({ goSubmit }) => {
+            const [results, setResults] = useState([]);
+            const [status, setStatus] = useState('loading');
+            const lastLoad = useRef(Date.now());
+
+            // silent = true：背景更新，不顯示載入中的骨架畫面
+            const load = useCallback(async (silent) => {
+                if (silent !== true) setStatus('loading');
+                try { setResults(await api.search('', 'all')); setStatus('ok'); lastLoad.current = Date.now(); }
+                catch (err) { console.error('讀取失敗:', err); if (silent !== true) setStatus('error'); }
+            }, []);
+            useEffect(() => { load(); }, [load]);
+            // 回到這個分頁時，如果超過 1 分鐘沒更新，就在背景更新最新貼文與次數
+            useEffect(() => {
+                const onVisible = () => { if (document.visibilityState === 'visible' && Date.now() - lastLoad.current > 60000) load(true); };
+                document.addEventListener('visibilitychange', onVisible);
+                return () => document.removeEventListener('visibilitychange', onVisible);
+            }, [load]);
+
+            const patch = (id, n) => setResults(list => list.map(x => x.id === id ? { ...x, response_count: n, has_responded: true } : x));
+
+            return (
+                <main className="max-w-2xl mx-auto w-full px-4 sm:px-6 pt-6 pb-20 animate-fade-in">
+                    <h2 className="text-xl sm:text-2xl font-black text-zinc-900 tracking-tight leading-snug mb-5">每一次禱告，都是一滴滋養生命的水</h2>
+                    <section aria-live="polite">
+                        {status === 'loading' && <Skeletons />}
+                        {status === 'error' && <ErrorBox message="暫時無法載入，稍後再試" onRetry={() => load()} />}
+                        {status === 'ok' && results.length === 0 && <EmptyBox message="讓我們一起守望禱告" action={<button onClick={goSubmit} className={btnDark}>新增貼文</button>} />}
+                        {status === 'ok' && results.length > 0 && (
+                            <ul className="flex flex-col gap-3">
+                                {results.map(p => <PostCard key={p.id} p={p} onResponded={(n) => patch(p.id, n)} />)}
+                            </ul>
+                        )}
+                        {status === 'ok' && results.length >= 50 && <p className="text-center text-sm text-zinc-400 mt-6">顯示最新 50 則，更多請用搜尋</p>}
+                    </section>
+                </main>
+            );
+        };
+
+        // ==========================================
+        // 搜尋頁：輸入關鍵字即時搜尋；右側篩選鈕可選分類；沒輸入時顯示「最新」搜尋紀錄與分類
+        // 搜尋紀錄只存在這個瀏覽器（localStorage），不會上傳。
+        // ==========================================
+        const RECENT_KEY = 'tbc_prayer_recent';
+        const loadRecent = () => {
+            try {
+                const a = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+                return Array.isArray(a) ? a.filter(x => typeof x === 'string').slice(0, 10) : [];
+            } catch (e) { return []; }
+        };
+        const saveRecent = (arr) => { try { localStorage.setItem(RECENT_KEY, JSON.stringify(arr)); } catch (e) { /* 無法儲存就略過 */ } };
+
+        const chipCls = (active) => `px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors duration-150 active:scale-[0.98] ${focusRing} ${active ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-800 hover:bg-zinc-200'}`;
+
+        const SearchView = ({ goHome }) => {
+            const [draft, setDraft] = useState('');
+            const [category, setCategory] = useState('all');
+            const [showFilter, setShowFilter] = useState(false);
+            const [recent, setRecent] = useState(loadRecent);
+            const [editing, setEditing] = useState(false);
+            const [results, setResults] = useState([]);
+            const [status, setStatus] = useState('idle');
+            const reqId = useRef(0);
+            const [dateFrom, setDateFrom] = useState('');
+            const [dateTo, setDateTo] = useState('');
+            const keyword = draft.trim();
+            const rangeBad = dateFrom !== '' && dateTo !== '' && dateFrom > dateTo;
+            const active = keyword !== '' || category !== 'all' || dateFrom !== '' || dateTo !== '';
+
+            const run = useCallback(async (kw, cat, from, to) => {
+                const mine = ++reqId.current;
+                setStatus(s => s === 'ok' ? s : 'loading');   // 已有結果時不閃骨架畫面，直接換內容
+                try {
+                    const r = await api.search(kw, cat, from, to);
+                    if (reqId.current === mine) { setResults(r); setStatus('ok'); }
+                } catch (err) {
+                    console.error('搜尋失敗:', err);
+                    if (reqId.current === mine) setStatus('error');
+                }
+            }, []);
+
+            useEffect(() => {
+                if (!active || rangeBad) { reqId.current++; setStatus('idle'); setResults([]); return; }
+                const t = setTimeout(() => run(keyword, category, dateFrom, dateTo), 350);
+                return () => clearTimeout(t);
+            }, [keyword, category, dateFrom, dateTo, active, rangeBad, run]);
+
+            const remember = (kw) => {
+                if (!kw) return;
+                const next = [kw, ...recent.filter(x => x !== kw)].slice(0, 10);
+                setRecent(next); saveRecent(next);
+            };
+            const submit = (e) => { e.preventDefault(); remember(keyword); };
+            const removeRecent = (kw) => { const next = recent.filter(x => x !== kw); setRecent(next); saveRecent(next); if (next.length === 0) setEditing(false); };
+            const clearRecent = () => { setRecent([]); saveRecent([]); setEditing(false); };
+            const patch = (id, n) => setResults(list => list.map(x => x.id === id ? { ...x, response_count: n, has_responded: true } : x));
+
+            return (
+                <main className="max-w-2xl mx-auto w-full px-4 sm:px-6 pt-3 pb-20 animate-fade-in">
+                    <form onSubmit={submit} role="search" className="flex items-center gap-2">
+                        <button type="button" onClick={goHome} aria-label="返回" className={`p-2 -ml-2 rounded-full text-zinc-800 hover:bg-zinc-100 active:bg-zinc-200 transition-colors duration-150 ${focusRing}`}><ArrowLeft size={24} /></button>
+                        <div className="relative flex-1">
+                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none"><SearchIcon size={20} /></span>
+                            <input type="search" value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={100} autoFocus enterKeyHint="search" placeholder="搜尋" aria-label="搜尋關鍵字"
+                                className="w-full bg-zinc-100 rounded-full pl-11 pr-12 py-3 text-zinc-900 font-medium placeholder:text-zinc-400 hover:bg-zinc-200/70 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 transition-colors duration-150" />
+                            <button type="button" onClick={() => setShowFilter(s => !s)} aria-label="篩選分類" aria-expanded={showFilter}
+                                className={`absolute right-1.5 top-1/2 -translate-y-1/2 p-2 rounded-full transition-colors duration-150 ${focusRing} ${showFilter || category !== 'all' ? 'text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'}`}>
+                                <SlidersIcon size={20} />
+                                {category !== 'all' && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-600" aria-hidden="true"></span>}
+                            </button>
+                        </div>
+                    </form>
+
+                    <DateRange from={dateFrom} to={dateTo} onFrom={setDateFrom} onTo={setDateTo} className="mt-4" />
+                    {rangeBad && <div className="mt-3"><InlineError message="開始日期不可晚於結束日期" /></div>}
+
+                    {showFilter && (
+                        <div className="flex overflow-x-auto no-scrollbar gap-2 mt-4" role="group" aria-label="分類">
+                            {CATEGORIES.map(c => (
+                                <button key={c.id} type="button" onClick={() => setCategory(c.id)} aria-pressed={category === c.id} className={chipCls(category === c.id)}>{c.label}</button>
+                            ))}
+                        </div>
+                    )}
+
+                    {!active && (
+                        <div className="mt-8 flex flex-col gap-8">
+                            {recent.length > 0 && (
+                                <section aria-labelledby="recent-title">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h2 id="recent-title" className="text-lg font-black text-zinc-900">最新</h2>
+                                        <div className="flex items-center gap-3">
+                                            {editing && <button type="button" onClick={clearRecent} className={`text-sm font-bold text-red-600 hover:text-red-700 rounded ${focusRing}`}>全部清除</button>}
+                                            <button type="button" onClick={() => setEditing(e => !e)} className={`text-sm font-bold text-zinc-500 hover:text-zinc-900 rounded ${focusRing}`}>{editing ? '完成' : '編輯'}</button>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {recent.map(kw => (
+                                            <span key={kw} className="inline-flex items-center">
+                                                <button type="button" onClick={() => { if (!editing) setDraft(kw); }} className={`${chipCls(false)} ${editing ? 'rounded-r-none pr-3' : ''}`}>{kw}</button>
+                                                {editing && <button type="button" onClick={() => removeRecent(kw)} aria-label={`刪除搜尋紀錄 ${kw}`} className={`px-2.5 py-2 rounded-r-full bg-zinc-100 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-900 transition-colors duration-150 ${focusRing}`}><XIcon size={16} /></button>}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </section>
+                            )}
+                            <section aria-labelledby="cat-title">
+                                <h2 id="cat-title" className="text-lg font-black text-zinc-900 mb-3">分類</h2>
+                                <div className="flex flex-wrap gap-2">
+                                    {SUBMIT_CATEGORIES.map(c => <button key={c.id} type="button" onClick={() => setCategory(c.id)} className={chipCls(false)}>{c.label}</button>)}
+                                </div>
+                            </section>
+                        </div>
+                    )}
+
+                    {active && (
+                        <section className="mt-6" aria-live="polite">
+                            {status === 'loading' && <Skeletons />}
+                            {status === 'error' && <ErrorBox message="暫時無法搜尋，請稍後再試" onRetry={() => run(keyword, category)} />}
+                            {status === 'ok' && results.length === 0 && <EmptyBox message="找不到，換個關鍵字試試" />}
+                            {status === 'ok' && results.length > 0 && (
+                                <ul className="flex flex-col gap-3">
+                                    {results.map(p => <PostCard key={p.id} p={p} onResponded={(n) => patch(p.id, n)} />)}
+                                </ul>
+                            )}
+                        </section>
+                    )}
+                </main>
+            );
+        };
+
+        // ==========================================
+        // 提報／修改表單（提報與「被退回後修改」共用）
+        // ==========================================
+        const RadioCard = ({ checked, onChange, title, hint, name }) => (
+            <label className={`flex-1 flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors duration-150 focus-within:ring-2 focus-within:ring-emerald-600 focus-within:ring-offset-2 ${checked ? 'border-zinc-900 bg-zinc-50' : 'border-zinc-200 bg-white hover:bg-zinc-50'}`}>
+                <input type="radio" name={name} checked={checked} onChange={onChange} className="mt-1 accent-zinc-900" />
+                <span className="flex flex-col"><span className="text-sm font-bold text-zinc-900">{title}</span><span className="text-xs text-zinc-500 mt-0.5">{hint}</span></span>
+            </label>
+        );
+
+        const PostForm = ({ initial, submitLabel, busy, error, onSubmit, onCancel, draftKey }) => {
+            const [v, setV] = useState(initial);
+            // 草稿：打字時自動存在這個瀏覽器，不小心離開或重新整理也不會丟字（送出成功後才清掉）
+            useEffect(() => {
+                if (!draftKey) return;
+                const t = setTimeout(() => { try { localStorage.setItem(draftKey, JSON.stringify(v)); } catch (e) { /* 無法儲存就略過 */ } }, 500);
+                return () => clearTimeout(t);
+            }, [v, draftKey]);
+            const set = (k, val) => setV(s => ({ ...s, [k]: val }));
+            const submit = (e) => { e.preventDefault(); const content = v.content.trim(); onSubmit({ ...v, content }); };
+            const ready = v.content.trim() && v.category;
+
+            return (
+                <form onSubmit={submit} className="bg-white border border-zinc-200 rounded-2xl p-5 sm:p-8 shadow-sm flex flex-col gap-6">
+                    <label className="flex flex-col gap-1.5">
+                        <span className="flex justify-between text-sm font-bold text-zinc-700">你想說什麼 <span className="text-xs font-mono tabular-nums text-zinc-400">{v.content.length}/800</span></span>
+                        <textarea value={v.content} onChange={(e) => set('content', e.target.value)} maxLength={800} rows={7} required className={`${inputCls} leading-relaxed resize-y`} />
+                    </label>
+
+                    <fieldset className="flex flex-col gap-2">
+                        <legend className="text-sm font-bold text-zinc-700 mb-1">分類</legend>
+                        <div className="flex flex-wrap gap-2">
+                            {SUBMIT_CATEGORIES.map(c => {
+                                const active = v.category === c.id;
+                                return (
+                                    <button key={c.id} type="button" aria-pressed={active} onClick={() => set('category', c.id)}
+                                        className={`px-4 py-2 rounded-lg text-sm font-bold border transition-colors duration-150 active:scale-[0.98] ${focusRing} ${active ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300'}`}>{c.label}</button>
+                                );
+                            })}
+                        </div>
+                    </fieldset>
+
+                    <fieldset className="flex flex-col gap-2">
+                        <legend className="text-sm font-bold text-zinc-700 mb-1">誰可以看到貼文</legend>
+                        <div className="flex flex-col sm:flex-row gap-3">
+                            <RadioCard name="is_public" checked={v.is_public === true} onChange={() => set('is_public', true)} title="公開" hint="所有人都能查閱、搜尋" />
+                            <RadioCard name="is_public" checked={v.is_public === false} onChange={() => set('is_public', false)} title="不公開" hint="只有牧者、區長與你本人看得到" />
+                        </div>
+                    </fieldset>
+
+                    <fieldset className="flex flex-col gap-2">
+                        <legend className="text-sm font-bold text-zinc-700 mb-1">隱私設定</legend>
+                        <div className="flex flex-col sm:flex-row gap-3">
+                            <RadioCard name="show_name" checked={v.show_name === false} onChange={() => set('show_name', false)} title="匿名" hint="貼文顯示「一位需要禱告的朋友」" />
+                            <RadioCard name="show_name" checked={v.show_name === true} onChange={() => set('show_name', true)} title="顯示姓名" hint="貼文顯示姓名" />
+                        </div>
+                    </fieldset>
+
+                    <InlineError message={error} />
+
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                        <button type="button" onClick={onCancel} className={btnCancelWhite}><XMarkIcon size={16} />取消</button>
+                        <button type="submit" disabled={busy || !ready} className={btnSubmitDark}><SendIcon size={16} />{busy ? '送出中…' : submitLabel}</button>
+                    </div>
+                </form>
+            );
+        };
+
+        const EMPTY_FORM = { content: '', category: '', is_public: true, show_name: true };
+        const DRAFT_KEY = 'tbc_prayer_draft';
+        const loadDraft = () => {
+            try {
+                const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
+                if (!d || typeof d !== 'object') return EMPTY_FORM;
+                return {
+                    content: typeof d.content === 'string' ? d.content.slice(0, 800) : '',
+                    category: SUBMIT_CATEGORIES.some(c => c.id === d.category) ? d.category : '',
+                    is_public: d.is_public !== false, show_name: d.show_name !== false,
+                };
+            } catch (e) { return EMPTY_FORM; }
+        };
+        const clearDraft = () => { try { localStorage.removeItem(DRAFT_KEY); } catch (e) { /* 略過 */ } };
+
+        const SubmitView = ({ session, onLogin, goMine, goHome, notify }) => {
+            const [busy, setBusy] = useState(false);
+            const [error, setError] = useState('');
+            if (!session) return <PageShell back={<BackButton onClick={goHome} label="返回禱告牆" />}><NeedLogin onLogin={onLogin} /></PageShell>;
+
+            const handle = async (values) => {
+                setBusy(true); setError('');
+                try {
+                    await api.submit(values);
+                    clearDraft();
+                    notify('已送出，審查通過後才會公開。');
+                    goMine();
+                } catch (err) { setError(err.message || '送出失敗，稍後再試'); }
+                finally { setBusy(false); }
+            };
+            return (
+                <PageShell back={<BackButton onClick={goHome} label="返回禱告牆" />}>
+                    <h2 className="text-2xl font-black text-zinc-900 tracking-tight mb-1">新增貼文</h2>
+                    <p className="text-sm text-zinc-500 mb-6">審查通過後顯示於禱告牆；若通知退回，修正後可以再次送審，請耐心等候。</p>
+                    <PostForm initial={loadDraft()} draftKey={DRAFT_KEY} submitLabel="送出" busy={busy} error={error} onSubmit={handle} onCancel={goHome} />
+                </PageShell>
+            );
+        };
+
+        // ==========================================
+        // 審查紀錄
+        // ==========================================
+        const HistoryList = ({ postId }) => {
+            const [logs, setLogs] = useState(null);
+            const [error, setError] = useState('');
+            useEffect(() => {
+                let alive = true;
+                api.logsOfPost(postId).then(d => alive && setLogs(d)).catch(() => alive && setError('無法載入審查紀錄'));
+                return () => { alive = false; };
+            }, [postId]);
+            if (error) return <p className="text-sm text-red-600">{error}</p>;
+            if (!logs) return <p className="text-sm text-zinc-400 animate-pulse">載入中</p>;
+            return (
+                <ol className="flex flex-col gap-3 border-l-2 border-zinc-100 pl-4">
+                    {logs.map(l => (
+                        <li key={l.id} className="text-sm">
+                            <div className="flex flex-wrap items-baseline gap-x-2 text-zinc-800">
+                                <span className="font-bold">{ACTION_LABEL[l.action] || l.action}</span>
+                                <span className="text-zinc-500">{l.actor_name}</span>
+                                <span className="text-xs text-zinc-400 font-mono tabular-nums">{formatDateTime(l.created_at)}</span>
+                            </div>
+                            {l.reason && <p className="text-zinc-600 mt-0.5 whitespace-pre-line">{l.reason.replace(/公開設定/g, '誰可以看到貼文')}</p>}
+                        </li>
+                    ))}
+                </ol>
+            );
+        };
+
+        // 「查看審查紀錄」：貼文審核與我的禱告共用同一個樣式
+        const HistoryToggle = ({ postId }) => {
+            const [show, setShow] = useState(false);
+            return (
+                <div className="pt-3">
+                    <button type="button" onClick={() => setShow(v => !v)} className={`text-sm font-bold text-zinc-500 hover:text-zinc-900 rounded px-1 -ml-1 transition-colors duration-150 ${focusRing}`}>{show ? '收合審查紀錄' : '查看審查紀錄'}</button>
+                    {show && <div className="mt-3"><HistoryList postId={postId} /></div>}
+                </div>
+            );
+        };
+
+        // ==========================================
+        // 我的禱告：卡片格式同「貼文審核」
+        // ==========================================
+        const MyPostCard = ({ post, reason, showStatus, goEdit, forceReason, canSeeHistory }) => {
+            const returned = post.review_status === 'returned';
+            const name = post.show_name ? post.author_name : ANON_NAME;
+            return (
+                <li className="bg-white rounded-xl border border-zinc-200 shadow-sm p-4 sm:p-5">
+                    <div className="flex items-center justify-between gap-3 mb-2.5">
+                        <div className="flex items-center gap-3 min-w-0">
+                            <CategoryAvatar id={post.category} />
+                            <span className="text-[15px] font-bold text-zinc-900 truncate min-w-0">{name}</span>
+                        </div>
+                        {returned && <button type="button" onClick={() => goEdit(post.id)} className={`${btnGhost} shrink-0`}><PencilIcon size={16} />編輯重新送審</button>}
+                    </div>
+                    <ClampText text={post.content} />
+                    {(returned || forceReason) && (
+                        <div className="bg-red-50 border border-red-100 rounded-lg p-3 mt-3">
+                            <p className="text-xs font-bold text-red-700 mb-1">退回原因</p>
+                            <p className="text-sm text-red-900 whitespace-pre-line">{reason?.reason || '—'}</p>
+                        </div>
+                    )}
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-3 text-zinc-500">
+                        {showStatus && <StatusLabel status={post.review_status} />}
+                        <span className="inline-flex items-center gap-1.5 text-sm tabular-nums shrink-0">
+                            <ClockIcon size={18} /><span className="sr-only">時間：</span>{formatAgo(post.created_at)}
+                        </span>
+                    </div>
+                    {canSeeHistory && <HistoryToggle postId={post.id} />}
+                </li>
+            );
+        };
+
+        // ==========================================
+        // 我的禱告
+        // ==========================================
+        const MineView = ({ session, role, onLogin, goHome, goEdit, flash }) => {
+            const [tab, setTab] = useState('all');
+            const [posts, setPosts] = useState([]);
+            const [reasons, setReasons] = useState({});
+            const [status, setStatus] = useState('loading');
+            const [openHistory, setOpenHistory] = useState(null);
+
+            const load = useCallback(async () => {
+                if (!session) return;
+                setStatus('loading');
+                try {
+                    const list = await api.myPosts(session.user.id);
+                    setPosts(list);
+                    setReasons(await api.latestReturnReasons(list.filter(p => p.review_status === 'returned').map(p => p.id)));
+                    setStatus('ok');
+                } catch (err) { console.error('讀取失敗:', err); setStatus('error'); }
+            }, [session?.user?.id]);
+            useEffect(() => { load(); }, [load]);
+
+            if (!session) return <PageShell back={<BackButton onClick={goHome} label="返回禱告牆" />}><NeedLogin onLogin={onLogin} /></PageShell>;
+
+            const tabs = [{ id: 'all', label: '全部' }, { id: 'pending', label: '待審查' }, { id: 'approved', label: '已核准' }, { id: 'returned', label: '已退回' }];
+            const shown = tab === 'all' ? posts : posts.filter(p => p.review_status === tab);
+
+            return (
+                <PageShell>
+                    <div className="flex items-end justify-between gap-4 mb-6">
+                        <h2 className="text-2xl font-black text-zinc-900 tracking-tight">我的禱告</h2>
+                    </div>
+                    {flash && <div role="status" className="flex items-start gap-2 text-sm font-medium text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2.5 mb-6"><span className="mt-0.5 shrink-0"><CheckIcon size={16} /></span>{flash}</div>}
+                    <TabBar tabs={tabs} value={tab} onChange={setTab} />
+
+                    {status === 'loading' && <Skeletons />}
+                    {status === 'error' && <ErrorBox message="暫時無法載入，稍後再試" onRetry={load} />}
+                    {status === 'ok' && shown.length === 0 && <EmptyBox message={tab === 'all' ? '你還沒有貼文' : '目前沒有貼文'} />}
+                    {status === 'ok' && shown.length > 0 && (
+                        <ul className="flex flex-col gap-4">
+                            {shown.map(p => <MyPostCard key={p.id} post={p} reason={reasons[p.id]} showStatus={tab === 'all'} goEdit={goEdit} canSeeHistory={REVIEWER_ROLES.includes(role)} />)}
+                        </ul>
+                    )}
+                </PageShell>
+            );
+        };
+
+        // ==========================================
+        // 修改被退回的貼文並重新送審
+        // ==========================================
+        const EditView = ({ id, session, onLogin, goMine, notify }) => {
+            const [post, setPost] = useState(null);
+            const [status, setStatus] = useState('loading');
+            const [busy, setBusy] = useState(false);
+            const [error, setError] = useState('');
+
+            useEffect(() => {
+                if (!session) return;
+                let alive = true;
+                (async () => {
+                    try {
+                        const list = await api.myPosts(session.user.id);
+                        const found = list.find(p => p.id === id);
+                        if (!alive) return;
+                        if (!found || found.review_status !== 'returned') { setStatus('notfound'); return; }
+                        setPost(found); setStatus('ok');
+                    } catch (err) { console.error(err); if (alive) setStatus('error'); }
+                })();
+                return () => { alive = false; };
+            }, [id, session?.user?.id]);
+
+            if (!session) return <PageShell back={<BackButton onClick={goMine} />}><NeedLogin onLogin={onLogin} /></PageShell>;
+
+            const handle = async (values) => {
+                setBusy(true); setError('');
+                try {
+                    await api.resubmit(id, values);
+                    notify('重新送審成功，請耐心等候');
+                    goMine();
+                } catch (err) { setError(err.message || '送出失敗，稍後再試'); }
+                finally { setBusy(false); }
+            };
+
+            return (
+                <PageShell back={<BackButton onClick={goMine} label="返回我的禱告" />}>
+                    <h2 className="text-2xl font-black text-zinc-900 tracking-tight mb-6">編輯重新送審</h2>
+                    {status === 'loading' && <Skeletons />}
+                    {status === 'error' && <ErrorBox message="暫時無法載入，稍後再試" />}
+                    {status === 'notfound' && <EmptyBox message="找不到貼文" action={<button onClick={goMine} className={btnDark}>回到我的禱告</button>} />}
+                    {status === 'ok' && post && (
+                        <PostForm
+                            initial={{ content: post.content, category: post.category, is_public: post.is_public, show_name: post.show_name }}
+                            submitLabel="重新送審" busy={busy} error={error} onSubmit={handle} onCancel={goMine} />
+                    )}
+                </PageShell>
+            );
+        };
+
+        // ==========================================
+        // 審查頁（牧師、區長、admin）
+        // 這裡的按鈕只是方便使用；真正的權限由資料庫檢查
+        // ==========================================
+        const pillCls = (active) => `px-4 py-2 rounded-lg text-sm font-bold border transition-colors duration-150 active:scale-[0.98] ${focusRing} ${active ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300'}`;
+
+        const ReviewCard = ({ post, onChanged, onPatch, onRemove, onDeleted }) => {
+            const [isPublic, setIsPublic] = useState(post.is_public);   // 待審查：核准時才套用
+            const [returning, setReturning] = useState(false);
+            const [reason, setReason] = useState('');
+            const [busy, setBusy] = useState(false);
+            const [error, setError] = useState('');
+            const [editing, setEditing] = useState(false);
+            const [saving, setSaving] = useState(false);
+            const [draft, setDraft] = useState({ content: post.content });
+            const [confirmDel, setConfirmDel] = useState(false);
+            const [deleting, setDeleting] = useState(false);
+            const doDelete = async () => {
+                setDeleting(true); setError('');
+                try { await api.deletePost(post.id); (onDeleted || onRemove)(post.id); onChanged(); }
+                catch (err) { setError(err.message || '刪除失敗，稍後再試'); setDeleting(false); }
+            };
+
+            // 核准或退回：成功後這張卡片立刻從「待審查」消失，再到背景更新清單
+            const run = async (fn) => {
+                setBusy(true); setError('');
+                try { await fn(); onRemove(post.id); onChanged(); }
+                catch (err) { setError(err.message || '操作失敗，稍後再試'); setBusy(false); }
+            };
+
+            // 就地更新：先立刻改畫面，再通知資料庫；失敗才還原。不重新載入清單，所以畫面不會晃動。
+            // 連點時只有「最新一次」失敗才會還原，避免舊請求把新的選擇蓋掉。
+            const seq = useRef(0);
+            const change = async (patch, call) => {
+                const prev = {};
+                Object.keys(patch).forEach(k => { prev[k] = post[k]; });
+                const mine = ++seq.current;
+                setError('');
+                onPatch(post.id, patch);
+                try { await call(); }
+                catch (err) {
+                    if (seq.current === mine) onPatch(post.id, prev);
+                    setError(err.message || '操作失敗，稍後再試');
+                }
+            };
+
+            const startEdit = () => { setDraft({ content: post.content }); setError(''); setEditing(true); };
+            const cancelEdit = () => { setEditing(false); setError(''); };
+            const saveEdit = async () => {
+                const content = draft.content.trim();
+                if (!content) { setError('內容不可空白'); return; }
+                if (content === post.content) { setEditing(false); return; }
+                setSaving(true); setError('');
+                try { await api.editContent(post.id, content); onPatch(post.id, { content }); setEditing(false); }
+                catch (err) { setError(err.message || '儲存失敗，稍後再試'); }
+                finally { setSaving(false); }
+            };
+
+            const pending = post.review_status === 'pending';
+            const categoryFields = (
+                <fieldset className="flex flex-col gap-2">
+                    <legend className="text-xs font-bold text-zinc-500 mb-1">分類</legend>
+                    <div className="flex flex-wrap gap-2">
+                        {SUBMIT_CATEGORIES.map(c => {
+                            const active = post.category === c.id;
+                            return <button key={c.id} type="button" aria-pressed={active} className={pillCls(active)}
+                                onClick={() => { if (!active) change({ category: c.id }, () => api.setCategory(post.id, c.id)); }}>{c.label}</button>;
+                        })}
+                    </div>
+                </fieldset>
+            );
+            const visibilityFields = (
+                <fieldset className="flex flex-col gap-2">
+                    <legend className="text-xs font-bold text-zinc-500 mb-1">誰可以看到貼文</legend>
+                    <div className="flex flex-wrap gap-2">
+                        {[{ v: true, label: '公開' }, { v: false, label: '不公開' }].map(o => {
+                            const active = (pending ? isPublic : post.is_public) === o.v;
+                            return <button key={String(o.v)} type="button" aria-pressed={active} className={pillCls(active)}
+                                onClick={() => {
+                                    if (active) return;
+                                    if (pending) setIsPublic(o.v);
+                                    else change({ is_public: o.v }, () => api.setVisibility(post.id, o.v));
+                                }}>{o.label}</button>;
+                        })}
+                    </div>
+                </fieldset>
+            );
+            const privacyFields = (
+                <fieldset className="flex flex-col gap-2">
+                    <legend className="text-xs font-bold text-zinc-500 mb-1">隱私設定</legend>
+                    <div className="flex flex-wrap gap-2">
+                        {[{ v: false, label: '匿名' }, { v: true, label: '顯示姓名' }].map(o => {
+                            const active = post.show_name === o.v;
+                            return <button key={String(o.v)} type="button" aria-pressed={active} className={pillCls(active)}
+                                onClick={() => { if (!active) change({ show_name: o.v }, () => api.setPrivacy(post.id, o.v)); }}>{o.label}</button>;
+                        })}
+                    </div>
+                </fieldset>
+            );
+            const historyBlock = <HistoryToggle postId={post.id} />;
+            const shownName = post.show_name ? post.author_name : ANON_NAME;
+            const ghostBtn = btnGhost;
+            const timeSpan = (
+                <span className="inline-flex items-center gap-1.5 text-sm tabular-nums shrink-0">
+                    <ClockIcon size={18} /><span className="sr-only">時間：</span>{formatAgo(post.created_at)}
+                </span>
+            );
+            const trashBtn = (
+                <button type="button" onClick={() => setConfirmDel(true)} disabled={saving || deleting} aria-label="刪除貼文" title="刪除貼文"
+                    className={`${btnGhost} !px-2 hover:!text-red-600`}><TrashIcon size={16} /></button>
+            );
+            const deleteBlock = confirmDel && (
+                <ConfirmModal title="刪除貼文？" confirmLabel="刪除" busy={deleting} error={error}
+                    onCancel={() => { setConfirmDel(false); setError(''); }} onConfirm={doDelete} />
+            );
+            const headerRow = (actions) => (
+                <div className="flex items-center justify-between gap-3 mb-2.5">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <CategoryAvatar id={post.category} />
+                        <span className="text-[15px] font-bold text-zinc-900 truncate min-w-0">{shownName}</span>
+                    </div>
+                    {actions}
+                </div>
+            );
+
+            // 已退回：顯示方式同禱告牆貼文（退回的貼文沒有公開，所以愛心只是顯示、不能按，次數為 0）
+            if (post.review_status === 'returned') {
+                return (
+                    <li className="bg-white rounded-xl border border-zinc-200 shadow-sm p-4 sm:p-5">
+                        {headerRow(<div className="flex items-center gap-1 shrink-0">{trashBtn}</div>)}
+                        <ClampText text={post.content} />
+                        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-3 text-zinc-500">
+                            <div className="flex items-center gap-1.5" aria-label="禱告回應次數 0">
+                                <span className="-ml-2.5 p-2.5 text-zinc-400"><PrayIcon /></span>
+                                <span className="text-sm font-mono tabular-nums font-bold text-zinc-500">0</span>
+                            </div>
+                            {timeSpan}
+                        </div>
+                        {deleteBlock}
+                        <div className="mt-2"><InlineError message={error} /></div>
+                    </li>
+                );
+            }
+
+            // 待審查／已核准：顯示方式相同；按右上角「編輯」才展開內容與各項設定。待審查多了下方的核准、退回。
+            const actions = (
+                <div className="flex items-center gap-1 shrink-0">
+                    {editing && <button type="button" onClick={cancelEdit} disabled={saving} className={ghostBtn}><XMarkIcon size={16} />取消</button>}
+                    <button type="button" onClick={editing ? saveEdit : startEdit} disabled={saving} aria-expanded={editing} className={ghostBtn}>
+                        {editing ? <CheckIcon size={16} /> : <PencilIcon size={16} />}{editing ? (saving ? '儲存中' : '儲存') : '編輯'}
+                    </button>
+                    {trashBtn}
+                </div>
+            );
+            const decideBlock = !pending ? null : returning ? (
+                <div className="flex flex-col gap-3 mt-4">
+                    <label className="text-sm font-bold text-zinc-700" htmlFor={`reason-${post.id}`}>退回原因</label>
+                    <textarea id={`reason-${post.id}`} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} rows={3} autoFocus className={`${inputCls} resize-y`} />
+                    <div className="grid grid-cols-2 gap-3">
+                        <button onClick={() => { setReturning(false); setReason(''); setError(''); }} disabled={busy} className={btnCancel}>取消</button>
+                        <button onClick={() => run(() => api.returnPost(post.id, reason))} disabled={busy || !reason.trim()} className={btnReturnSoft}>{busy ? '處理中' : '退回'}</button>
+                    </div>
+                </div>
+            ) : (
+                <div className="grid grid-cols-2 gap-3 mt-4">
+                    <button onClick={() => run(() => api.approve(post.id, isPublic))} disabled={busy}
+                        className={`inline-flex items-center justify-center gap-2 h-12 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-base font-medium transition-colors duration-150 ${disabledCls} ${focusRing}`}>
+                        <CheckIcon size={18} />{busy ? '處理中' : '核准'}
+                    </button>
+                    <button onClick={() => setReturning(true)} disabled={busy}
+                        className={`inline-flex items-center justify-center gap-2 h-12 rounded-xl border border-red-300 bg-white hover:bg-red-50 active:bg-red-100 text-red-700 text-base font-medium transition-colors duration-150 ${disabledCls} ${focusRing}`}>
+                        <UndoIcon size={18} />退回
+                    </button>
+                </div>
+            );
+            return (
+                <li className="bg-white rounded-xl border border-zinc-200 shadow-sm p-4 sm:p-5">
+                    {headerRow(actions)}
+                    {editing ? (
+                        <label className="flex flex-col gap-1.5">
+                            <span className="flex justify-between text-xs font-bold text-zinc-500">內容 <span className="font-mono tabular-nums text-zinc-400">{draft.content.length}/800</span></span>
+                            <textarea value={draft.content} onChange={(e) => setDraft(d => ({ ...d, content: e.target.value }))} maxLength={800} rows={6} className={`${inputCls} leading-relaxed resize-y`} />
+                        </label>
+                    ) : (
+                        <ClampText text={post.content} />
+                    )}
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-3 text-zinc-500">
+                        {pending && (
+                            <span className="inline-flex items-center gap-1.5 text-sm min-w-0">
+                                <UserIcon size={18} /><span className="sr-only">貼文：</span><span className="truncate max-w-[10rem]">{post.author_name}</span>
+                            </span>
+                        )}
+                        {timeSpan}
+                    </div>
+                    {editing && (
+                        <div className="flex flex-col gap-4 mt-4 pt-4 border-t border-zinc-100">
+                            {categoryFields}
+                            {visibilityFields}
+                            {privacyFields}
+                            {historyBlock}
+                        </div>
+                    )}
+                    {decideBlock}
+                    {deleteBlock}
+                    <div className="mt-2"><InlineError message={error} /></div>
+                </li>
+            );
+        };
+
+        const ReviewView = ({ session, role, onLogin, goHome, refreshPending }) => {
+            const [tab, setTab] = useState('pending');
+            const [posts, setPosts] = useState([]);
+            const [status, setStatus] = useState('loading');
+            // 搜尋：輸入關鍵字後，改顯示所有狀態中符合的貼文
+            const [query, setQuery] = useState('');
+            const [results, setResults] = useState([]);
+            const [sStatus, setSStatus] = useState('idle');
+            const keyword = query.trim();
+            const searching = keyword !== '';
+            const reqId = useRef(0);
+
+            // silent = true：背景更新，不顯示載入中的骨架畫面（避免畫面晃動）
+            const load = useCallback(async (silent) => {
+                if (silent !== true) setStatus('loading');
+                try { setPosts(await api.postsByStatus(tab)); setStatus('ok'); }
+                catch (err) { console.error('讀取審查清單失敗:', err); if (silent !== true) setStatus('error'); }
+            }, [tab]);
+            useEffect(() => { if (session && REVIEWER_ROLES.includes(role)) load(); }, [load, session, role]);
+
+            const runSearch = useCallback(async (kw, silent) => {
+                const mine = ++reqId.current;
+                if (silent !== true) setSStatus('loading');
+                try { const r = await api.searchAllPosts(kw); if (reqId.current === mine) { setResults(r); setSStatus('ok'); } }
+                catch (err) { console.error('搜尋失敗:', err); if (reqId.current === mine && silent !== true) setSStatus('error'); }
+            }, []);
+            useEffect(() => {
+                if (!session || !REVIEWER_ROLES.includes(role)) return;
+                if (!searching) { reqId.current++; setSStatus('idle'); setResults([]); return; }
+                const t = setTimeout(() => runSearch(keyword), 350);
+                return () => clearTimeout(t);
+            }, [keyword, searching, session, role, runSearch]);
+
+            const onPatch = (id, patch) => { setPosts(l => l.map(p => p.id === id ? { ...p, ...patch } : p)); setResults(l => l.map(p => p.id === id ? { ...p, ...patch } : p)); };
+            // 核准／退回：一般清單中卡片消失；搜尋時貼文還在，所以改成重新搜尋更新狀態
+            const onRemove = (id) => { if (!searching) setPosts(l => l.filter(p => p.id !== id)); };
+            const onDeleted = (id) => { setPosts(l => l.filter(p => p.id !== id)); setResults(l => l.filter(p => p.id !== id)); };
+
+            if (!session) return <PageShell back={<BackButton onClick={goHome} label="返回禱告牆" />}><NeedLogin onLogin={onLogin} /></PageShell>;
+            if (!REVIEWER_ROLES.includes(role)) return <PageShell back={<BackButton onClick={goHome} label="返回禱告牆" />}><EmptyBox message="只有牧師、區長與管理員可以進入審查頁" /></PageShell>;
+
+            const tabs = [{ id: 'pending', label: '待審查' }, { id: 'returned', label: '已退回' }, { id: 'approved', label: '編輯' }];
+            const onChanged = async () => { if (searching) await runSearch(keyword, true); else await load(true); refreshPending(); };
+
+            return (
+                <PageShell>
+                    <h2 className="text-2xl font-black text-zinc-900 tracking-tight mb-4">貼文審核</h2>
+                    <div role="search" className="relative mb-5">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none"><SearchIcon size={20} /></span>
+                        <input type="text" value={query} onChange={(e) => setQuery(e.target.value)} maxLength={100} enterKeyHint="search" placeholder="搜尋內容或貼文者" aria-label="搜尋貼文"
+                            className="w-full bg-zinc-100 rounded-full pl-11 pr-11 py-3 text-zinc-900 font-medium placeholder:text-zinc-400 hover:bg-zinc-200/70 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 transition-colors duration-150" />
+                        {searching && (
+                            <button type="button" onClick={() => setQuery('')} aria-label="清除搜尋"
+                                className={`absolute right-1.5 top-1/2 -translate-y-1/2 p-2 rounded-full text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200 active:bg-zinc-300 transition-colors duration-150 ${focusRing}`}><XIcon size={18} /></button>
+                        )}
+                    </div>
+
+                    {searching ? (
+                        <>
+                            {sStatus === 'loading' && <Skeletons />}
+                            {sStatus === 'error' && <ErrorBox message="暫時無法搜尋，稍後再試" onRetry={() => runSearch(keyword)} />}
+                            {sStatus === 'ok' && results.length === 0 && <EmptyBox message="找不到，換個關鍵字試試" />}
+                            {sStatus === 'ok' && results.length > 0 && (
+                                <ul className="flex flex-col gap-4">
+                                    {results.map(p => <ReviewCard key={p.id} post={p} onChanged={onChanged} onPatch={onPatch} onRemove={onRemove} onDeleted={onDeleted} />)}
+                                </ul>
+                            )}
+                            {sStatus === 'ok' && results.length >= 50 && <p className="text-center text-sm text-zinc-400 mt-6">只顯示最新 50 則，請縮小條件</p>}
+                        </>
+                    ) : (
+                        <>
+                            <TabBar tabs={tabs} value={tab} onChange={setTab} />
+                            {status === 'loading' && <Skeletons />}
+                            {status === 'error' && <ErrorBox message="無法載入審查清單，稍後再試" onRetry={() => load()} />}
+                            {status === 'ok' && posts.length === 0 && <EmptyBox message={tab === 'pending' ? '目前沒有貼文' : '目前沒有貼文'} />}
+                            {status === 'ok' && posts.length > 0 && (
+                                <ul className="flex flex-col gap-4">
+                                    {posts.map(p => <ReviewCard key={p.id} post={p} onChanged={onChanged} onPatch={onPatch} onRemove={onRemove} onDeleted={onDeleted} />)}
+                                </ul>
+                            )}
+                        </>
+                    )}
+                </PageShell>
+            );
+        };
+
+        // ==========================================
+        // 通知頁（站內通知：貼文被退回時，提報者會收到）
+        // ==========================================
+        const NotificationsView = ({ session, role, onLogin, goHome, goEdit, refreshUnread }) => {
+            const [items, setItems] = useState([]);   // 每筆：{ notice: 通知, post: 對應的貼文 }
+            const [status, setStatus] = useState('loading');
+
+            const load = useCallback(async () => {
+                if (!session) return;
+                setStatus('loading');
+                try {
+                    const notices = await api.notifications();
+                    const posts = await api.postsByIds([...new Set(notices.map(n => n.post_id))]);
+                    const byId = {};
+                    posts.forEach(p => { byId[p.id] = p; });
+                    setItems(notices.filter(n => byId[n.post_id]).map(n => ({ notice: n, post: byId[n.post_id] })));
+                    setStatus('ok');
+                    // 進到通知頁就視為全部已讀
+                    api.markAllRead().then(refreshUnread).catch(() => {});
+                } catch (err) { console.error('讀取通知失敗:', err); setStatus('error'); }
+            }, [session?.user?.id]);
+            useEffect(() => { load(); }, [load]);
+
+            if (!session) return <PageShell back={<BackButton onClick={goHome} label="返回禱告牆" />}><NeedLogin onLogin={onLogin} /></PageShell>;
+
+            return (
+                <PageShell>
+                    <h2 className="text-2xl font-black text-zinc-900 tracking-tight mb-6">通知</h2>
+
+                    {status === 'loading' && <Skeletons />}
+                    {status === 'error' && <ErrorBox message="暫時無法載入，稍後再試" onRetry={load} />}
+                    {status === 'ok' && items.length === 0 && <EmptyBox message="目前沒有通知" />}
+                    {status === 'ok' && items.length > 0 && (
+                        <ul className="flex flex-col gap-4">
+                            {items.map(({ notice, post }) => (
+                                <MyPostCard key={notice.id} post={post} reason={{ reason: notice.reason }} forceReason showStatus={false} goEdit={goEdit} canSeeHistory={REVIEWER_ROLES.includes(role)} />
+                            ))}
+                        </ul>
+                    )}
+                </PageShell>
+            );
+        };
+
+        // ==========================================
+        // 漢堡選單：在按鈕下方展開的小卡片（開啟時按鈕變成 X）
+        // ==========================================
+        const MenuDropdown = ({ onClose, items }) => {
+            useEffect(() => {
+                const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+                window.addEventListener('keydown', onKey);
+                return () => window.removeEventListener('keydown', onKey);
+            }, [onClose]);
+            return (
+                <>
+                    <div className="fixed inset-0 z-40" onClick={onClose} aria-hidden="true"></div>
+                    <nav className="absolute left-0 top-full mt-2 z-50 w-56 bg-white rounded-2xl border border-zinc-100 shadow-lg overflow-hidden animate-fade-in" aria-label="主選單">
+                        {items.map((n, i) => (
+                            <button key={n.id} type="button" onClick={n.onClick} aria-current={n.active ? 'page' : undefined}
+                                className={`w-full flex items-center gap-3 px-4 py-3.5 text-left text-sm font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:bg-zinc-100 ${i > 0 ? 'border-t border-zinc-100' : ''} ${n.active ? 'bg-zinc-100 text-zinc-900' : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 active:bg-zinc-100'}`}>
+                                <span className="shrink-0">{n.icon}</span>{n.label}
+                            </button>
+                        ))}
+                    </nav>
+                </>
+            );
+        };
+
+        // ==========================================
+        // 外框：頁首（漢堡選單｜守望花園｜新增貼文、搜尋、通知）與網址切換
+        // 網址：prayer.html / #/search / #/submit / #/mine / #/edit/編號 / #/review
+        // ==========================================
+        const UUID = '([0-9a-fA-F-]{36})';
+        const parseRoute = () => {
+            const h = window.location.hash;
+            if (h === '#/submit') return { name: 'submit' };
+            if (h === '#/search') return { name: 'search' };
+            if (h === '#/mine') return { name: 'mine' };
+            if (h === '#/review') return { name: 'review' };
+            if (h === '#/notifications') return { name: 'notifications' };
+            const m = h.match(new RegExp(`^#/edit/${UUID}$`));
+            if (m) return { name: 'edit', id: m[1] };
+            return { name: 'home' };
+        };
+        const go = (hash) => { window.location.hash = hash; window.scrollTo(0, 0); };
+
+        const App = () => {
+            const [route, setRoute] = useState(parseRoute());
+            const [session, setSession] = useState(null);
+            const [sessionReady, setSessionReady] = useState(false);
+            const [role, setRole] = useState(null);
+            const [pending, setPending] = useState(0);
+            const [unread, setUnread] = useState(0);
+            const [showLogin, setShowLogin] = useState(false);
+            const [flash, setFlash] = useState('');
+            const [menuOpen, setMenuOpen] = useState(false);
+
+            useEffect(() => {
+                const onHash = () => { setRoute(parseRoute()); };
+                window.addEventListener('hashchange', onHash);
+                return () => window.removeEventListener('hashchange', onHash);
+            }, []);
+
+            useEffect(() => {
+                supabase.auth.getSession().then(({ data }) => { setSession(data.session); setSessionReady(true); });
+                const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => { setSession(s); setSessionReady(true); });
+                return () => subscription.unsubscribe();
+            }, []);
+
+            // 登入後讀自己的角色（只是決定要不要顯示審查入口；真正權限在資料庫）
+            useEffect(() => {
+                setRole(null); setPending(0);
+                if (!session?.user?.id) return;
+                let alive = true;
+                supabase.from('user_roles').select('role').eq('user_uid', session.user.id).maybeSingle()
+                    .then(({ data }) => { if (alive) setRole(data?.role || 'user'); });
+                return () => { alive = false; };
+            }, [session?.user?.id]);
+
+            const isReviewer = REVIEWER_ROLES.includes(role);
+            const refreshPending = useCallback(() => { api.pendingCount().then(setPending).catch(() => {}); }, []);
+            useEffect(() => { if (isReviewer) refreshPending(); }, [isReviewer, refreshPending]);
+
+            // 未讀通知數：登入後讀取，之後每分鐘與回到分頁時更新
+            const refreshUnread = useCallback(() => { api.unreadCount().then(setUnread).catch(() => {}); }, []);
+            useEffect(() => {
+                setUnread(0);
+                if (!session?.user?.id) return;
+                refreshUnread();
+                const timer = setInterval(refreshUnread, 60000);
+                window.addEventListener('focus', refreshUnread);
+                return () => { clearInterval(timer); window.removeEventListener('focus', refreshUnread); };
+            }, [session?.user?.id, refreshUnread]);
+
+            // 提示訊息 6 秒後自動消失
+            const notify = (msg) => setFlash(msg);
+            useEffect(() => {
+                const onExpired = () => { setShowLogin(true); setFlash('登入已過期，請重新登入'); };
+                window.addEventListener('tbc-auth-expired', onExpired);
+                return () => window.removeEventListener('tbc-auth-expired', onExpired);
+            }, []);
+            useEffect(() => {
+                if (!flash) return;
+                const t = setTimeout(() => setFlash(''), 6000);
+                return () => clearTimeout(t);
+            }, [flash]);
+
+            const logout = async () => { setMenuOpen(false); clearDraft(); await supabase.auth.signOut(); go('#'); };
+            const goHome = () => go('#');
+            const goMine = () => go('#/mine');
+            const requireLogin = (hash) => { if (!session) setShowLogin(true); else go(hash); };
+            const closeThen = (fn) => () => { setMenuOpen(false); fn(); };
+
+            const menuItems = [
+                { id: 'index', label: '回首頁', icon: <HouseIcon size={20} />, onClick: closeThen(() => { window.location.href = './index.html'; }) },
+                { id: 'home', label: '禱告牆', icon: <SproutIcon size={20} />, active: route.name === 'home', onClick: closeThen(goHome) },
+                ...(session ? [{ id: 'mine', label: '我的禱告', icon: <UserIcon size={20} />, active: route.name === 'mine' || route.name === 'edit', onClick: closeThen(goMine) }] : []),
+                session
+                    ? { id: 'out', label: '登出', icon: <LogOutIcon size={20} />, onClick: logout }
+                    : { id: 'in', label: '登入', icon: <LogInIcon size={20} />, onClick: closeThen(() => setShowLogin(true)) },
+            ];
+            const activeNav = route.name === 'edit' ? 'mine' : route.name;
+
+            let body;
+            if (!sessionReady && ['submit', 'mine', 'edit', 'review', 'notifications'].includes(route.name)) body = <PageShell><Skeletons /></PageShell>;
+            else if (route.name === 'search') body = <SearchView goHome={goHome} />;
+            else if (route.name === 'submit') body = <SubmitView session={session} onLogin={() => setShowLogin(true)} goMine={goMine} goHome={goHome} notify={notify} />;
+            else if (route.name === 'mine') body = <MineView session={session} role={role} onLogin={() => setShowLogin(true)} goHome={goHome} goEdit={(id) => go(`#/edit/${id}`)} flash={flash} />;
+            else if (route.name === 'edit') body = <EditView key={route.id} id={route.id} session={session} onLogin={() => setShowLogin(true)} goMine={goMine} notify={notify} />;
+            else if (route.name === 'notifications') body = <NotificationsView session={session} role={role} onLogin={() => setShowLogin(true)} goHome={goHome} goEdit={(id) => go(`#/edit/${id}`)} refreshUnread={refreshUnread} />;
+            else if (route.name === 'review') body = <ReviewView session={session} role={role} onLogin={() => setShowLogin(true)} goHome={goHome} refreshPending={refreshPending} />;
+            else body = <HomeView goSubmit={() => requireLogin('#/submit')} />;
+
+            const iconBtn = `relative inline-flex items-center justify-center w-11 h-11 max-[359px]:w-10 max-[359px]:h-10 rounded-full text-zinc-800 hover:bg-zinc-100 active:bg-zinc-200 transition-colors duration-150 ${focusRing}`;
+
+            return (
+                <div className="min-h-screen flex flex-col">
+                    {route.name !== 'search' && (
+                        <header className="bg-white border-b border-zinc-200 sticky top-0 z-40" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+                            <div className="max-w-2xl mx-auto w-full px-3 sm:px-5 h-14 flex items-center justify-between gap-2">
+                                <div className="flex items-center min-w-0">
+                                <div className="relative shrink-0">
+                                    <button onClick={() => setMenuOpen(o => !o)} aria-label={menuOpen ? '關閉選單' : '開啟選單'} aria-expanded={menuOpen}
+                                        className={`${iconBtn} ${menuOpen ? '!bg-zinc-100 !rounded-xl' : ''} relative z-50`}>
+                                        {menuOpen ? <XIcon size={24} /> : <MenuIcon size={24} />}
+                                    </button>
+                                    {menuOpen && <MenuDropdown onClose={() => setMenuOpen(false)} items={menuItems} />}
+                                </div>
+                                <a href="#" onClick={(e) => { e.preventDefault(); goHome(); }} className={`ml-1 px-2 py-1 rounded-md ${focusRing}`}>
+                                    <h1 className="text-base min-[360px]:text-lg font-black text-zinc-900 tracking-tight whitespace-nowrap">守望花園</h1>
+                                </a>
+                                </div>
+                                <div className="justify-self-end flex items-center">
+                                    <button onClick={() => requireLogin('#/submit')} aria-label="新增貼文" title="新增貼文" className={iconBtn}><SquarePlusIcon size={24} /></button>
+                                    <button onClick={() => go('#/search')} aria-label="搜尋" title="搜尋" className={iconBtn}><SearchIcon size={24} /></button>
+                                    <button onClick={() => { setUnread(0); requireLogin('#/notifications'); }} aria-label={unread > 0 ? `通知，${unread} 則未讀` : '通知'} title="通知" className={`${iconBtn} ${route.name === 'notifications' ? 'bg-zinc-100' : ''}`}>
+                                        <BellIcon size={24} />
+                                        {session && unread > 0 && <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-red-600 text-white text-xs font-bold tabular-nums">{unread > 99 ? '99+' : unread}</span>}
+                                    </button>
+                                    {isReviewer && (
+                                        <button onClick={() => go('#/review')} aria-label={pending > 0 ? `貼文審核，${pending} 則待審查` : '貼文審核'} title="貼文審核" className={`${iconBtn} ${route.name === 'review' ? 'bg-zinc-100' : ''}`}>
+                                            <ClipboardCheckIcon size={24} />
+                                            {pending > 0 && <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-red-600 text-white text-xs font-bold tabular-nums">{pending > 99 ? '99+' : pending}</span>}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </header>
+                    )}
+
+                    {route.name !== 'mine' && flash && (
+                        <div className="max-w-2xl mx-auto w-full px-4 sm:px-6 pt-4"><div role="status" className="text-sm font-medium text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2.5">{flash}</div></div>
+                    )}
+
+                    {body}
+                    {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
+                </div>
+            );
+        };
+
+        createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
