@@ -7,7 +7,7 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -15,10 +15,10 @@
                 extend: {
                     colors: {
                         indigo: {50: '#f7eefc', 100: '#eddaf8', 200: '#d9afef', 300: '#c17ee6', 400: '#a747db', 500: '#941fd3', 600: '#8806ce', 700: '#7205ad', 800: '#5c048c', 900: '#49036f'},
-                        emerald: {50: '#f6faf5', 100: '#ecf4ea', 200: '#d7e8d3', 300: '#bddab8', 400: '#a2ca9a', 500: '#8ebe84', 600: '#81b776', 700: '#6c9a63', 800: '#587c50', 900: '#466340'},
+                        emerald: {50: '#f7eefc', 100: '#eddaf8', 200: '#d9afef', 300: '#c17ee6', 400: '#a747db', 500: '#941fd3', 600: '#8806ce', 700: '#7205ad', 800: '#5c048c', 900: '#49036f'},
                     },
                     boxShadow: {
-                        'button': '0 4px 14px 0 rgba(136, 6, 206, 0.3)'
+                        'button': 'none'
                     }
                 }
             }
@@ -38,7 +38,14 @@
     </script>
 
     <style>
-        body { background-color: #f8fafc; font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { background-color: #ffffff; color: #262626; font-weight: 400; letter-spacing: 0; font-family: 'Open Sans', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        /* DESIGN.md 文字色階：墨色 #262626 / 次要 #595959 / 第三層 #8c8c8c（中文字距維持 0） */
+        body .text-slate-900, body .text-slate-800, body .text-slate-700 { color: #262626; }
+        body .text-slate-600, body .text-slate-500 { color: #595959; }
+        body .text-slate-400 { color: #8c8c8c; }
+        /* 不加陰影；只有浮在內容上的選單保留 */
+        body .shadow-sm, body .shadow-md, body .shadow-button { box-shadow: none; }
+        .latin-tight { letter-spacing: -0.03em; }
         .animate-in { animation: fadeIn 0.5s ease-out forwards; opacity: 0; }
         @keyframes fadeIn { 
             from { opacity: 0; transform: translateY(10px); } 
@@ -75,8 +82,8 @@
         import { createClient } from '@supabase/supabase-js';
 
         // --- Supabase 初始化設定 ---
-        const SUPABASE_URL = "https://iwmkzsredvbgcqvqlayn.supabase.co";
-        const SUPABASE_KEY = "sb_publishable_GwDMLoXcHaTzQDCcQlDuGw_4J9mwiaA";
+        const SUPABASE_URL = "https://jcepavwocdujoeoqxvsd.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_Tj2n8e3yY1HyvaFzXRyO_w_PWrVFB7E";
         const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
         
         // --- 儲存輔助函式 ---
@@ -466,13 +473,13 @@
             }
           };
 
-          return <div className="min-h-screen bg-slate-50 font-sans text-slate-900">{renderView()}</div>;
+          return <div className="min-h-screen bg-white font-sans text-slate-900">{renderView()}</div>;
         }
 
         // --- Views ---
         function NavMenu({ light, onBack, onLogout }) {
           const [open, setOpen] = useState(false);
-          const itemCls = "w-full flex items-center gap-3 px-4 py-3.5 text-sm font-bold text-slate-600 transition-colors text-left";
+          const itemCls = "w-full flex items-center gap-3 px-4 py-3.5 text-sm font-medium text-slate-600 transition-colors text-left";
           return (
             <div className="relative shrink-0">
               <button
@@ -480,7 +487,7 @@
                 title="選單"
                 aria-label="選單"
                 aria-expanded={open}
-                className={`w-11 h-11 flex items-center justify-center rounded-xl transition-colors ${
+                className={`w-11 h-11 flex items-center justify-center rounded-full transition-colors ${
                   light
                     ? 'bg-white border border-slate-200 text-slate-600 shadow-sm hover:text-indigo-600'
                     : 'bg-white/15 text-white hover:bg-white/25'
@@ -491,9 +498,12 @@
               {open && (
                 <React.Fragment>
                   <div className="fixed inset-0 z-40" onClick={() => setOpen(false)}></div>
-                  <div className="absolute left-0 top-[calc(100%+8px)] z-50 w-52 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden animate-in fade-in">
+                  <div className="absolute left-0 top-[calc(100%+8px)] z-50 w-52 bg-white rounded-lg shadow-xl border border-slate-100 overflow-hidden animate-in fade-in">
                     <a href="./index.html" className={`${itemCls} hover:bg-indigo-50 hover:text-indigo-600`}>
                       <Home size={18} /> 回首頁
+                    </a>
+                    <a href="./prayer.html" className={`${itemCls} hover:bg-rose-50 hover:text-rose-600 border-t border-slate-50`}>
+                      <HandHeart size={18} /> 我的禱告
                     </a>
                     {onBack && (
                       <button onClick={() => { setOpen(false); onBack(); }} className={`${itemCls} hover:bg-indigo-50 hover:text-indigo-600 border-t border-slate-50`}>
@@ -544,10 +554,10 @@
               <nav className={`${bg} text-white sticky top-0 z-50 transition-colors duration-500`} style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
                 <div className="max-w-2xl mx-auto w-full px-4 sm:px-6 py-3 flex items-center justify-between">
                   <NavMenu onBack={onBack} onLogout={onLogout} />
-                  <h1 className="text-lg font-black tracking-tight">{title}</h1>
+                  <h1 className="text-lg font-semibold">{title}</h1>
                   <div className="w-11 h-11 flex items-center justify-center shrink-0">
                     {canSwitch && (
-                      <button onClick={onSwitch} title="查詢切換" aria-label="查詢切換" className="w-11 h-11 flex items-center justify-center rounded-xl bg-white/15 hover:bg-white/25 transition-colors">
+                      <button onClick={onSwitch} title="查詢切換" aria-label="查詢切換" className="w-11 h-11 flex items-center justify-center rounded-full bg-white/15 hover:bg-white/25 transition-colors">
                         <RefreshCw size={20} />
                       </button>
                     )}
@@ -560,7 +570,7 @@
                     <User size={32} />
                   </div>
                   <div className="min-w-0">
-                    <h2 className="text-2xl font-black truncate">{name}</h2>
+                    <h2 className="text-2xl font-semibold truncate">{name}</h2>
                     {maskedAccount && <p className="text-sm font-semibold text-white/90 mt-1.5 truncate">{maskedAccount}</p>}
                     {subText && <p className="text-sm font-medium text-white/80 mt-0.5">{subText}</p>}
                   </div>
@@ -572,26 +582,26 @@
 
         function LoginView({ name, setName, onLogin, loginError, isSyncing, syncStatus, progress, seasonType, setSeasonType, seasonLabels, systemConfig }) {
           return (
-            <div className="relative min-h-screen flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6 bg-slate-50">
+            <div className="relative min-h-screen flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6 bg-white">
               <div className="w-full max-w-md flex items-center justify-between mb-4 relative z-20">
                 <NavMenu light />
-                <span className="text-lg font-black tracking-tight text-slate-800">TBC Serve</span>
+                <span className="text-lg font-semibold latin-tight text-slate-800">TBC Together</span>
                 <div className="w-11 h-11 shrink-0"></div>
               </div>
-              <div className="bg-white rounded-[2rem] shadow-xl w-full max-w-md p-6 sm:p-8 border border-slate-100">
+              <div className="bg-white rounded-lg w-full max-w-md p-6 sm:p-8 border border-slate-100">
                 <div className="flex flex-col items-center mb-8">
-                  <div className={`p-4 rounded-xl text-white shadow-button mb-4 transition-colors duration-500 ${seasonType === 'view' ? 'bg-indigo-600' : 'bg-emerald-600'}`}>
+                  <div className={`p-4 rounded-lg text-white shadow-button mb-4 transition-colors duration-500 ${seasonType === 'view' ? 'bg-indigo-600' : 'bg-emerald-600'}`}>
                     <Calendar size={32} />
                   </div>
-                  <h2 className="text-2xl font-black text-slate-900 text-center tracking-tight leading-tight">歡迎查詢</h2>
+                  <h2 className="text-2xl font-semibold text-slate-900 text-center leading-tight">歡迎查詢</h2>
 
                  {systemConfig.current && systemConfig.next && (
                     <div className="mt-6 flex justify-center animate-in fade-in">
-                        <div className="bg-slate-100 p-1.5 rounded-xl inline-flex relative">
+                        <div className="bg-slate-100 p-1.5 rounded-full inline-flex relative">
                             <button 
                                 onClick={() => setSeasonType('view')}
                                 type="button"
-                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all duration-300 flex flex-col items-center justify-center leading-tight ${seasonType === 'view' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 flex flex-col items-center justify-center leading-tight ${seasonType === 'view' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                             >
                                 <span>{seasonLabels.current}</span>
                                 <span>服事表</span>
@@ -599,7 +609,7 @@
                             <button 
                                 onClick={() => setSeasonType('next')}
                                 type="button"
-                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all duration-300 flex flex-col items-center justify-center leading-tight ${seasonType === 'next' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 flex flex-col items-center justify-center leading-tight ${seasonType === 'next' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                             >
                                 <span>{seasonLabels.next}</span>
                                 <span>預排表</span>
@@ -616,11 +626,11 @@
                 <form onSubmit={onLogin} className="space-y-4 sm:space-y-5">
                   <div className="relative">
                     <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all font-semibold text-slate-700 placeholder:text-slate-300" placeholder="輸入完整姓名" required />
+                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-11 pr-4 py-3.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all font-semibold text-slate-700 placeholder:text-slate-300" placeholder="輸入完整姓名" required />
                   </div>
 
-                  {loginError && <div className="flex items-center gap-2 text-red-500 bg-red-50 p-3 rounded-xl text-sm font-bold"><AlertCircle size={16} /><span>{loginError}</span></div>}
-                  <button type="submit" className={`w-full text-white font-medium py-3.5 rounded-lg shadow-button hover:-translate-y-0.5 transition-all duration-200 text-base ${seasonType === 'view' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
+                  {loginError && <div className="flex items-center gap-2 text-red-500 bg-red-50 p-3 rounded-lg text-sm font-medium"><AlertCircle size={16} /><span>{loginError}</span></div>}
+                  <button type="submit" className={`w-full text-white font-medium py-3.5 rounded-full hover:-translate-y-0.5 transition-all duration-200 text-base ${seasonType === 'view' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
                       查詢
                   </button>
                 </form>
@@ -822,7 +832,7 @@
           };
 
           return (
-            <div className="min-h-screen bg-slate-50 flex flex-col">
+            <div className="min-h-screen bg-white flex flex-col">
               <AppHeader
                 title="我的服事"
                 name={name}
@@ -836,14 +846,14 @@
                 <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
                     <div className="flex items-center gap-2">
                         <Calendar className={seasonType === 'view' ? 'text-indigo-500' : 'text-emerald-500'} size={20} />
-                        <h3 className="text-lg sm:text-xl font-bold text-slate-800">
+                        <h3 className="text-lg sm:text-xl font-medium text-slate-800">
                             {seasonType === 'view' ? `${seasonLabels.current} 服事班表` : `${seasonLabels.next} 預排班表`}
                         </h3>
                     </div>
                     {!isSyncing && isViewAllowed && displayShifts.length > 0 && (seasonType === 'view' || (seasonType === 'next' && nextButtonsConfig)) && (
                         <button
                             onClick={handleDownloadAllICS}
-                            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold shadow-sm transition-all active:scale-95 text-white ${seasonType === 'view' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                            className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium shadow-sm transition-all active:scale-95 text-white ${seasonType === 'view' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
                         >
                             <CalendarPlus size={14} />
                             全部加入行事曆（{displayShifts.length}）
@@ -852,15 +862,15 @@
                 </div>
 
                 {showImportGuide && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex gap-3 items-start animate-in fade-in relative">
-                        <Info size={18} className="text-blue-500 mt-0.5 shrink-0" />
-                        <div className="text-sm text-blue-700 font-semibold leading-relaxed pr-6">
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 flex gap-3 items-start animate-in fade-in relative">
+                        <Info size={18} className="text-indigo-500 mt-0.5 shrink-0" />
+                        <div className="text-sm text-indigo-700 font-medium leading-relaxed pr-6">
                             <p className="mb-1">行事曆檔案（.ics）已下載，匯入教學如下：</p>
-                            <p className="mb-0.5">📅 <span className="font-black">電腦版Google 日曆：</span>開啟 calendar.google.com，點左側「其他日曆」旁的「＋」→「匯入」，選擇下載的檔案。</p>
-                            <p className="mb-0.5">📅 <span className="font-black">手機版Google 日曆：</span>開啟下載的 .ics 檔案，點「新增全部」。</p>
-                            <p className="mb-0.5">🍎 <span className="font-black">iPhone / Apple 日曆：</span>開啟下載的 .ics 檔案，點「加入所有」。</p>
+                            <p className="mb-0.5">📅 <span className="font-semibold">電腦版Google 日曆：</span>開啟 calendar.google.com，點左側「其他日曆」旁的「＋」→「匯入」，選擇下載的檔案。</p>
+                            <p className="mb-0.5">📅 <span className="font-semibold">手機版Google 日曆：</span>開啟下載的 .ics 檔案，點「新增全部」。</p>
+                            <p className="mb-0.5">🍎 <span className="font-semibold">iPhone / Apple 日曆：</span>開啟下載的 .ics 檔案，點「加入所有」。</p>
                                                    </div>
-                        <button onClick={() => setShowImportGuide(false)} className="absolute top-3 right-3 text-blue-400 hover:text-blue-600">
+                        <button onClick={() => setShowImportGuide(false)} className="absolute top-3 right-3 text-indigo-400 hover:text-indigo-600">
                             <X size={16} />
                         </button>
                     </div>
@@ -868,15 +878,15 @@
 
                 {isSyncing ? (
                   <div className="flex flex-col items-center justify-center py-20 animate-in fade-in">
-                    <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 w-full max-w-sm text-center">
+                    <div className="bg-white p-8 rounded-lg shadow-sm border border-slate-100 w-full max-w-sm text-center">
                         <div className="mb-4 relative mx-auto w-16 h-16">
                              <svg className={`animate-spin w-full h-full ${seasonType === 'view' ? 'text-indigo-100' : 'text-emerald-100'}`} viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                              </svg>
-                             <div className={`absolute inset-0 flex items-center justify-center text-xs font-black ${seasonType === 'view' ? 'text-indigo-500' : 'text-emerald-500'}`}>{progress}%</div>
+                             <div className={`absolute inset-0 flex items-center justify-center text-xs font-semibold ${seasonType === 'view' ? 'text-indigo-500' : 'text-emerald-500'}`}>{progress}%</div>
                         </div>
-                        <h3 className="text-lg font-black text-slate-800 mb-6">Loading</h3>
+                        <h3 className="text-lg font-semibold text-slate-800 mb-6">Loading</h3>
                         <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                             <div className={`h-full rounded-full transition-all duration-300 ease-out ${seasonType === 'view' ? 'bg-indigo-500' : 'bg-emerald-500'}`} style={{ width: `${progress}%` }}></div>
                         </div>
@@ -885,10 +895,10 @@
                 ) : (
                   displayShifts.length > 0 ? (
                     groupedShifts.map((dayGroup, index) => (
-                      <div key={index} className="bg-white rounded-[1.5rem] p-5 shadow-sm border border-slate-200 flex flex-col gap-4 animate-in fade-in transition-transform hover:scale-[1.01]" style={{animationDelay: `${index * 50}ms`}}>
+                      <div key={index} className="bg-white rounded-lg p-5 shadow-sm border border-slate-200 flex flex-col gap-4 animate-in fade-in transition-transform hover:scale-[1.01]" style={{animationDelay: `${index * 50}ms`}}>
                         <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
                           <Calendar size={18} className="text-slate-400"/>
-                          <span className="font-bold text-slate-700">{dayGroup.date}</span>
+                          <span className="font-medium text-slate-700">{dayGroup.date}</span>
                         </div>
 
                         <div className="flex flex-col gap-4">
@@ -898,11 +908,11 @@
                             return (
                               <div key={i} className={`flex items-center justify-between gap-4 ${i > 0 ? 'border-t border-slate-100 pt-4' : ''}`}>
                                 <div className="flex flex-col gap-1 flex-grow">
-                                   <span className={`text-xl font-black tracking-tight leading-tight ${textColorClass} flex items-center gap-2`}>
+                                   <span className={`text-xl font-semibold leading-tight ${textColorClass} flex items-center gap-2`}>
                                      {shift.role}
-                                     {shift.shiftNumber && <span className="flex items-center justify-center w-6 h-6 rounded-full border-2 border-current text-xs font-bold shrink-0">{shift.shiftNumber}</span>}
+                                     {shift.shiftNumber && <span className="flex items-center justify-center w-6 h-6 rounded-full border-2 border-current text-xs font-medium shrink-0">{shift.shiftNumber}</span>}
                                    </span>
-                                   <div className="flex flex-wrap items-center gap-2 text-sm font-bold text-slate-500">
+                                   <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-slate-500">
                                       <span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{shift.session}</span>
                                    </div>
                                 </div>
@@ -920,17 +930,17 @@
                                                       target="_blank" 
                                                       rel="noopener noreferrer"
                                                       onClick={() => handleCalendarClick(shift)}
-                                                      className={`px-3 py-1.5 rounded-lg transition-all border flex-shrink-0 shadow-sm text-xs font-bold text-center whitespace-nowrap block ${
+                                                      className={`px-3 py-1.5 rounded-full transition-all border flex-shrink-0 shadow-sm text-xs font-medium text-center whitespace-nowrap block ${
                                                           isAdded 
                                                           ? 'bg-slate-100 text-slate-400 border-slate-200 hover:bg-slate-200' 
-                                                          : 'bg-white hover:bg-blue-50 text-blue-600 border-blue-200 active:scale-95'
+                                                          : 'bg-white hover:bg-[#f5f5f5] text-[#262626] border-[#262626] active:scale-95'
                                                       }`}
                                                   >
                                                       {isAdded ? '已加行事曆' : '加入行事曆'}
                                                   </a>
                                               );
                                           })()}
-                                          <button onClick={() => onRequestSwap({ date: shift.date, role: shift.role, session: shift.rawSession, owner: name })} className="bg-white hover:bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg transition-all active:scale-95 border border-emerald-200 flex-shrink-0 shadow-sm text-xs font-bold text-center whitespace-nowrap">
+                                          <button onClick={() => onRequestSwap({ date: shift.date, role: shift.role, session: shift.rawSession, owner: name })} className="bg-white hover:bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-full transition-all active:scale-95 border border-emerald-200 flex-shrink-0 shadow-sm text-xs font-medium text-center whitespace-nowrap">
                                             換班查詢
                                           </button>
                                       </>
@@ -943,9 +953,9 @@
                       </div>
                     ))
                   ) : (
-                    <div className="text-center py-20 bg-white rounded-[2rem] border-2 border-dashed border-slate-200">
+                    <div className="text-center py-20 bg-white rounded-lg border-2 border-dashed border-slate-200">
                       <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300"><Briefcase size={40} /></div>
-                      <p className="text-slate-400 font-bold text-lg">查無資料</p>
+                      <p className="text-slate-400 font-medium text-lg">查無資料</p>
                       <p className="text-sm text-slate-300 mt-1">
                           {!isViewAllowed 
                               ? '系統維護中，暫停使用。' 
@@ -1193,7 +1203,7 @@
           }, [initialRequest, scheduleData, peopleData, seasonType]);
 
           return (
-            <div className="min-h-screen bg-slate-50 flex flex-col">
+            <div className="min-h-screen bg-white flex flex-col">
               <AppHeader
                 title="找人代班"
                 name={name}
@@ -1202,15 +1212,15 @@
                 onLogout={onLogout}
               />
               <main className="flex-grow p-6 space-y-6 max-w-2xl mx-auto w-full">
-                <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-200">
-                   <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">幫今天的服事找合適人選：</h3>
+                <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+                   <h3 className="text-xs font-medium text-slate-400 mb-3">幫今天的服事找合適人選：</h3>
                    <div className="flex items-center gap-4">
-                      <div className="bg-indigo-50 p-4 rounded-2xl text-indigo-600"><Calendar size={28} /></div>
+                      <div className="bg-indigo-50 p-4 rounded-lg text-indigo-600"><Calendar size={28} /></div>
                       <div>
-                          <p className="text-2xl font-black text-slate-800">{normalizeDateStr(selectedDate)}</p>
+                          <p className="text-2xl font-semibold text-slate-800">{normalizeDateStr(selectedDate)}</p>
                           <div className="flex items-center gap-2 mt-1">
-                             <span className="text-sm font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">{selectedRole}</span>
-                             {selectedRole !== '執事輪值' && <span className="text-sm font-bold text-slate-400">• {selectedSession}</span>}
+                             <span className="text-sm font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded">{selectedRole}</span>
+                             {selectedRole !== '執事輪值' && <span className="text-sm font-medium text-slate-400">• {selectedSession}</span>}
                           </div>
                       </div>
                    </div>
@@ -1218,40 +1228,40 @@
                 {candidates && (
                   <div className="space-y-4 animate-in fade-in">
                     <div className="flex items-center justify-between px-2">
-                      <h3 className="font-black text-slate-700 flex items-center gap-2"><UserCheck className="text-emerald-500" /> 推薦人選 ({candidates.length})</h3>
-                      <span className="text-[12px] bg-slate-200 text-slate-500 px-2 py-1 rounded font-bold">依本季服事次數排序</span>
+                      <h3 className="font-semibold text-slate-700 flex items-center gap-2"><UserCheck className="text-emerald-500" /> 推薦人選 ({candidates.length})</h3>
+                      <span className="text-[12px] bg-slate-200 text-slate-500 px-2 py-1 rounded font-medium">依本季服事次數排序</span>
                     </div>
                     {candidates.length > 0 ? (
                       candidates.map((person, idx) => (
-                          <div key={idx} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm transition-all hover:shadow-md">
+                          <div key={idx} className="bg-white p-5 rounded-lg border border-slate-100 shadow-sm transition-all">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-4">
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-white shadow-md ${idx < 3 ? 'bg-emerald-500' : 'bg-slate-300'}`}>{idx + 1}</div>
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-white  ${idx < 3 ? 'bg-emerald-500' : 'bg-slate-300'}`}>{idx + 1}</div>
                                 <div>
                                   <div className="flex items-center gap-2 flex-wrap">
-                                    <p className="text-xl font-black text-slate-800">{person.name}</p>
+                                    <p className="text-xl font-semibold text-slate-800">{person.name}</p>
                                     
                                     {person.swapOptions && person.swapOptions.length > 0 ? (
-                                        <div className="flex items-center gap-1 bg-white text-indigo-600 border border-indigo-200 px-2 py-1 rounded-md text-[10px] font-bold shadow-sm">
+                                        <div className="flex items-center gap-1 bg-white text-indigo-600 border border-indigo-200 px-2 py-1 rounded-md text-[10px] font-medium shadow-sm">
                                             <RefreshCw size={10} /> 換班
                                         </div>
                                     ) : (
-                                        <div className="flex items-center gap-1 bg-white text-orange-600 border border-orange-200 px-2 py-1 rounded-md text-[10px] font-bold shadow-sm">
+                                        <div className="flex items-center gap-1 bg-white text-orange-600 border border-orange-200 px-2 py-1 rounded-md text-[10px] font-medium shadow-sm">
                                             <HandHeart size={10} /> 替補
                                         </div>
                                     )}
                                   </div>
-                                  <div className="flex items-center gap-1 text-xs font-bold text-slate-400 mt-1 flex-wrap">
+                                  <div className="flex items-center gap-1 text-xs font-medium text-slate-400 mt-1 flex-wrap">
                                     <span className="bg-slate-100 px-1.5 py-0.5 rounded">{person.session}</span>
                                     
                                     {person.groupId && person.groupId.includes('FA') && (
-                                        <span className="ml-1 px-1.5 h-5 rounded-[4px] bg-slate-400 text-white flex items-center justify-center text-[10px] font-bold" title="群組: FA">FA</span>
+                                        <span className="ml-1 px-1.5 h-5 rounded-[4px] bg-slate-400 text-white flex items-center justify-center text-[10px] font-medium" title="群組: FA">FA</span>
                                     )}
                                     {person.groupId && person.groupId.includes('FB') && (
-                                        <span className="ml-1 px-1.5 h-5 rounded-[4px] bg-slate-400 text-white flex items-center justify-center text-[10px] font-bold" title="群組: FB">FB</span>
+                                        <span className="ml-1 px-1.5 h-5 rounded-[4px] bg-slate-400 text-white flex items-center justify-center text-[10px] font-medium" title="群組: FB">FB</span>
                                     )}
                                     {person.session2 && (
-                                        <span className={`ml-1 px-1.5 h-5 rounded-[4px] text-white flex items-center justify-center text-[10px] font-bold ${person.session2 === '二堂同崗' ? 'bg-indigo-400' : 'bg-purple-400'}`} title={person.session2}>{person.session2}</span>
+                                        <span className={`ml-1 px-1.5 h-5 rounded-[4px] text-white flex items-center justify-center text-[10px] font-medium ${person.session2 === '二堂同崗' ? 'bg-indigo-400' : 'bg-purple-400'}`} title={person.session2}>{person.session2}</span>
                                     )}
                                   </div>
                                 </div>
@@ -1260,7 +1270,7 @@
                             
                             {person.swapOptions && person.swapOptions.length > 0 ? (
                               <div className="mt-4 pt-3 border-t border-slate-50">
-                                <p className="text-sm font-bold text-slate-400 mb-2 flex items-center gap-1"><RefreshCw size={12} /> 雙方可以互換的班次：</p>
+                                <p className="text-sm font-medium text-slate-400 mb-2 flex items-center gap-1"><RefreshCw size={12} /> 雙方可以互換的班次：</p>
                                 <div className="flex flex-wrap gap-2">
                                   {person.swapOptions.map((swap, i) => {
                                     const parts = swap.date.split('/');
@@ -1270,7 +1280,7 @@
 
                                     return (
                                       <div key={i} className="text-sm bg-indigo-50 text-indigo-600 pl-3 pr-1.5 py-1.5 rounded-lg border border-indigo-100 flex items-center gap-1 transition-all">
-                                          <span className="font-bold">{formattedDate}</span>
+                                          <span className="font-medium">{formattedDate}</span>
                                           <span className="opacity-70 text-xs">
                                               ({swap.role}{swap.role !== '執事輪值' && ` • ${swap.session}`})
                                           </span>
@@ -1289,12 +1299,12 @@
                               </div>
                             ) : (
                               <div className="mt-4 pt-3 border-t border-slate-50 flex items-center justify-between">
-                                <p className="text-sm font-bold text-slate-400 flex items-center gap-1">
+                                <p className="text-sm font-medium text-slate-400 flex items-center gap-1">
                                     <Info size={12} /> 無班可換，可請求支援
                                 </p>
                                 <button 
                                     onClick={() => handleCopy('substitute', person.name)}
-                                    className={`text-xs px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 font-bold ${copiedId === `${person.name}-substitute` ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100'}`}
+                                    className={`text-xs px-3 py-1.5 rounded-full border transition-all flex items-center gap-1.5 font-medium ${copiedId === `${person.name}-substitute` ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100'}`}
                                 >
                                     {copiedId === `${person.name}-substitute` ? <Check size={14} strokeWidth={3}/> : <Copy size={14}/>} 
                                     
@@ -1304,9 +1314,9 @@
                           </div>
                       ))
                     ) : (
-                      <div className="p-10 text-center text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
+                      <div className="p-10 text-center text-slate-400 bg-white rounded-lg border border-dashed border-slate-200">
                         <UserX className="mx-auto mb-4 opacity-30" size={48} />
-                        <p className="font-bold">找不到合適人選</p>
+                        <p className="font-medium">找不到合適人選</p>
                       </div>
                     )}
                   </div>

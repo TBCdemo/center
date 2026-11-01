@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
     Users, Copy, Trash2, CalendarX, Search, X, Edit2, Edit3, ShieldCheck, 
     Check, Save, CheckCircle2, AlertCircle, UserPlus, User, ChevronLeft,
-    Home, LogOut, Calendar, Lock, Unlock, Menu, BarChart3
+    Home, LogOut, Calendar, Lock, Unlock, Menu, BarChart3, PanelLeft
 } from 'lucide-react';
 
 const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights, supabase, utils, constants }) => {
@@ -31,6 +31,8 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
     const [isSubmissionOpen, setIsSubmissionOpen] = useState(false);
     const [isLargeFont, setIsLargeFont] = useState(false); 
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [sbCollapsed, setSbCollapsed] = useState(() => { try { return localStorage.getItem('tbcSidebarCollapsed') === '1'; } catch (e) { return false; } });
+    const toggleSb = () => setSbCollapsed(v => { const n = !v; try { localStorage.setItem('tbcSidebarCollapsed', n ? '1' : '0'); } catch (e) {} return n; });
 
     const [quarterOptions, setQuarterOptions] = useState(['BASE']);
     const initialQuarter = isAdmin ? getCurrentQuarter() : getSubmissionQuarter();
@@ -596,52 +598,25 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
             )}
 
             {isAdmin && (
-                <div className={`
-                    ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} 
-                    md:translate-x-0 transition-transform duration-300 ease-in-out
-                    absolute md:relative inset-y-0 left-0 w-64 bg-slate-900 flex flex-col justify-between shrink-0 border-r border-slate-800 z-50 md:z-30 shadow-2xl md:shadow-none h-full
-                `}>
-                    <div className="flex flex-col">
-                        <div className="p-6 border-b border-slate-800 flex items-center justify-between gap-3">
-                            <span className="text-white font-bold text-base tracking-wider">TBC Serve Manager</span>
-                            <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-slate-400 hover:text-white">
-                                <X size={20} />
-                            </button>
-                        </div>
-                        
-                        <nav className="p-4 space-y-1.5">
-                            <button onClick={() => { goBack(); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
-                                <Home size={18} className="text-slate-400 group-hover:text-indigo-400 transition-colors" />
-                                <span>Home</span>
-                            </button>
-                            <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 shadow-button text-white rounded-xl font-medium text-sm">
-                                <Users size={18} />
-                                <span>同工資料中心</span>
-                            </div>
-                            <button onClick={() => { goToSchedule(); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
-                                <Calendar size={18} className="text-slate-400 group-hover:text-violet-400 transition-colors" />
-                                <span>排班作業中心</span>
-                            </button>
-                            <button onClick={() => { goToInsights(); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
-                                <BarChart3 size={18} className="text-slate-400 group-hover:text-sky-400 transition-colors" />
-                                <span>人力洞察中心</span>
-                            </button>
-                        </nav>
+                <div data-sb={sbCollapsed ? 'collapsed' : 'open'} className={`tbc-sb tbc-sb-md ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-all duration-300 ease-in-out absolute md:relative inset-y-0 left-0 w-64 flex flex-col justify-between shrink-0 z-50 md:z-30 h-full`}>
+                <div className="flex flex-col">
+                    <div className="tbc-sb-head">
+                        <button onClick={sbCollapsed ? toggleSb : undefined} className="tbc-sb-logobtn" title={sbCollapsed ? '開啟側邊欄' : undefined}><img src={window.TBC_LOGO} alt="" className="tbc-sb-logo" /><span className="tbc-sb-open"><PanelLeft size={20} /></span></button>
+                        <span className="tbc-sb-label tbc-sb-title latin-tight">TBC Serve Manager</span>
+                        <button onClick={toggleSb} className="hidden md:flex tbc-sb-toggle" title="隱藏側邊欄"><PanelLeft size={18} /></button>
+                        <button onClick={() => setIsMobileMenuOpen(false)} className="flex md:hidden tbc-sb-toggle"><X size={20} /></button>
                     </div>
-                    
-                    <div className="p-4 border-t border-slate-800">
-                        <button 
-                            onClick={async () => { 
-                                if (supabase?.auth?.signOut) { await supabase.auth.signOut(); } 
-                                window.location.reload(); 
-                            }} 
-                            className="w-full flex items-center gap-3 px-4 py-3 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl font-normal text-sm transition-all text-left group"
-                        >
-                            <LogOut size={18} className="text-rose-400 group-hover:translate-x-0.5 transition-transform" />
-                            <span>Sign Out</span>
-                        </button>
-                    </div>
+                    <nav className="tbc-sb-nav">
+                        <button onClick={() => { goBack(); setIsMobileMenuOpen(false); }} className="tbc-sb-item" title="Home"><Home size={18} /><span className="tbc-sb-label">Home</span></button>
+                        <div className="tbc-sb-item tbc-sb-active" title="同工資料中心"><Users size={18} /><span className="tbc-sb-label">同工資料中心</span></div>
+                        <button onClick={() => { goToSchedule(); setIsMobileMenuOpen(false); }} className="tbc-sb-item" title="排班作業中心"><Calendar size={18} /><span className="tbc-sb-label">排班作業中心</span></button>
+                        <button onClick={() => { goToInsights(); setIsMobileMenuOpen(false); }} className="tbc-sb-item" title="人力洞察中心"><BarChart3 size={18} /><span className="tbc-sb-label">人力洞察中心</span></button>
+                    </nav>
                 </div>
+                <div className="tbc-sb-foot">
+                    <button onClick={async () => { if (supabase?.auth?.signOut) { await supabase.auth.signOut(); } window.location.reload(); }} className="tbc-sb-item tbc-sb-logout" title="登出"><LogOut size={18} /><span className="tbc-sb-label">登出</span></button>
+                </div>
+            </div>
             )}
 
             <div className="flex-1 flex flex-col relative bg-slate-50 overflow-hidden animate-fade-in">
@@ -896,7 +871,7 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
                 </div>
 
                 {isAdmin && (
-                    <button onClick={openAddModal} className="absolute bottom-8 right-8 z-40 bg-gradient-to-r from-indigo-600 to-violet-600 text-white w-14 h-14 rounded-full shadow-button hover:-translate-y-1 transition-all duration-200 active:scale-95" title="新增同工">
+                    <button onClick={openAddModal} className="absolute bottom-8 right-8 z-40 bg-gradient-to-r from-indigo-700 to-indigo-500 text-white w-14 h-14 rounded-full shadow-button hover:-translate-y-1 transition-all duration-200 active:scale-95" title="新增同工">
                         <UserPlus size={24} className="mx-auto" />
                     </button>
                 )}
@@ -1109,7 +1084,7 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
                             
                             <div className="px-5 py-4 border-t border-slate-100 bg-white flex gap-3 shrink-0 sticky bottom-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
                                 <button onClick={closeModal} className="flex-1 py-3 sm:py-2.5 rounded-lg font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">取消</button>
-                                <button onClick={handleSave} disabled={isLoading} className="flex-[2] py-3 sm:py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:opacity-95 text-white rounded-lg font-medium flex items-center justify-center gap-2 shadow-button transition-all duration-200 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50">
+                                <button onClick={handleSave} disabled={isLoading} className="flex-[2] py-3 sm:py-2.5 bg-gradient-to-r from-indigo-700 to-indigo-500 hover:opacity-95 text-white rounded-lg font-medium flex items-center justify-center gap-2 shadow-button transition-all duration-200 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50">
                                     <Save size={18}/> {isLoading ? '儲存中' : '儲存設定'}
                                 </button>
                             </div>
@@ -1136,7 +1111,7 @@ const MemberDataCenter = ({ session, isAdmin, goBack, goToSchedule, goToInsights
                                             setNewHolidayDate(val);
                                         }} className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 w-full sm:w-auto font-normal text-slate-900 transition-all" />
                                         <input type="text" placeholder="輸入節日提醒" value={newHolidayName} onChange={e => setNewHolidayName(e.target.value)} className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 font-normal text-slate-900 w-full transition-all" />
-                                        <button onClick={handleAddCustomHoliday} disabled={isLoading} className="bg-gradient-to-r from-sky-500 to-indigo-500 text-white font-medium px-5 py-3 rounded-lg shadow-button hover:-translate-y-0.5 transition-all duration-200 active:scale-95 w-full sm:w-auto">新增</button>
+                                        <button onClick={handleAddCustomHoliday} disabled={isLoading} className="bg-gradient-to-r from-indigo-600 to-indigo-400 text-white font-medium px-5 py-3 rounded-lg shadow-button hover:-translate-y-0.5 transition-all duration-200 active:scale-95 w-full sm:w-auto">新增</button>
                                     </div>
                                 </div>
                                 <div className="space-y-3 pb-8">

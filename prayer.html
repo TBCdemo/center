@@ -7,9 +7,12 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
 
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { theme: { extend: { colors: { indigo: {50: '#f7eefc', 100: '#eddaf8', 200: '#d9afef', 300: '#c17ee6', 400: '#a747db', 500: '#941fd3', 600: '#8806ce', 700: '#7205ad', 800: '#5c048c', 900: '#49036f'}, emerald: {50: '#f7eefc', 100: '#eddaf8', 200: '#d9afef', 300: '#c17ee6', 400: '#a747db', 500: '#941fd3', 600: '#8806ce', 700: '#7205ad', 800: '#5c048c', 900: '#49036f'}, sky: {50: '#f7eefc', 100: '#eddaf8', 200: '#d9afef', 300: '#c17ee6', 400: '#a747db', 500: '#941fd3', 600: '#8806ce', 700: '#7205ad', 800: '#5c048c', 900: '#49036f'} } } } }
+    </script>
     <script src="https://unpkg.com/@babel/standalone@7.22.20/babel.min.js"></script>
 
     <script type="importmap">
@@ -23,7 +26,13 @@
     </script>
 
     <style type="text/tailwindcss">
-        body { background-color: #fafafa; font-family: "Noto Sans TC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: #ffffff; color: #262626; font-weight: 400; letter-spacing: 0; font-family: "Open Sans", "Noto Sans TC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; -webkit-tap-highlight-color: transparent; }
+        /* DESIGN.md 文字色階：墨色 #262626 / 次要 #595959 / 第三層 #8c8c8c（中文字距維持 0） */
+        body .text-zinc-900, body .text-zinc-800, body .text-zinc-700 { color: #262626; }
+        body .text-zinc-600, body .text-zinc-500 { color: #595959; }
+        body .text-zinc-400 { color: #8c8c8c; }
+        /* 卡片與按鈕不加陰影；只有浮在內容上的選單與提示保留 */
+        body .shadow-sm, body .shadow-md { box-shadow: none; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
@@ -32,6 +41,13 @@
         @keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.35); } 100% { transform: scale(1); } }
         .animate-pop { animation: pop 0.35s ease-out; }
         @media (prefers-reduced-motion: reduce) { .animate-pop { animation: none; } }
+        /* 水滴圖示：按下後水位由下往上慢慢升滿 */
+        .drop-fill { transition: transform 1.4s ease-out; }
+        @media (prefers-reduced-motion: reduce) { .drop-fill { transition: none; } }
+        /* 禱告成功後的鼓勵訊息（只在資料庫確認成功後才會出現） */
+        @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+        .prayer-toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 70; width: max-content; max-width: min(92vw, 420px); white-space: nowrap; padding: 12px 18px; border-radius: 8px; background: #262626; color: #fff; font-size: 14px; font-weight: 700; line-height: 1.5; text-align: center; box-shadow: 0 10px 25px -5px rgba(0,0,0,.3); animation: toastIn .3s ease-out both; }
+        @media (prefers-reduced-motion: reduce) { .prayer-toast { animation: none; } }
         input, textarea, select { font-size: 16px !important; }
     </style>
 </head>
@@ -46,13 +62,28 @@
         // ==========================================
         // 連線設定（與 manager.html 相同的公開金鑰）
         // 資料安全不靠這把金鑰，而是靠資料庫裡的警衛規則與權限窗口。
-        // 因為與 manager.html 同網站、同專案，登入狀態會自動共用。
+        // 與 manager.html、search.html 連同一個專案（jcepavwocdujoeoqxvsd），登入狀態會自動共用。
         // ==========================================
-        const SUPABASE_URL = "https://jtjgqrqbewbgxscytkod.supabase.co";
-        const SUPABASE_KEY = "sb_publishable_TcixlGOMSLBSZNoMNOp6Ng_B-N4Tw1K";
+        const SUPABASE_URL = "https://jcepavwocdujoeoqxvsd.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_Tj2n8e3yY1HyvaFzXRyO_w_PWrVFB7E";
         const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
         const VIRTUAL_DOMAIN = "@tbc.gmail.com";
         const formatEmailForAuth = (acc) => { const t = (acc || '').trim(); return t.includes('@') ? t : `${t}${VIRTUAL_DOMAIN}`; };
+        const extractAccountFromEmail = (email) => { if (!email) return ''; return email.endsWith(VIRTUAL_DOMAIN) ? email.replace(VIRTUAL_DOMAIN, '') : email; };
+
+        // 與「我的服事」(search.html)、「個人設定」(manager.html) 共用的登入姓名：寫入同一個 tbc_user，到我的服事就不用再登入
+        const setSharedUser = (name) => {
+            if (!name) return;
+            try { localStorage.setItem('tbc_user', name); } catch (e) {}
+            try {
+                const d = new Date(); d.setTime(d.getTime() + 30 * 24 * 60 * 60 * 1000);
+                document.cookie = `tbc_user=${encodeURIComponent(name)}; expires=${d.toUTCString()}; path=/`;
+            } catch (e) {}
+        };
+        const clearSharedUser = () => {
+            try { localStorage.removeItem('tbc_user'); } catch (e) {}
+            try { document.cookie = 'tbc_user=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'; } catch (e) {}
+        };
 
         const CATEGORIES = [
             { id: 'all', label: '全部' },
@@ -110,18 +141,18 @@
         // 共用按鈕狀態樣式：hover / active / focus-visible / disabled
         const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2";
         const disabledCls = "disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none";
-        const btnPrimary = `px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 transition-colors duration-150 ${disabledCls} ${focusRing}`;
-        const btnDark = `px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-zinc-900 hover:bg-zinc-700 active:bg-zinc-800 transition-colors duration-150 ${disabledCls} ${focusRing}`;
-        const btnOutline = `px-4 py-2.5 rounded-xl text-sm font-bold border border-zinc-200 text-zinc-700 bg-white hover:bg-zinc-50 active:bg-zinc-100 transition-colors duration-150 ${disabledCls} ${focusRing}`;
+        const btnPrimary = `px-5 py-2.5 rounded-full text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 transition-colors duration-150 ${disabledCls} ${focusRing}`;
+        const btnDark = `px-5 py-2.5 rounded-full text-sm font-medium text-white bg-zinc-900 hover:bg-zinc-700 active:bg-zinc-800 transition-colors duration-150 ${disabledCls} ${focusRing}`;
+        const btnOutline = `px-4 py-2.5 rounded-full text-sm font-medium border border-zinc-200 text-zinc-700 bg-white hover:bg-zinc-50 active:bg-zinc-100 transition-colors duration-150 ${disabledCls} ${focusRing}`;
         // 大按鈕（兩顆等寬並排）：取消＝淺灰框、主要動作＝深灰底白字、退回＝淡紅底紅字
-        const btnCancelWhite = `h-12 rounded-lg inline-flex items-center justify-center gap-2 border border-slate-300 bg-white text-slate-600 text-base font-medium hover:bg-slate-50 active:bg-slate-100 transition-colors duration-150 ${disabledCls} ${focusRing}`;
-        const btnCancel = `h-12 rounded-lg border border-slate-300 bg-slate-50 text-slate-600 text-base font-medium hover:bg-slate-100 active:bg-slate-200 transition-colors duration-150 ${disabledCls} ${focusRing}`;
-        const btnSubmitDark = `h-12 rounded-lg inline-flex items-center justify-center gap-2 bg-slate-700 text-white text-base font-medium hover:bg-slate-800 active:bg-slate-900 transition-colors duration-150 ${disabledCls} ${focusRing}`;
-        const btnReturnSoft = `h-12 rounded-lg bg-red-100 text-red-700 text-base font-medium hover:bg-red-200 active:bg-red-300 transition-colors duration-150 ${disabledCls} ${focusRing}`;
+        const btnCancelWhite = `h-12 rounded-full inline-flex items-center justify-center gap-2 border border-slate-300 bg-white text-slate-600 text-base font-medium hover:bg-slate-50 active:bg-slate-100 transition-colors duration-150 ${disabledCls} ${focusRing}`;
+        const btnCancel = `h-12 rounded-full border border-slate-300 bg-slate-50 text-slate-600 text-base font-medium hover:bg-slate-100 active:bg-slate-200 transition-colors duration-150 ${disabledCls} ${focusRing}`;
+        const btnSubmitDark = `h-12 rounded-full inline-flex items-center justify-center gap-2 bg-slate-700 text-white text-base font-medium hover:bg-slate-800 active:bg-slate-900 transition-colors duration-150 ${disabledCls} ${focusRing}`;
+        const btnReturnSoft = `h-12 rounded-full bg-red-100 text-red-700 text-base font-medium hover:bg-red-200 active:bg-red-300 transition-colors duration-150 ${disabledCls} ${focusRing}`;
         // 卡片右上角的小按鈕（編輯、取消、儲存、編輯重新送審）
-        const btnGhost = `inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium text-zinc-600 bg-zinc-50 hover:bg-zinc-100 active:bg-zinc-200 transition-colors duration-150 ${disabledCls} ${focusRing}`;
-        const btnDanger = `px-4 py-2.5 rounded-xl text-sm font-bold border border-red-200 text-red-700 bg-white hover:bg-red-50 active:bg-red-100 transition-colors duration-150 ${disabledCls} ${focusRing}`;
-        const inputCls = "w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-zinc-800 font-medium hover:border-zinc-300 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 transition-colors duration-150";
+        const btnGhost = `inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-sm font-medium text-zinc-600 bg-zinc-50 hover:bg-zinc-100 active:bg-zinc-200 transition-colors duration-150 ${disabledCls} ${focusRing}`;
+        const btnDanger = `px-4 py-2.5 rounded-full text-sm font-medium border border-red-200 text-red-700 bg-white hover:bg-red-50 active:bg-red-100 transition-colors duration-150 ${disabledCls} ${focusRing}`;
+        const inputCls = "w-full bg-zinc-50 border border-zinc-200 rounded-lg px-4 py-3 text-zinc-800 font-medium hover:border-zinc-300 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 transition-colors duration-150";
 
         // ==========================================
         // 小圖示（內嵌 SVG）
@@ -137,6 +168,7 @@
         const CheckIcon = (p) => <Icon {...p} d={<path d="M20 6 9 17l-5-5" />} />;
         const BellIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M10.268 21a2 2 0 0 0 3.464 0" /><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" /></React.Fragment>} />;
         const MenuIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M4 12h16" /><path d="M4 18h16" /><path d="M4 6h16" /></React.Fragment>} />;
+        const EllipsisVerticalIcon = (p) => <Icon {...p} d={<React.Fragment><circle cx="12" cy="5" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="12" cy="19" r="1" /></React.Fragment>} />;
         const SquarePlusIcon = (p) => <Icon {...p} d={<React.Fragment><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M8 12h8" /><path d="M12 8v8" /></React.Fragment>} />;
         const UserIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></React.Fragment>} />;
         const ClockIcon = (p) => <Icon {...p} d={<React.Fragment><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></React.Fragment>} />;
@@ -266,7 +298,7 @@
         // 共用小元件
         // ==========================================
         const CategoryBadge = ({ id }) => (
-            <span className="inline-flex items-center text-xs font-bold px-2.5 py-1 rounded-md bg-zinc-100 text-zinc-600">{categoryLabel(id)}</span>
+            <span className="inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-md bg-zinc-100 text-zinc-600">{categoryLabel(id)}</span>
         );
         const CategoryTag = ({ id }) => (
             <span className="inline-flex items-center gap-1.5 text-sm shrink-0"><TagIcon size={18} /><span className="sr-only">分類：</span>{categoryLabel(id)}</span>
@@ -276,7 +308,7 @@
         const CategoryAvatar = ({ id }) => {
             const I = CATEGORY_ICON[id] || UserIcon;
             return (
-                <span className="w-10 h-10 shrink-0 rounded-full bg-zinc-100 text-zinc-600 flex items-center justify-center" title={categoryLabel(id)} role="img" aria-label={`分類：${categoryLabel(id)}`}>
+                <span className="w-10 h-10 shrink-0 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center" title={categoryLabel(id)} role="img" aria-label={`分類：${categoryLabel(id)}`}>
                     <I size={20} />
                 </span>
             );
@@ -290,16 +322,16 @@
             return <span className={`inline-flex items-center gap-1.5 text-sm shrink-0 ${STATUS_TEXT[status]}`}><I size={18} />{STATUS[status].label}</span>;
         };
         const StatusBadge = ({ status }) => (
-            <span className={`inline-flex items-center text-xs font-bold px-2.5 py-1 rounded-md border ${STATUS[status]?.cls || ''}`}>{STATUS[status]?.label || status}</span>
+            <span className={`inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-md border ${STATUS[status]?.cls || ''}`}>{STATUS[status]?.label || status}</span>
         );
         const VisibilityBadge = ({ isPublic }) => (
-            <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-md bg-zinc-100 text-zinc-600">
+            <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md bg-zinc-100 text-zinc-600">
                 {!isPublic && <LockIcon size={12} />}{isPublic ? '公開' : '不公開'}
             </span>
         );
 
         const SkeletonCard = () => (
-            <div className="bg-white p-5 rounded-xl border border-zinc-200 animate-pulse" aria-hidden="true">
+            <div className="bg-white p-5 rounded-lg border border-zinc-200 animate-pulse" aria-hidden="true">
                 <div className="h-5 w-3/5 bg-zinc-200 rounded mb-3"></div>
                 <div className="h-3.5 w-full bg-zinc-100 rounded mb-2"></div>
                 <div className="h-3.5 w-4/5 bg-zinc-100 rounded mb-5"></div>
@@ -309,8 +341,8 @@
         const Skeletons = () => <div className="flex flex-col gap-4"><SkeletonCard /><SkeletonCard /><SkeletonCard /></div>;
 
         const ErrorBox = ({ message, onRetry }) => (
-            <div role="alert" className="bg-white border border-red-200 rounded-xl p-6 flex flex-col items-start gap-3">
-                <div className="flex items-center gap-2 text-red-600 font-bold"><AlertIcon /> {message}</div>
+            <div role="alert" className="bg-white border border-red-200 rounded-lg p-6 flex flex-col items-start gap-3">
+                <div className="flex items-center gap-2 text-red-600 font-medium"><AlertIcon /> {message}</div>
                 {onRetry && <button onClick={onRetry} className={btnDark}>重新載入</button>}
             </div>
         );
@@ -321,7 +353,7 @@
         ) : null;
 
         const EmptyBox = ({ message, action }) => (
-            <div className="bg-white border border-zinc-200 rounded-xl py-14 px-6 text-center flex flex-col items-center gap-4">
+            <div className="bg-white border border-zinc-200 rounded-lg py-14 px-6 text-center flex flex-col items-center gap-4">
                 <span className="text-zinc-300"><InboxIcon size={40} /></span>
                 <p className="text-zinc-600 font-medium">{message}</p>
                 {action}
@@ -335,7 +367,7 @@
             </main>
         );
         const BackButton = ({ onClick, label = '返回' }) => (
-            <button onClick={onClick} className={`inline-flex items-center gap-2 px-3 py-2 -ml-3 mb-6 rounded-lg text-sm font-bold text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 active:bg-zinc-200 transition-colors duration-150 ${focusRing}`}>
+            <button onClick={onClick} className={`inline-flex items-center gap-2 px-3 py-2 -ml-3 mb-6 rounded-lg text-sm font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 active:bg-zinc-200 transition-colors duration-150 ${focusRing}`}>
                 <ArrowLeft size={16} /> {label}
             </button>
         );
@@ -346,7 +378,7 @@
                     const active = value === t.id;
                     return (
                         <button key={t.id} role="tab" aria-selected={active} onClick={() => onChange(t.id)}
-                            className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap border transition-colors duration-150 active:scale-[0.98] ${focusRing} ${active ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300'}`}>
+                            className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap border transition-colors duration-150 active:scale-[0.98] ${focusRing} ${active ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300'}`}>
                             {t.label}
                         </button>
                     );
@@ -387,7 +419,7 @@
                 return () => window.removeEventListener('keydown', onKey);
             }, [onClose]);
 
-            const fieldCls = "w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3.5 outline-none hover:border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-colors duration-150 font-semibold text-slate-700";
+            const fieldCls = "w-full bg-slate-50 border border-slate-200 rounded-lg pl-11 pr-4 py-3.5 outline-none hover:border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-colors duration-150 font-semibold text-slate-700";
             return (
                 <div className="fixed inset-0 z-50 bg-slate-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="login-title">
                     <div className="min-h-full w-full flex flex-col items-center justify-start sm:justify-center p-4 py-4 sm:py-8 relative">
@@ -396,17 +428,17 @@
 
                         <div className="w-full max-w-md flex items-center justify-between mb-4 relative z-20">
                             <button type="button" onClick={onClose} aria-label="關閉登入畫面"
-                                className={`w-11 h-11 shrink-0 flex items-center justify-center rounded-2xl bg-white border border-slate-100 shadow-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100 transition-colors duration-150 ${focusRing}`}>
+                                className={`w-11 h-11 shrink-0 flex items-center justify-center rounded-full bg-white border border-slate-100 text-slate-700 hover:bg-slate-50 active:bg-slate-100 transition-colors duration-150 ${focusRing}`}>
                                 <XIcon size={22} />
                             </button>
-                            <span id="login-title" className="text-lg font-black tracking-tight text-slate-800">歡迎登入</span>
+                            <span id="login-title" className="text-lg font-semibold text-slate-800">歡迎登入</span>
                             <div className="w-11 h-11 shrink-0"></div>
                         </div>
 
-                        <div className="bg-white max-w-md w-full rounded-[2rem] shadow-xl p-6 sm:p-8 border border-slate-100 animate-fade-in z-10 relative">
+                        <div className="bg-white max-w-md w-full rounded-lg p-6 sm:p-8 border border-slate-100 animate-fade-in z-10 relative">
                             <form onSubmit={submit} className="space-y-4 sm:space-y-5">
                                 <div className="space-y-1.5">
-                                    <label htmlFor="login-account" className="text-xs font-bold text-slate-500 tracking-wider ml-1">帳號</label>
+                                    <label htmlFor="login-account" className="text-xs font-medium text-slate-500 ml-1">帳號</label>
                                     <div className="relative">
                                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"><UserIcon size={18} /></span>
                                         <input id="login-account" type="text" value={account} onChange={(e) => setAccount(e.target.value)} className={fieldCls} placeholder="電話號碼或電子郵件" required autoFocus autoComplete="username" />
@@ -414,7 +446,7 @@
                                 </div>
 
                                 <div className="space-y-1.5">
-                                    <label htmlFor="login-password" className="text-xs font-bold text-slate-500 tracking-wider ml-1">密碼</label>
+                                    <label htmlFor="login-password" className="text-xs font-medium text-slate-500 ml-1">密碼</label>
                                     <div className="relative">
                                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"><LockIcon size={18} /></span>
                                         <input id="login-password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} className={`${fieldCls} pr-12`} placeholder="6位以上英數組合" required autoComplete="current-password" />
@@ -428,14 +460,14 @@
                                 <InlineError message={error} />
 
                                 <button type="submit" disabled={busy}
-                                    className={`w-full bg-gradient-to-r from-indigo-600 to-emerald-600 hover:opacity-95 active:opacity-90 text-white font-medium py-3.5 rounded-lg shadow-md transition-opacity duration-150 mt-4 text-base ${disabledCls} ${focusRing}`}>
+                                    className={`w-full bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-medium py-3.5 rounded-full transition-colors duration-150 mt-4 text-base ${disabledCls} ${focusRing}`}>
                                     {busy ? '處理中' : '登入'}
                                 </button>
                             </form>
 
                             <div className="mt-6 flex flex-col gap-4 text-center">
                                 <div className="text-sm font-medium text-slate-500">
-                                    首次設定密碼？請<a href="./manager.html#signup" className={`font-bold text-indigo-600 hover:text-indigo-700 transition-colors duration-150 py-1 px-0.5 rounded ${focusRing}`}>點這裡</a>
+                                    首次設定密碼？請<a href="./manager.html#signup" className={`font-medium text-indigo-600 hover:text-indigo-700 transition-colors duration-150 py-1 px-0.5 rounded ${focusRing}`}>點這裡</a>
                                 </div>
                                 <div className="text-xs font-medium text-slate-400 pt-4 border-t border-slate-100/80">沒有帳號、忘記密碼？請聯絡行政辦公室</div>
                             </div>
@@ -448,14 +480,40 @@
         // ==========================================
         // 「我已禱告」按鈕（免登入；一次、不可取消；次數由資料庫計算）
         // ==========================================
-        // 禱告圖示：愛心。未禱告＝灰色線條；已禱告＝綠色實心
-        const PrayIcon = ({ size = 18, filled }) => (
-            <svg width={size} height={size} viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5" />
-            </svg>
-        );
+        // 禱告圖示：水滴。未禱告＝空的水滴（灰色線條）；按下後水位由下往上慢慢升滿。
+        // 重新載入時，已禱告的貼文直接顯示滿的水滴（只有「按下的那一刻」才有升水動畫）。
+        const DROP_PATH = "M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z";
+        const PrayIcon = ({ size = 18, filled }) => {
+            const clipId = 'drop' + React.useId().replace(/[^a-zA-Z0-9]/g, '');
+            return (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <defs><clipPath id={clipId}><path d={DROP_PATH} /></clipPath></defs>
+                    <g clipPath={`url(#${clipId})`}>
+                        <rect className="drop-fill" x="0" y="0" width="24" height="24" fill="currentColor" stroke="none" style={{ transform: `translateY(${filled ? 0 : 24}px)` }} />
+                    </g>
+                    <path d={DROP_PATH} />
+                </svg>
+            );
+        };
 
-        // 像 IG 的愛心：點圖示立即變色並加一；按過就不能取消。失敗時會自動還原並由卡片顯示提示。
+        // 禱告成功後的鼓勵訊息。只有資料庫確認「新的有效回應」才會呼叫，不寫入任何資料。
+        const THANKS_MESSAGE = '謝謝你的禱告與陪伴';
+        let toastTimer = null;
+        const showThanks = () => showToast(THANKS_MESSAGE);
+        const showToast = (message) => {
+            try {
+                document.querySelectorAll('.prayer-toast').forEach(t => t.remove());
+                if (toastTimer) clearTimeout(toastTimer);
+                const toast = document.createElement('div');
+                toast.className = 'prayer-toast';
+                toast.setAttribute('role', 'status');
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                toastTimer = setTimeout(() => toast.remove(), 3500);
+            } catch (e) { /* 訊息顯示失敗不影響禱告紀錄 */ }
+        };
+
+        // 點水滴：水位立即開始升滿並加一；按過就不能取消。失敗時會自動還原（水位退回）並由卡片顯示提示。
         const PrayButton = ({ postId, count, responded, onResponded, onError }) => {
             const [local, setLocal] = useState({ count, responded });
             const [popping, setPopping] = useState(false);
@@ -472,6 +530,8 @@
                     const n = Number(r?.response_count ?? before.count + 1);
                     setLocal({ count: n, responded: true });
                     onResponded(n);
+                    // 只有資料庫確認「這是新的有效回應」才顯示鼓勵訊息；重複回應（already_responded）不顯示
+                    if (r && r.already_responded === false) showThanks();
                 } catch (err) {
                     setLocal(before);
                     if (onError) onError(err.message || '暫時無法送出，稍後再試');
@@ -482,10 +542,10 @@
             return (
                 <div className="flex items-center gap-1.5">
                     <button type="button" onClick={click} aria-pressed={local.responded} aria-label={label} title={local.responded ? '已禱告' : '一起禱告'}
-                        className={`-ml-2.5 p-2.5 rounded-full transition-colors duration-150 ${focusRing} ${popping ? 'animate-pop' : ''} ${local.responded ? 'text-red-500 cursor-default' : 'text-zinc-400 hover:text-red-500 hover:bg-red-50 active:bg-red-100'}`}>
+                        className={`-ml-2.5 p-2.5 rounded-full transition-colors duration-150 ${focusRing} ${popping ? 'animate-pop' : ''} ${local.responded ? 'text-blue-500 cursor-default' : 'text-zinc-400 hover:text-blue-500 hover:bg-blue-50 active:bg-blue-100'}`}>
                         <PrayIcon filled={local.responded} />
                     </button>
-                    <span className={`text-sm font-mono tabular-nums font-bold ${local.responded ? 'text-zinc-900' : 'text-zinc-500'}`}>{local.count}</span>
+                    <span className={`text-sm tabular-nums font-medium ${local.responded ? 'text-zinc-900' : 'text-zinc-500'}`}>{local.count}</span>
                 </div>
             );
         };
@@ -524,7 +584,7 @@
                 return () => window.removeEventListener('resize', measure);
             }, [measure]);
 
-            const moreCls = `text-[15px] leading-6 font-bold text-zinc-400 hover:text-zinc-700 active:text-zinc-900 transition-colors duration-150 rounded ${focusRing}`;
+            const moreCls = `text-[15px] leading-6 font-medium text-zinc-400 hover:text-zinc-700 active:text-zinc-900 transition-colors duration-150 rounded ${focusRing}`;
             return expanded ? (
                 <p className="text-[15px] leading-6 text-zinc-700 whitespace-pre-line break-words">
                     {text}
@@ -543,15 +603,15 @@
 
         // 日期區間輸入：「開始」「結束」（一般搜尋與審查搜尋共用）
         const DateRange = ({ from, to, onFrom, onTo, className = '' }) => {
-            const fieldCls = "w-full bg-zinc-100 rounded-xl px-3 py-2.5 text-sm text-zinc-900 font-medium hover:bg-zinc-200/70 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 transition-colors duration-150";
+            const fieldCls = "w-full bg-zinc-100 rounded-lg px-3 py-2.5 text-sm text-zinc-900 font-medium hover:bg-zinc-200/70 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 transition-colors duration-150";
             return (
                 <div className={`grid grid-cols-2 gap-3 ${className}`} role="group" aria-label="日期區間">
                     <label className="flex flex-col gap-1 min-w-0">
-                        <span className="text-xs font-bold text-zinc-500">開始</span>
+                        <span className="text-xs font-medium text-zinc-500">開始</span>
                         <input type="date" value={from} onChange={(e) => onFrom(e.target.value)} max={to || undefined} className={fieldCls} />
                     </label>
                     <label className="flex flex-col gap-1 min-w-0">
-                        <span className="text-xs font-bold text-zinc-500">結束</span>
+                        <span className="text-xs font-medium text-zinc-500">結束</span>
                         <input type="date" value={to} onChange={(e) => onTo(e.target.value)} min={from || undefined} className={fieldCls} />
                     </label>
                 </div>
@@ -566,10 +626,10 @@
                 return () => window.removeEventListener('keydown', onKey);
             }, [busy, onCancel]);
             return (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 animate-fade-in" onClick={() => { if (!busy) onCancel(); }}>
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" onClick={() => { if (!busy) onCancel(); }}>
                     <div role="alertdialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}
-                        className="w-full max-w-xs bg-white rounded-2xl shadow-xl border border-zinc-100 p-6 flex flex-col gap-5">
-                        <h3 className="text-lg font-black text-zinc-900 text-center">{title}</h3>
+                        className="w-full max-w-xs bg-white rounded-lg shadow-xl border border-zinc-200 p-6 flex flex-col gap-5">
+                        <h3 className="text-lg font-semibold text-zinc-900 text-center">{title}</h3>
                         <InlineError message={error} />
                         <div className="grid grid-cols-2 gap-3">
                             <button type="button" onClick={onCancel} disabled={busy} autoFocus className={btnCancelWhite}>取消</button>
@@ -585,10 +645,10 @@
             const text = p.content ?? p.summary ?? '';
             const name = !p.display_name || p.display_name === '匿名' ? ANON_NAME : p.display_name;
             return (
-                <li className="bg-white rounded-xl border border-zinc-200 shadow-sm p-4 sm:p-5">
+                <li className="bg-white rounded-lg border border-zinc-200 shadow-sm p-4 sm:p-5">
                     <div className="flex items-center gap-3 mb-2.5">
                         <CategoryAvatar id={p.category} />
-                        <span className="text-[15px] font-bold text-zinc-900 truncate min-w-0">{name}</span>
+                        <span className="text-[15px] font-medium text-zinc-900 truncate min-w-0">{name}</span>
                     </div>
 
                     <ClampText text={text} />
@@ -630,7 +690,7 @@
 
             return (
                 <main className="max-w-2xl mx-auto w-full px-4 sm:px-6 pt-6 pb-20 animate-fade-in">
-                    <h2 className="text-xl sm:text-2xl font-black text-zinc-900 tracking-tight leading-snug mb-5">每一次禱告，都是一滴滋養生命的水</h2>
+                    <h2 className="text-[clamp(0.9375rem,4.6vw,1.5rem)] whitespace-nowrap font-semibold text-zinc-900 leading-snug mb-5">每一次禱告，都是一滴滋養生命的水</h2>
                     <section aria-live="polite">
                         {status === 'loading' && <Skeletons />}
                         {status === 'error' && <ErrorBox message="暫時無法載入，稍後再試" onRetry={() => load()} />}
@@ -659,7 +719,7 @@
         };
         const saveRecent = (arr) => { try { localStorage.setItem(RECENT_KEY, JSON.stringify(arr)); } catch (e) { /* 無法儲存就略過 */ } };
 
-        const chipCls = (active) => `px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors duration-150 active:scale-[0.98] ${focusRing} ${active ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-800 hover:bg-zinc-200'}`;
+        const chipCls = (active) => `px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors duration-150 active:scale-[0.98] ${focusRing} ${active ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-800 hover:bg-zinc-200'}`;
 
         const SearchView = ({ goHome }) => {
             const [draft, setDraft] = useState('');
@@ -672,9 +732,10 @@
             const reqId = useRef(0);
             const [dateFrom, setDateFrom] = useState('');
             const [dateTo, setDateTo] = useState('');
+            const [showAll, setShowAll] = useState(false);   // 按下「全部」：直接列出所有貼文
             const keyword = draft.trim();
             const rangeBad = dateFrom !== '' && dateTo !== '' && dateFrom > dateTo;
-            const active = keyword !== '' || category !== 'all' || dateFrom !== '' || dateTo !== '';
+            const active = keyword !== '' || category !== 'all' || dateFrom !== '' || dateTo !== '' || showAll;
 
             const run = useCallback(async (kw, cat, from, to) => {
                 const mine = ++reqId.current;
@@ -726,7 +787,7 @@
                     {showFilter && (
                         <div className="flex overflow-x-auto no-scrollbar gap-2 mt-4" role="group" aria-label="分類">
                             {CATEGORIES.map(c => (
-                                <button key={c.id} type="button" onClick={() => setCategory(c.id)} aria-pressed={category === c.id} className={chipCls(category === c.id)}>{c.label}</button>
+                                <button key={c.id} type="button" onClick={() => { setCategory(c.id); setShowAll(c.id === 'all'); }} aria-pressed={category === c.id} className={chipCls(category === c.id)}>{c.label}</button>
                             ))}
                         </div>
                     )}
@@ -736,10 +797,10 @@
                             {recent.length > 0 && (
                                 <section aria-labelledby="recent-title">
                                     <div className="flex items-center justify-between mb-3">
-                                        <h2 id="recent-title" className="text-lg font-black text-zinc-900">最新</h2>
+                                        <h2 id="recent-title" className="text-lg font-semibold text-zinc-900">最新</h2>
                                         <div className="flex items-center gap-3">
-                                            {editing && <button type="button" onClick={clearRecent} className={`text-sm font-bold text-red-600 hover:text-red-700 rounded ${focusRing}`}>全部清除</button>}
-                                            <button type="button" onClick={() => setEditing(e => !e)} className={`text-sm font-bold text-zinc-500 hover:text-zinc-900 rounded ${focusRing}`}>{editing ? '完成' : '編輯'}</button>
+                                            {editing && <button type="button" onClick={clearRecent} className={`text-sm font-medium text-red-600 hover:text-red-700 rounded ${focusRing}`}>全部清除</button>}
+                                            <button type="button" onClick={() => setEditing(e => !e)} className={`text-sm font-medium text-zinc-500 hover:text-zinc-900 rounded ${focusRing}`}>{editing ? '完成' : '編輯'}</button>
                                         </div>
                                     </div>
                                     <div className="flex flex-wrap gap-2">
@@ -753,7 +814,7 @@
                                 </section>
                             )}
                             <section aria-labelledby="cat-title">
-                                <h2 id="cat-title" className="text-lg font-black text-zinc-900 mb-3">分類</h2>
+                                <h2 id="cat-title" className="text-lg font-semibold text-zinc-900 mb-3">分類</h2>
                                 <div className="flex flex-wrap gap-2">
                                     {SUBMIT_CATEGORIES.map(c => <button key={c.id} type="button" onClick={() => setCategory(c.id)} className={chipCls(false)}>{c.label}</button>)}
                                 </div>
@@ -781,9 +842,9 @@
         // 提報／修改表單（提報與「被退回後修改」共用）
         // ==========================================
         const RadioCard = ({ checked, onChange, title, hint, name }) => (
-            <label className={`flex-1 flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors duration-150 focus-within:ring-2 focus-within:ring-emerald-600 focus-within:ring-offset-2 ${checked ? 'border-zinc-900 bg-zinc-50' : 'border-zinc-200 bg-white hover:bg-zinc-50'}`}>
+            <label className={`flex-1 flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition-colors duration-150 focus-within:ring-2 focus-within:ring-emerald-600 focus-within:ring-offset-2 ${checked ? 'border-zinc-900 bg-zinc-50' : 'border-zinc-200 bg-white hover:bg-zinc-50'}`}>
                 <input type="radio" name={name} checked={checked} onChange={onChange} className="mt-1 accent-zinc-900" />
-                <span className="flex flex-col"><span className="text-sm font-bold text-zinc-900">{title}</span><span className="text-xs text-zinc-500 mt-0.5">{hint}</span></span>
+                <span className="flex flex-col"><span className="text-sm font-medium text-zinc-900">{title}</span><span className="text-xs text-zinc-500 mt-0.5">{hint}</span></span>
             </label>
         );
 
@@ -800,27 +861,27 @@
             const ready = v.content.trim() && v.category;
 
             return (
-                <form onSubmit={submit} className="bg-white border border-zinc-200 rounded-2xl p-5 sm:p-8 shadow-sm flex flex-col gap-6">
+                <form onSubmit={submit} className="bg-white border border-zinc-200 rounded-lg p-5 sm:p-8 shadow-sm flex flex-col gap-6">
                     <label className="flex flex-col gap-1.5">
-                        <span className="flex justify-between text-sm font-bold text-zinc-700">你想說什麼 <span className="text-xs font-mono tabular-nums text-zinc-400">{v.content.length}/800</span></span>
+                        <span className="flex justify-between text-sm font-medium text-zinc-700">你想說什麼 <span className="text-xs tabular-nums text-zinc-400">{v.content.length}/800</span></span>
                         <textarea value={v.content} onChange={(e) => set('content', e.target.value)} maxLength={800} rows={7} required className={`${inputCls} leading-relaxed resize-y`} />
                     </label>
 
                     <fieldset className="flex flex-col gap-2">
-                        <legend className="text-sm font-bold text-zinc-700 mb-1">分類</legend>
+                        <legend className="text-sm font-medium text-zinc-700 mb-1">分類</legend>
                         <div className="flex flex-wrap gap-2">
                             {SUBMIT_CATEGORIES.map(c => {
                                 const active = v.category === c.id;
                                 return (
                                     <button key={c.id} type="button" aria-pressed={active} onClick={() => set('category', c.id)}
-                                        className={`px-4 py-2 rounded-lg text-sm font-bold border transition-colors duration-150 active:scale-[0.98] ${focusRing} ${active ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300'}`}>{c.label}</button>
+                                        className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors duration-150 active:scale-[0.98] ${focusRing} ${active ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300'}`}>{c.label}</button>
                                 );
                             })}
                         </div>
                     </fieldset>
 
                     <fieldset className="flex flex-col gap-2">
-                        <legend className="text-sm font-bold text-zinc-700 mb-1">誰可以看到貼文</legend>
+                        <legend className="text-sm font-medium text-zinc-700 mb-1">誰可以看到貼文</legend>
                         <div className="flex flex-col sm:flex-row gap-3">
                             <RadioCard name="is_public" checked={v.is_public === true} onChange={() => set('is_public', true)} title="公開" hint="所有人都能查閱、搜尋" />
                             <RadioCard name="is_public" checked={v.is_public === false} onChange={() => set('is_public', false)} title="不公開" hint="只有牧者、區長與你本人看得到" />
@@ -828,7 +889,7 @@
                     </fieldset>
 
                     <fieldset className="flex flex-col gap-2">
-                        <legend className="text-sm font-bold text-zinc-700 mb-1">隱私設定</legend>
+                        <legend className="text-sm font-medium text-zinc-700 mb-1">隱私設定</legend>
                         <div className="flex flex-col sm:flex-row gap-3">
                             <RadioCard name="show_name" checked={v.show_name === false} onChange={() => set('show_name', false)} title="匿名" hint="貼文顯示「一位需要禱告的朋友」" />
                             <RadioCard name="show_name" checked={v.show_name === true} onChange={() => set('show_name', true)} title="顯示姓名" hint="貼文顯示姓名" />
@@ -877,7 +938,7 @@
             };
             return (
                 <PageShell back={<BackButton onClick={goHome} label="返回禱告牆" />}>
-                    <h2 className="text-2xl font-black text-zinc-900 tracking-tight mb-1">新增貼文</h2>
+                    <h2 className="text-2xl font-semibold text-zinc-900 mb-1">新增貼文</h2>
                     <p className="text-sm text-zinc-500 mb-6">審查通過後顯示於禱告牆；若通知退回，修正後可以再次送審，請耐心等候。</p>
                     <PostForm initial={loadDraft()} draftKey={DRAFT_KEY} submitLabel="送出" busy={busy} error={error} onSubmit={handle} onCancel={goHome} />
                 </PageShell>
@@ -902,9 +963,9 @@
                     {logs.map(l => (
                         <li key={l.id} className="text-sm">
                             <div className="flex flex-wrap items-baseline gap-x-2 text-zinc-800">
-                                <span className="font-bold">{ACTION_LABEL[l.action] || l.action}</span>
+                                <span className="font-medium">{ACTION_LABEL[l.action] || l.action}</span>
                                 <span className="text-zinc-500">{l.actor_name}</span>
-                                <span className="text-xs text-zinc-400 font-mono tabular-nums">{formatDateTime(l.created_at)}</span>
+                                <span className="text-xs text-zinc-400 tabular-nums">{formatDateTime(l.created_at)}</span>
                             </div>
                             {l.reason && <p className="text-zinc-600 mt-0.5 whitespace-pre-line">{l.reason.replace(/公開設定/g, '誰可以看到貼文')}</p>}
                         </li>
@@ -918,7 +979,7 @@
             const [show, setShow] = useState(false);
             return (
                 <div className="pt-3">
-                    <button type="button" onClick={() => setShow(v => !v)} className={`text-sm font-bold text-zinc-500 hover:text-zinc-900 rounded px-1 -ml-1 transition-colors duration-150 ${focusRing}`}>{show ? '收合審查紀錄' : '查看審查紀錄'}</button>
+                    <button type="button" onClick={() => setShow(v => !v)} className={`text-sm font-medium text-zinc-500 hover:text-zinc-900 rounded px-1 -ml-1 transition-colors duration-150 ${focusRing}`}>{show ? '收合審查紀錄' : '查看審查紀錄'}</button>
                     {show && <div className="mt-3"><HistoryList postId={postId} /></div>}
                 </div>
             );
@@ -931,18 +992,18 @@
             const returned = post.review_status === 'returned';
             const name = post.show_name ? post.author_name : ANON_NAME;
             return (
-                <li className="bg-white rounded-xl border border-zinc-200 shadow-sm p-4 sm:p-5">
+                <li className="bg-white rounded-lg border border-zinc-200 shadow-sm p-4 sm:p-5">
                     <div className="flex items-center justify-between gap-3 mb-2.5">
                         <div className="flex items-center gap-3 min-w-0">
                             <CategoryAvatar id={post.category} />
-                            <span className="text-[15px] font-bold text-zinc-900 truncate min-w-0">{name}</span>
+                            <span className="text-[15px] font-medium text-zinc-900 truncate min-w-0">{name}</span>
                         </div>
                         {returned && <button type="button" onClick={() => goEdit(post.id)} className={`${btnGhost} shrink-0`}><PencilIcon size={16} />編輯重新送審</button>}
                     </div>
                     <ClampText text={post.content} />
                     {(returned || forceReason) && (
                         <div className="bg-red-50 border border-red-100 rounded-lg p-3 mt-3">
-                            <p className="text-xs font-bold text-red-700 mb-1">退回原因</p>
+                            <p className="text-xs font-medium text-red-700 mb-1">退回原因</p>
                             <p className="text-sm text-red-900 whitespace-pre-line">{reason?.reason || '—'}</p>
                         </div>
                     )}
@@ -985,9 +1046,9 @@
             const shown = tab === 'all' ? posts : posts.filter(p => p.review_status === tab);
 
             return (
-                <PageShell>
+                <PageShell back={<BackButton onClick={goHome} label="返回禱告牆" />}>
                     <div className="flex items-end justify-between gap-4 mb-6">
-                        <h2 className="text-2xl font-black text-zinc-900 tracking-tight">我的禱告</h2>
+                        <h2 className="text-2xl font-semibold text-zinc-900">我的禱告</h2>
                     </div>
                     {flash && <div role="status" className="flex items-start gap-2 text-sm font-medium text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2.5 mb-6"><span className="mt-0.5 shrink-0"><CheckIcon size={16} /></span>{flash}</div>}
                     <TabBar tabs={tabs} value={tab} onChange={setTab} />
@@ -1042,7 +1103,7 @@
 
             return (
                 <PageShell back={<BackButton onClick={goMine} label="返回我的禱告" />}>
-                    <h2 className="text-2xl font-black text-zinc-900 tracking-tight mb-6">編輯重新送審</h2>
+                    <h2 className="text-2xl font-semibold text-zinc-900 mb-6">編輯重新送審</h2>
                     {status === 'loading' && <Skeletons />}
                     {status === 'error' && <ErrorBox message="暫時無法載入，稍後再試" />}
                     {status === 'notfound' && <EmptyBox message="找不到貼文" action={<button onClick={goMine} className={btnDark}>回到我的禱告</button>} />}
@@ -1059,7 +1120,7 @@
         // 審查頁（牧師、區長、admin）
         // 這裡的按鈕只是方便使用；真正的權限由資料庫檢查
         // ==========================================
-        const pillCls = (active) => `px-4 py-2 rounded-lg text-sm font-bold border transition-colors duration-150 active:scale-[0.98] ${focusRing} ${active ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300'}`;
+        const pillCls = (active) => `px-4 py-2 rounded-full text-sm font-medium border transition-colors duration-150 active:scale-[0.98] ${focusRing} ${active ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300'}`;
 
         const ReviewCard = ({ post, onChanged, onPatch, onRemove, onDeleted }) => {
             const [isPublic, setIsPublic] = useState(post.is_public);   // 待審查：核准時才套用
@@ -1072,10 +1133,14 @@
             const [draft, setDraft] = useState({ content: post.content });
             const [confirmDel, setConfirmDel] = useState(false);
             const [deleting, setDeleting] = useState(false);
-            const doDelete = async () => {
-                setDeleting(true); setError('');
-                try { await api.deletePost(post.id); (onDeleted || onRemove)(post.id); onChanged(); }
-                catch (err) { setError(err.message || '刪除失敗，稍後再試'); setDeleting(false); }
+            // 先讓卡片立刻消失（畫面馬上有反應），資料庫在背景刪除；
+            // 不論成功或失敗，最後都重新整理清單（失敗時貼文會自動回來並提示）
+            const doDelete = () => {
+                setConfirmDel(false);
+                (onDeleted || onRemove)(post.id);
+                api.deletePost(post.id)
+                    .catch((err) => { showToast(err.message || '刪除失敗，貼文已還原'); })
+                    .finally(() => { onChanged(); });
             };
 
             // 核准或退回：成功後這張卡片立刻從「待審查」消失，再到背景更新清單
@@ -1116,7 +1181,7 @@
             const pending = post.review_status === 'pending';
             const categoryFields = (
                 <fieldset className="flex flex-col gap-2">
-                    <legend className="text-xs font-bold text-zinc-500 mb-1">分類</legend>
+                    <legend className="text-xs font-medium text-zinc-500 mb-1">分類</legend>
                     <div className="flex flex-wrap gap-2">
                         {SUBMIT_CATEGORIES.map(c => {
                             const active = post.category === c.id;
@@ -1128,7 +1193,7 @@
             );
             const visibilityFields = (
                 <fieldset className="flex flex-col gap-2">
-                    <legend className="text-xs font-bold text-zinc-500 mb-1">誰可以看到貼文</legend>
+                    <legend className="text-xs font-medium text-zinc-500 mb-1">誰可以看到貼文</legend>
                     <div className="flex flex-wrap gap-2">
                         {[{ v: true, label: '公開' }, { v: false, label: '不公開' }].map(o => {
                             const active = (pending ? isPublic : post.is_public) === o.v;
@@ -1144,7 +1209,7 @@
             );
             const privacyFields = (
                 <fieldset className="flex flex-col gap-2">
-                    <legend className="text-xs font-bold text-zinc-500 mb-1">隱私設定</legend>
+                    <legend className="text-xs font-medium text-zinc-500 mb-1">隱私設定</legend>
                     <div className="flex flex-wrap gap-2">
                         {[{ v: false, label: '匿名' }, { v: true, label: '顯示姓名' }].map(o => {
                             const active = post.show_name === o.v;
@@ -1174,22 +1239,22 @@
                 <div className="flex items-center justify-between gap-3 mb-2.5">
                     <div className="flex items-center gap-3 min-w-0">
                         <CategoryAvatar id={post.category} />
-                        <span className="text-[15px] font-bold text-zinc-900 truncate min-w-0">{shownName}</span>
+                        <span className="text-[15px] font-medium text-zinc-900 truncate min-w-0">{shownName}</span>
                     </div>
                     {actions}
                 </div>
             );
 
-            // 已退回：顯示方式同禱告牆貼文（退回的貼文沒有公開，所以愛心只是顯示、不能按，次數為 0）
+            // 已退回：顯示方式同禱告牆貼文（退回的貼文沒有公開，所以水滴只是顯示、不能按，次數為 0）
             if (post.review_status === 'returned') {
                 return (
-                    <li className="bg-white rounded-xl border border-zinc-200 shadow-sm p-4 sm:p-5">
+                    <li className="bg-white rounded-lg border border-zinc-200 shadow-sm p-4 sm:p-5">
                         {headerRow(<div className="flex items-center gap-1 shrink-0">{trashBtn}</div>)}
                         <ClampText text={post.content} />
                         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-3 text-zinc-500">
                             <div className="flex items-center gap-1.5" aria-label="禱告回應次數 0">
                                 <span className="-ml-2.5 p-2.5 text-zinc-400"><PrayIcon /></span>
-                                <span className="text-sm font-mono tabular-nums font-bold text-zinc-500">0</span>
+                                <span className="text-sm tabular-nums font-medium text-zinc-500">0</span>
                             </div>
                             {timeSpan}
                         </div>
@@ -1211,7 +1276,7 @@
             );
             const decideBlock = !pending ? null : returning ? (
                 <div className="flex flex-col gap-3 mt-4">
-                    <label className="text-sm font-bold text-zinc-700" htmlFor={`reason-${post.id}`}>退回原因</label>
+                    <label className="text-sm font-medium text-zinc-700" htmlFor={`reason-${post.id}`}>退回原因</label>
                     <textarea id={`reason-${post.id}`} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} rows={3} autoFocus className={`${inputCls} resize-y`} />
                     <div className="grid grid-cols-2 gap-3">
                         <button onClick={() => { setReturning(false); setReason(''); setError(''); }} disabled={busy} className={btnCancel}>取消</button>
@@ -1221,21 +1286,21 @@
             ) : (
                 <div className="grid grid-cols-2 gap-3 mt-4">
                     <button onClick={() => run(() => api.approve(post.id, isPublic))} disabled={busy}
-                        className={`inline-flex items-center justify-center gap-2 h-12 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-base font-medium transition-colors duration-150 ${disabledCls} ${focusRing}`}>
+                        className={`inline-flex items-center justify-center gap-2 h-12 rounded-full bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-base font-medium transition-colors duration-150 ${disabledCls} ${focusRing}`}>
                         <CheckIcon size={18} />{busy ? '處理中' : '核准'}
                     </button>
                     <button onClick={() => setReturning(true)} disabled={busy}
-                        className={`inline-flex items-center justify-center gap-2 h-12 rounded-xl border border-red-300 bg-white hover:bg-red-50 active:bg-red-100 text-red-700 text-base font-medium transition-colors duration-150 ${disabledCls} ${focusRing}`}>
+                        className={`inline-flex items-center justify-center gap-2 h-12 rounded-full border border-red-300 bg-white hover:bg-red-50 active:bg-red-100 text-red-700 text-base font-medium transition-colors duration-150 ${disabledCls} ${focusRing}`}>
                         <UndoIcon size={18} />退回
                     </button>
                 </div>
             );
             return (
-                <li className="bg-white rounded-xl border border-zinc-200 shadow-sm p-4 sm:p-5">
+                <li className="bg-white rounded-lg border border-zinc-200 shadow-sm p-4 sm:p-5">
                     {headerRow(actions)}
                     {editing ? (
                         <label className="flex flex-col gap-1.5">
-                            <span className="flex justify-between text-xs font-bold text-zinc-500">內容 <span className="font-mono tabular-nums text-zinc-400">{draft.content.length}/800</span></span>
+                            <span className="flex justify-between text-xs font-medium text-zinc-500">內容 <span className="tabular-nums text-zinc-400">{draft.content.length}/800</span></span>
                             <textarea value={draft.content} onChange={(e) => setDraft(d => ({ ...d, content: e.target.value }))} maxLength={800} rows={6} className={`${inputCls} leading-relaxed resize-y`} />
                         </label>
                     ) : (
@@ -1309,8 +1374,8 @@
             const onChanged = async () => { if (searching) await runSearch(keyword, true); else await load(true); refreshPending(); };
 
             return (
-                <PageShell>
-                    <h2 className="text-2xl font-black text-zinc-900 tracking-tight mb-4">貼文審核</h2>
+                <PageShell back={<BackButton onClick={goHome} label="返回禱告牆" />}>
+                    <h2 className="text-2xl font-semibold text-zinc-900 mb-4">貼文審核</h2>
                     <div role="search" className="relative mb-5">
                         <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none"><SearchIcon size={20} /></span>
                         <input type="text" value={query} onChange={(e) => setQuery(e.target.value)} maxLength={100} enterKeyHint="search" placeholder="搜尋內容或貼文者" aria-label="搜尋貼文"
@@ -1376,8 +1441,8 @@
             if (!session) return <PageShell back={<BackButton onClick={goHome} label="返回禱告牆" />}><NeedLogin onLogin={onLogin} /></PageShell>;
 
             return (
-                <PageShell>
-                    <h2 className="text-2xl font-black text-zinc-900 tracking-tight mb-6">通知</h2>
+                <PageShell back={<BackButton onClick={goHome} label="返回禱告牆" />}>
+                    <h2 className="text-2xl font-semibold text-zinc-900 mb-6">通知</h2>
 
                     {status === 'loading' && <Skeletons />}
                     {status === 'error' && <ErrorBox message="暫時無法載入，稍後再試" onRetry={load} />}
@@ -1396,7 +1461,8 @@
         // ==========================================
         // 漢堡選單：在按鈕下方展開的小卡片（開啟時按鈕變成 X）
         // ==========================================
-        const MenuDropdown = ({ onClose, items }) => {
+        // align：選單靠哪一側展開（左側漢堡用 left；右側「更多」三個點用 right）
+        const MenuDropdown = ({ onClose, items, align = 'left', label = '主選單' }) => {
             useEffect(() => {
                 const onKey = (e) => { if (e.key === 'Escape') onClose(); };
                 window.addEventListener('keydown', onKey);
@@ -1405,11 +1471,12 @@
             return (
                 <>
                     <div className="fixed inset-0 z-40" onClick={onClose} aria-hidden="true"></div>
-                    <nav className="absolute left-0 top-full mt-2 z-50 w-56 bg-white rounded-2xl border border-zinc-100 shadow-lg overflow-hidden animate-fade-in" aria-label="主選單">
+                    <nav className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} top-full mt-2 z-50 w-56 bg-white rounded-lg border border-zinc-100 shadow-lg overflow-hidden animate-fade-in`} aria-label={label}>
                         {items.map((n, i) => (
                             <button key={n.id} type="button" onClick={n.onClick} aria-current={n.active ? 'page' : undefined}
-                                className={`w-full flex items-center gap-3 px-4 py-3.5 text-left text-sm font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:bg-zinc-100 ${i > 0 ? 'border-t border-zinc-100' : ''} ${n.active ? 'bg-zinc-100 text-zinc-900' : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 active:bg-zinc-100'}`}>
+                                className={`w-full flex items-center gap-3 px-4 py-3.5 text-left text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:bg-zinc-100 ${i > 0 ? 'border-t border-zinc-100' : ''} ${n.active ? 'bg-zinc-100 text-zinc-900' : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 active:bg-zinc-100'}`}>
                                 <span className="shrink-0">{n.icon}</span>{n.label}
+                                {n.badge > 0 && <span className="ml-auto inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-red-600 text-white text-xs font-medium tabular-nums">{n.badge > 99 ? '99+' : n.badge}</span>}
                             </button>
                         ))}
                     </nav>
@@ -1458,6 +1525,23 @@
                 return () => subscription.unsubscribe();
             }, []);
 
+            // 登入後，依帳號（電話或 email）比對 members 表找出本人姓名，寫入共用的 tbc_user（做法同 manager.html）
+            useEffect(() => {
+                if (!session?.user?.email) return;
+                const emailLower = session.user.email.trim().toLowerCase();
+                const accountLower = extractAccountFromEmail(session.user.email).trim().toLowerCase();
+                let alive = true;
+                supabase.from('members').select('name, email').then(({ data, error }) => {
+                    if (!alive || error) { if (error) console.error('讀取本人姓名失敗:', error); return; }
+                    const mine = (data || []).find(m => {
+                        const me = (m.email || '').trim().toLowerCase();
+                        return me === emailLower || me === accountLower;
+                    });
+                    if (mine?.name) setSharedUser(mine.name);
+                });
+                return () => { alive = false; };
+            }, [session?.user?.email]);
+
             // 登入後讀自己的角色（只是決定要不要顯示審查入口；真正權限在資料庫）
             useEffect(() => {
                 setRole(null); setPending(0);
@@ -1496,7 +1580,7 @@
                 return () => clearTimeout(t);
             }, [flash]);
 
-            const logout = async () => { setMenuOpen(false); clearDraft(); await supabase.auth.signOut(); go('#'); };
+            const logout = async () => { setMenuOpen(false); clearDraft(); clearSharedUser(); await supabase.auth.signOut(); go('#'); };
             const goHome = () => go('#');
             const goMine = () => go('#/mine');
             const requireLogin = (hash) => { if (!session) setShowLogin(true); else go(hash); };
@@ -1504,13 +1588,47 @@
 
             const menuItems = [
                 { id: 'index', label: '回首頁', icon: <HouseIcon size={20} />, onClick: closeThen(() => { window.location.href = './index.html'; }) },
-                { id: 'home', label: '禱告牆', icon: <SproutIcon size={20} />, active: route.name === 'home', onClick: closeThen(goHome) },
-                ...(session ? [{ id: 'mine', label: '我的禱告', icon: <UserIcon size={20} />, active: route.name === 'mine' || route.name === 'edit', onClick: closeThen(goMine) }] : []),
+                { id: 'serve', label: '我的服事', icon: <ClockIcon size={20} />, onClick: closeThen(() => { window.location.href = './search.html'; }) },
+                { id: 'settings', label: '個人設定', icon: <UsersIcon size={20} />, onClick: closeThen(() => { window.location.href = './manager.html'; }) },
                 session
                     ? { id: 'out', label: '登出', icon: <LogOutIcon size={20} />, onClick: logout }
                     : { id: 'in', label: '登入', icon: <LogInIcon size={20} />, onClick: closeThen(() => setShowLogin(true)) },
             ];
             const activeNav = route.name === 'edit' ? 'mine' : route.name;
+
+            // 右上角功能圖示：手機寬度放不下時，自動收合成一個「三個點」按鈕，點開後以選單列出
+            const rowRef = useRef(null);
+            const leftRef = useRef(null);
+            const [collapsed, setCollapsed] = useState(false);
+            const [moreOpen, setMoreOpen] = useState(false);
+            const iconCount = 4 + (isReviewer ? 1 : 0);   // 新增貼文、搜尋、通知、我的禱告（＋審核）
+            useLayoutEffect(() => {
+                const row = rowRef.current, left = leftRef.current;
+                if (!row || !left) return;
+                const measure = () => {
+                    const cs = getComputedStyle(row);
+                    const inner = row.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+                    const leftW = Math.max(left.offsetWidth, left.scrollWidth);
+                    const iconW = window.innerWidth < 360 ? 40 : 44;    // 與下方 iconBtn 的寬度一致
+                    setCollapsed(iconCount * iconW + 8 > inner - leftW);
+                };
+                measure();
+                const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+                if (ro) ro.observe(row); else window.addEventListener('resize', measure);
+                if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
+                return () => { if (ro) ro.disconnect(); else window.removeEventListener('resize', measure); };
+            }, [iconCount, route.name]);
+            useEffect(() => { if (!collapsed) setMoreOpen(false); }, [collapsed]);
+
+            const goThen = (fn) => () => { setMoreOpen(false); fn(); };
+            const moreItems = [
+                { id: 'm-add', label: '新增貼文', icon: <SquarePlusIcon size={20} />, onClick: goThen(() => requireLogin('#/submit')) },
+                { id: 'm-search', label: '搜尋', icon: <SearchIcon size={20} />, onClick: goThen(() => go('#/search')) },
+                { id: 'm-bell', label: '通知', icon: <BellIcon size={20} />, badge: session ? unread : 0, active: route.name === 'notifications', onClick: goThen(() => { setUnread(0); requireLogin('#/notifications'); }) },
+                { id: 'm-mine', label: '我的禱告', icon: <HandHeartIcon size={20} />, active: route.name === 'mine' || route.name === 'edit', onClick: goThen(() => requireLogin('#/mine')) },
+                ...(isReviewer ? [{ id: 'm-review', label: '貼文審核', icon: <ClipboardCheckIcon size={20} />, badge: pending, active: route.name === 'review', onClick: goThen(() => go('#/review')) }] : []),
+            ];
+            const moreBadge = (session ? unread : 0) + (isReviewer ? pending : 0);
 
             let body;
             if (!sessionReady && ['submit', 'mine', 'edit', 'review', 'notifications'].includes(route.name)) body = <PageShell><Skeletons /></PageShell>;
@@ -1528,33 +1646,45 @@
                 <div className="min-h-screen flex flex-col">
                     {route.name !== 'search' && (
                         <header className="bg-white border-b border-zinc-200 sticky top-0 z-40" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
-                            <div className="max-w-2xl mx-auto w-full px-3 sm:px-5 h-14 flex items-center justify-between gap-2">
-                                <div className="flex items-center min-w-0">
+                            <div ref={rowRef} className="max-w-2xl mx-auto w-full px-3 sm:px-5 h-14 flex items-center justify-between gap-2">
+                                <div ref={leftRef} className="flex items-center min-w-0">
                                 <div className="relative shrink-0">
-                                    <button onClick={() => setMenuOpen(o => !o)} aria-label={menuOpen ? '關閉選單' : '開啟選單'} aria-expanded={menuOpen}
-                                        className={`${iconBtn} ${menuOpen ? '!bg-zinc-100 !rounded-xl' : ''} relative z-50`}>
+                                    <button onClick={() => { setMoreOpen(false); setMenuOpen(o => !o); }} aria-label={menuOpen ? '關閉選單' : '開啟選單'} aria-expanded={menuOpen}
+                                        className={`${iconBtn} ${menuOpen ? '!bg-zinc-100 !rounded-lg' : ''} relative z-50`}>
                                         {menuOpen ? <XIcon size={24} /> : <MenuIcon size={24} />}
                                     </button>
                                     {menuOpen && <MenuDropdown onClose={() => setMenuOpen(false)} items={menuItems} />}
                                 </div>
                                 <a href="#" onClick={(e) => { e.preventDefault(); goHome(); }} className={`ml-1 px-2 py-1 rounded-md ${focusRing}`}>
-                                    <h1 className="text-base min-[360px]:text-lg font-black text-zinc-900 tracking-tight whitespace-nowrap">守望花園</h1>
+                                    <h1 className="text-base min-[360px]:text-lg font-semibold text-zinc-900 whitespace-nowrap">守望花園</h1>
                                 </a>
                                 </div>
+                                {collapsed ? (
+                                <div className="relative shrink-0">
+                                    <button onClick={() => { setMenuOpen(false); setMoreOpen(o => !o); }} aria-label={moreOpen ? '關閉更多功能' : (moreBadge > 0 ? `更多功能，${moreBadge} 則提醒` : '更多功能')} aria-expanded={moreOpen} title="更多"
+                                        className={`${iconBtn} ${moreOpen ? '!bg-zinc-100 !rounded-lg' : ''} relative z-50`}>
+                                        {moreOpen ? <XIcon size={24} /> : <EllipsisVerticalIcon size={24} />}
+                                        {!moreOpen && moreBadge > 0 && <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-red-600 text-white text-xs font-medium tabular-nums">{moreBadge > 99 ? '99+' : moreBadge}</span>}
+                                    </button>
+                                    {moreOpen && <MenuDropdown align="right" label="更多功能" onClose={() => setMoreOpen(false)} items={moreItems} />}
+                                </div>
+                                ) : (
                                 <div className="justify-self-end flex items-center">
                                     <button onClick={() => requireLogin('#/submit')} aria-label="新增貼文" title="新增貼文" className={iconBtn}><SquarePlusIcon size={24} /></button>
                                     <button onClick={() => go('#/search')} aria-label="搜尋" title="搜尋" className={iconBtn}><SearchIcon size={24} /></button>
                                     <button onClick={() => { setUnread(0); requireLogin('#/notifications'); }} aria-label={unread > 0 ? `通知，${unread} 則未讀` : '通知'} title="通知" className={`${iconBtn} ${route.name === 'notifications' ? 'bg-zinc-100' : ''}`}>
                                         <BellIcon size={24} />
-                                        {session && unread > 0 && <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-red-600 text-white text-xs font-bold tabular-nums">{unread > 99 ? '99+' : unread}</span>}
+                                        {session && unread > 0 && <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-red-600 text-white text-xs font-medium tabular-nums">{unread > 99 ? '99+' : unread}</span>}
                                     </button>
+                                    <button onClick={() => requireLogin('#/mine')} aria-label="我的禱告" title="我的禱告" className={`${iconBtn} ${route.name === 'mine' || route.name === 'edit' ? 'bg-zinc-100' : ''}`}><HandHeartIcon size={24} /></button>
                                     {isReviewer && (
                                         <button onClick={() => go('#/review')} aria-label={pending > 0 ? `貼文審核，${pending} 則待審查` : '貼文審核'} title="貼文審核" className={`${iconBtn} ${route.name === 'review' ? 'bg-zinc-100' : ''}`}>
                                             <ClipboardCheckIcon size={24} />
-                                            {pending > 0 && <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-red-600 text-white text-xs font-bold tabular-nums">{pending > 99 ? '99+' : pending}</span>}
+                                            {pending > 0 && <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-red-600 text-white text-xs font-medium tabular-nums">{pending > 99 ? '99+' : pending}</span>}
                                         </button>
                                     )}
                                 </div>
+                                )}
                             </div>
                         </header>
                     )}

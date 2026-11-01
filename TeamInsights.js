@@ -3,7 +3,7 @@ import {
     Home, Users, Calendar, LogOut, BarChart3, ChevronLeft, 
     UserCheck, LayoutList, TrendingUp, Lightbulb, X, Target, 
     Zap, UserPlus, AlertCircle, CheckCircle2,
-    UsersRound, Settings, Menu
+    UsersRound, Settings, Menu, PanelLeft
 } from 'lucide-react';
 
 // ==========================================
@@ -86,6 +86,8 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [tempLimits, setTempLimits] = useState(INITIAL_POLICY_LIMITS);
     const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+    const [sbCollapsed, setSbCollapsed] = useState(() => { try { return localStorage.getItem('tbcSidebarCollapsed') === '1'; } catch (e) { return false; } });
+    const toggleSb = () => setSbCollapsed(v => { const n = !v; try { localStorage.setItem('tbcSidebarCollapsed', n ? '1' : '0'); } catch (e) {} return n; });
 
     const handleUpdateReq = (posName, delta) => {
         setRequirements(prev => {
@@ -526,29 +528,23 @@ const TeamInsights = ({ session, goBack, goToMembers, goToSchedule, supabase, ut
                 />
             )}
 
-            <div className={`fixed md:static inset-y-0 left-0 w-64 bg-slate-900 flex flex-col justify-between shrink-0 border-r border-slate-800 z-50 h-full transform transition-transform duration-300 ease-out ${isMobileNavOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
+            <div data-sb={sbCollapsed ? 'collapsed' : 'open'} className={`tbc-sb tbc-sb-md ${isMobileNavOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-all duration-300 ease-in-out fixed md:static inset-y-0 left-0 w-64 flex flex-col justify-between shrink-0 z-50 md:z-30 h-full`}>
                 <div className="flex flex-col">
-                    <div className="p-6 border-b border-slate-800 flex items-center justify-between gap-3 relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-indigo-500/10 to-transparent pointer-events-none"></div>
-                        <span className="text-white font-bold text-base tracking-wider relative z-10">TBC Serve Manager</span>
-                        <button onClick={() => setIsMobileNavOpen(false)} className="relative z-10 p-1 text-slate-400 hover:text-white md:hidden">
-                            <X size={20} />
-                        </button>
+                    <div className="tbc-sb-head">
+                        <button onClick={sbCollapsed ? toggleSb : undefined} className="tbc-sb-logobtn" title={sbCollapsed ? '開啟側邊欄' : undefined}><img src={window.TBC_LOGO} alt="" className="tbc-sb-logo" /><span className="tbc-sb-open"><PanelLeft size={20} /></span></button>
+                        <span className="tbc-sb-label tbc-sb-title latin-tight">TBC Serve Manager</span>
+                        <button onClick={toggleSb} className="hidden md:flex tbc-sb-toggle" title="隱藏側邊欄"><PanelLeft size={18} /></button>
+                        <button onClick={() => setIsMobileNavOpen(false)} className="flex md:hidden tbc-sb-toggle"><X size={20} /></button>
                     </div>
-                    <nav className="p-4 space-y-1.5">
-                        <button onClick={() => { goBack(); setIsMobileNavOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
-                            <Home size={18} className="text-slate-400 group-hover:text-indigo-400 transition-colors" /><span>Home</span>
-                        </button>
-                        <button onClick={() => { goToMembers(); setIsMobileNavOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
-                            <Users size={18} className="text-slate-400 group-hover:text-violet-400 transition-colors" /><span>同工資料中心</span>
-                        </button>
-                        <button onClick={() => { goToSchedule(); setIsMobileNavOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-xl font-normal text-sm transition-all text-left group">
-                            <Calendar size={18} className="text-slate-400 group-hover:text-violet-400 transition-colors" /><span>排班作業中心</span>
-                        </button>
-                        <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl font-medium text-sm shadow-button">
-                            <BarChart3 size={18} /><span>人力洞察中心</span>
-                        </div>
+                    <nav className="tbc-sb-nav">
+                        <button onClick={() => { goBack(); setIsMobileNavOpen(false); }} className="tbc-sb-item" title="Home"><Home size={18} /><span className="tbc-sb-label">Home</span></button>
+                        <button onClick={() => { goToMembers(); setIsMobileNavOpen(false); }} className="tbc-sb-item" title="同工資料中心"><Users size={18} /><span className="tbc-sb-label">同工資料中心</span></button>
+                        <button onClick={() => { goToSchedule(); setIsMobileNavOpen(false); }} className="tbc-sb-item" title="排班作業中心"><Calendar size={18} /><span className="tbc-sb-label">排班作業中心</span></button>
+                        <div className="tbc-sb-item tbc-sb-active" title="人力洞察中心"><BarChart3 size={18} /><span className="tbc-sb-label">人力洞察中心</span></div>
                     </nav>
+                </div>
+                <div className="tbc-sb-foot">
+                    <button onClick={async () => { if (supabase?.auth?.signOut) { await supabase.auth.signOut(); } window.location.reload(); }} className="tbc-sb-item tbc-sb-logout" title="登出"><LogOut size={18} /><span className="tbc-sb-label">登出</span></button>
                 </div>
             </div>
 
