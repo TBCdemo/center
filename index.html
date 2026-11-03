@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>TBC Serve</title>
+<title>TBC Together</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
   tailwind.config = { theme: { extend: {
@@ -17,73 +17,633 @@
   } } }
 </script>
 <style>
-  :root{ --bg:#f8fafc; --card:#ffffff; --text:#0f172a; --sub:#64748b; --border:#f1f5f9; }
+  /* 色彩依 DESIGN.md：白底畫布 #fff、淺灰帶 #f7f9fa、近黑墨色 #262626、次要灰 #595959；主色維持紫色 #8806ce */
+  :root{ --bg:#ffffff; --card:#f7f9fa; --text:#262626; --sub:#595959; --border:#e8e8e8; --primary:#8806ce; --primary-hover:#7205ad; --primary-tint:#f7eefc; --primary-ink:#5c048c; }
   @media (prefers-color-scheme: dark){
-    :root:not([data-theme="light"]){ --bg:#0b1120; --card:#1e293b; --text:#f1f5f9; --sub:#94a3b8; --border:#334155; }
+    :root:not([data-theme="light"]){ --bg:#0b1120; --card:#1e293b; --text:#f1f5f9; --sub:#94a3b8; --border:#334155; --primary-tint:#3a1a4d; --primary-ink:#e6c9f6; }
   }
-  :root[data-theme="dark"]{ --bg:#0b1120; --card:#1e293b; --text:#f1f5f9; --sub:#94a3b8; --border:#334155; }
+  :root[data-theme="dark"]{ --bg:#0b1120; --card:#1e293b; --text:#f1f5f9; --sub:#94a3b8; --border:#334155; --primary-tint:#3a1a4d; --primary-ink:#e6c9f6; }
   html,body{ height:100%; }
+  /* 字體：英文與數字用 Open Sans，中文自動退回 Noto Sans TC。字距預設為 0，所以中文維持正常 */
   body{
     background:var(--bg); color:var(--text);
-    font-family:'Noto Sans TC', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family:'Open Sans', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-weight:400;
+    letter-spacing:0;
     padding-top:env(safe-area-inset-top,0px);
     padding-bottom:env(safe-area-inset-bottom,0px);
   }
-  .entry-card{ background:var(--card); border-color:var(--border); }
   .sub{ color:var(--sub); }
+  /* 只有英文與數字才縮字距（DESIGN.md 的 -0.03em），中文不套用 */
+  .latin-tight{ letter-spacing:-0.03em; }
+  .brand{ display:inline-block; max-width:100%; }
+  .tagline{ width:0; min-width:100%; white-space:nowrap; font-size:.9375rem; text-align:center; letter-spacing:0; }
+  @media (min-width:640px){ .tagline{ font-size:1.0625rem; } }
+  /* 按鈕：全部是膠囊形。主要＝紫色實心，不加陰影 */
+  .btn-pill{ display:inline-flex; align-items:center; justify-content:center; gap:.25rem; height:40px; padding:0 16px; border-radius:9999px; font-size:.875rem; font-weight:400; letter-spacing:0; transition:background-color .15s ease; }
+  .btn-primary{ background:var(--primary); color:#fff; }
+  .btn-primary:hover{ background:var(--primary-hover); }
+  .btn-primary:active{ background:var(--primary-ink); }
+  .btn-pill:focus-visible{ outline:2px solid var(--primary); outline-offset:3px; }
+  .entry-icon{ color:#8806ce; transition: transform .2s ease; }
+  .entry:hover .entry-icon, .entry:focus-visible .entry-icon{ transform: translateY(-3px); }
+  .entry:active .entry-icon{ transform: scale(.92); }
+  .entry:focus-visible{ outline: 2px solid #8806ce; outline-offset: 4px; border-radius: .75rem; }
+  @media (prefers-reduced-motion: reduce){ .entry-icon{ transition:none; } }
+
+  /* ===== 守望花園 ===== */
+  /* 卡片：8px 圓角、1px 細框、不加陰影（DESIGN.md：Flat + Outlined） */
+  .garden-card{ background:var(--card); border:1px solid var(--border); border-radius:8px; box-shadow:none; }
+  .garden-track{ background:rgba(100,116,139,.20); }
+  .garden-fill{ background:var(--primary); transition:width .8s ease; }
+  .garden-glow{ background:radial-gradient(closest-side, rgba(193,126,230,.28), rgba(193,126,230,.10) 70%, transparent); }
+  .stage-pill{ background:var(--primary-tint); color:var(--primary-ink); }
+  .banner-soft{ background:var(--primary-tint); color:var(--primary-ink); }
+  /* 擺動：幅度小、速度慢，每一株的幅度、速度、起點都不同，所以不會同步 */
+  .sway{ animation:sway 9s ease-in-out infinite alternate; }
+  @keyframes sway{ from{ transform:rotate(calc(var(--amp,1deg) * -1)); } to{ transform:rotate(var(--amp,1deg)); } }
+  /* 種子外的細環：像呼吸一樣慢慢放大縮小 */
+  .seed-ring{ animation:breathe 6s ease-in-out infinite; transform-origin:160px 195px; }
+  @keyframes breathe{ 50%{ transform:scale(1.35); } }
+  /* 光點：非常緩慢地飄起 */
+  .mote{ animation:mote 12s ease-in-out infinite; }
+  @keyframes mote{ 0%{ transform:translate(0,8px); opacity:0; } 30%{ opacity:.8; } 70%{ opacity:.6; } 100%{ transform:translate(4px,-26px); opacity:0; } }
+  /* 地平線：跟著深淺色模式變色的細線 */
+  .g-horizon{ stroke:var(--sub); opacity:.5; }
+  /* 深色模式：背景半圓再淡一點，才不會比花還搶眼 */
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .g-suns{ opacity:.55; } }
+  :root[data-theme="dark"] .g-suns{ opacity:.55; }
+  .garden-skeleton{ animation:pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse{ 50%{ opacity:.45; } }
+  @media (prefers-reduced-motion: reduce){
+    .sway, .seed-ring, .mote, .garden-skeleton{ animation:none; }
+    .garden-fill{ transition:none; }
+  }
 </style>
 </head>
 <body class="min-h-[100dvh] flex flex-col items-center p-6 pt-10 sm:pt-20 pb-10">
   <main class="w-full max-w-3xl">
 
     <div class="text-center mb-12">
-      <h1 class="text-4xl sm:text-5xl font-black tracking-tight">TBC Serve</h1>
-      <p class="mt-3 text-lg font-bold sub">一起服事、一起成長</p>
+      <!-- 標語寬度要比 TBC Together 窄 -->
+      <div class="brand">
+        <h1 class="text-4xl sm:text-5xl font-bold latin-tight" style="line-height:1.08">TBC Together</h1>
+        <p id="tagline" class="tagline mt-3 font-normal sub">一起禱告、一起服事、一起成長</p>
+      </div>
     </div>
 
-    <div class="grid sm:grid-cols-2 gap-6">
+    <!-- 入口圖示：固定三欄，手機上也維持同一排；之後增加入口時，複製一個 <a class="entry ..."> 並把 grid-cols-3 改成對應數字 -->
+    <nav aria-label="功能入口" class="grid grid-cols-3 gap-x-2 sm:gap-x-6 max-w-sm sm:max-w-md mx-auto">
 
-      <a href="./search.html" class="entry-card group block rounded-[2rem] p-8 border shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-        <div class="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-6">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-7 h-7">
-            <rect x="3" y="4" width="18" height="18" rx="2"></rect>
-            <line x1="16" y1="2" x2="16" y2="6"></line>
-            <line x1="8" y1="2" x2="8" y2="6"></line>
-            <line x1="3" y1="10" x2="21" y2="10"></line>
-          </svg>
-        </div>
-        <h2 class="text-2xl font-black mb-2">我的服事</h2>
-        <p class="text-sm font-semibold sub">查詢服事班表</p>
-        <div class="mt-6 inline-flex items-center gap-1 text-indigo-600 font-bold text-sm">
-          進入查詢系統
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 transition-transform group-hover:translate-x-1">
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-            <polyline points="12 5 19 12 12 19"></polyline>
-          </svg>
-        </div>
+      <a href="./prayer.html" class="entry group flex flex-col items-center gap-2 min-w-0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="entry-icon w-9 h-9 sm:w-10 sm:h-10" aria-hidden="true">
+          <path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"></path>
+        </svg>
+        <span class="text-sm sm:text-base font-medium text-center whitespace-nowrap">我的禱告</span>
       </a>
 
-      <a href="./manager.html" class="entry-card group block rounded-[2rem] p-8 border shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-        <div class="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-6">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-7 h-7">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-            <circle cx="9" cy="7" r="4"></circle>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-          </svg>
-        </div>
-        <h2 class="text-2xl font-black mb-2">個人設定</h2>
-        <p class="text-sm font-semibold sub">設定服事偏好、不可排班日</p>
-        <div class="mt-6 inline-flex items-center gap-1 text-emerald-600 font-bold text-sm">
-          進入個人資料
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 transition-transform group-hover:translate-x-1">
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-            <polyline points="12 5 19 12 12 19"></polyline>
-          </svg>
-        </div>
+      <a href="./search.html" class="entry group flex flex-col items-center gap-2 min-w-0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="entry-icon w-9 h-9 sm:w-10 sm:h-10" aria-hidden="true">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+          <path d="M16 3.128a4 4 0 0 1 0 7.744"></path>
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+        </svg>
+        <span class="text-sm sm:text-base font-medium text-center whitespace-nowrap">我的服事</span>
       </a>
 
-    </div>
+      <a href="./manager.html" class="entry group flex flex-col items-center gap-2 min-w-0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="entry-icon w-9 h-9 sm:w-10 sm:h-10" aria-hidden="true">
+          <path d="M10 15H6a4 4 0 0 0-4 4v2"></path>
+          <path d="m14.305 16.53.923-.382"></path><path d="m15.228 13.852-.923-.383"></path>
+          <path d="m16.852 12.228-.383-.923"></path><path d="m16.852 17.772-.383.924"></path>
+          <path d="m19.148 12.228.383-.923"></path><path d="m19.53 18.696-.382-.924"></path>
+          <path d="m20.772 13.852.924-.383"></path><path d="m20.772 16.148.924.383"></path>
+          <circle cx="18" cy="15" r="3"></circle>
+          <circle cx="9" cy="7" r="4"></circle>
+        </svg>
+        <span class="text-sm sm:text-base font-medium text-center whitespace-nowrap">個人設定</span>
+      </a>
+
+    </nav>
+
+    <!-- 守望花園：全教會累積的有效禱告回應，決定植物長到哪個階段 -->
+    <section id="garden" aria-labelledby="garden-title" class="mt-14 sm:mt-16">
+      <div class="text-center mb-5">
+        <h2 id="garden-title" class="text-2xl sm:text-3xl font-semibold">守望花園</h2>
+        <p class="mt-2 text-base font-normal sub">一起澆灌禱告的種子</p>
+      </div>
+
+      <div class="garden-card p-6 sm:p-8">
+        <div class="relative mx-auto w-full max-w-[360px] aspect-[320/206]">
+          <div id="garden-glow" class="garden-glow absolute inset-0 rounded-[50%]" aria-hidden="true" style="opacity:.3"></div>
+          <!-- 花園畫面由下方程式依「成長進度」畫出 -->
+          <svg id="plant" viewBox="0 0 320 206" class="relative w-full h-full" role="img" aria-label="守望花園"></svg>
+        </div>
+
+        <div class="mt-4 text-center" aria-live="polite">
+          <p class="text-sm font-normal sub">全教會禱告累計</p>
+          <p class="mt-1 font-normal leading-none">
+            <span id="garden-total" class="text-5xl sm:text-6xl tabular-nums font-semibold latin-tight">—</span>
+            <span class="text-lg font-normal sub ml-1">次</span>
+          </p>
+          <p id="garden-stage" class="mt-3 inline-flex items-center gap-2 text-sm font-medium">
+            <span class="stage-pill px-3 py-1 rounded-full" id="garden-stage-name">載入中</span>
+          </p>
+        </div>
+
+        <div class="mt-5 max-w-md mx-auto">
+          <div class="garden-track h-3 rounded-full overflow-hidden" role="progressbar" id="garden-bar" aria-label="花園成長進度" aria-valuemin="0" aria-valuemax="100">
+            <div id="garden-fill" class="garden-fill h-full rounded-full" style="width:0%"></div>
+          </div>
+        </div>
+
+        <p id="garden-banner" class="banner-soft hidden mt-5 mx-auto max-w-md text-center text-sm font-medium rounded-lg px-4 py-3"></p>
+
+        <div id="garden-error" class="hidden mt-5 text-center" role="alert">
+          <p class="text-sm font-normal" style="color:#f5222d">暫時無法讀取禱告回應次數，請稍後再試。</p>
+          <button id="garden-retry" type="button" class="btn-pill btn-primary mt-3">重新載入</button>
+        </div>
+
+        <div class="mt-6 text-center">
+          <a href="./prayer.html" class="btn-pill btn-primary">去為彼此禱告 &rarr;</a>
+        </div>
+      </div>
+    </section>
   </main>
+
+  <script>
+  (function () {
+    // 標語寬度最多為標題的 85%，若超過就自動縮小
+    (function fitTagline(){
+      var t = document.getElementById('tagline'); if (!t) return;
+      var fit = function(){
+        t.style.fontSize = '';
+        var size = parseFloat(getComputedStyle(t).fontSize);
+        var textW = function(){ var r = document.createRange(); r.selectNodeContents(t); return r.getBoundingClientRect().width; };
+        while (textW() > t.clientWidth * 0.85 && size > 10) { size -= 0.5; t.style.fontSize = size + 'px'; }
+      };
+      fit();
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
+      window.addEventListener('resize', fit);
+    })();
+
+    // ==========================================
+    // 守望花園設定：所有數字與文字都集中在這裡，要調整只改這一處
+    // ==========================================
+    var GARDEN = {
+      SUPABASE_URL: "https://jcepavwocdujoeoqxvsd.supabase.co",
+      SUPABASE_KEY: "sb_publishable_Tj2n8e3yY1HyvaFzXRyO_w_PWrVFB7E",
+      RPC_NAME: "get_prayer_total",   // 資料庫函式：只回傳「已核准且公開」貼文的回應總數
+      BANNER: '讓我們繼續用禱告灌溉，期待美好的花朵綻放',   // 進入新階段時顯示
+      TIMEOUT_MS: 8000,
+      REFRESH_AFTER_MS: 60000,        // 回到分頁時，超過這個時間才重新讀取
+      // 階段：min 是該階段起算的次數（依小到大排列）
+      STAGES: [
+        { id: 'seed',   name: '種子睡著了', label: '種子睡著了', min: 0 },
+        { id: 'sprout', name: '小芽冒出來', label: '小芽冒出來', min: 100 },
+        { id: 'grow',   name: '小苗長大了', label: '小苗長大了', min: 500 },
+        { id: 'bloom',  name: '花兒悄悄綻放', label: '花兒悄悄綻放', min: 1000 },
+        { id: 'garden', name: '生命豐盛成長', label: '生命豐盛成長', min: 2000, full: 3000 }   // full：花園完全長成的次數
+      ]
+    };
+
+    // ==========================================
+    // 花園場景（簡潔抽象風）：用「成長進度 p」一次畫出整個畫面
+    // p 的意思：0–1 種子、1–2 發芽、2–3 成長、3–4 開花、4–5 花園蔓延
+    // 畫面只用四種東西：一條地平線、細線（莖）、半透明的圓（花）、柔和的半圓色塊（背景）
+    // 每個元素有自己的開始時間與緩動，所以不會同時出現、也不會機械式排列
+    // ==========================================
+    function buildScene(svg) {
+      var NS = 'http://www.w3.org/2000/svg';
+      function mk(tag, attrs, parent) {
+        var e = document.createElementNS(NS, tag);
+        for (var k in attrs) e.setAttribute(k, attrs[k]);
+        if (parent) parent.appendChild(e);
+        return e;
+      }
+      function c01(v) { return Math.max(0, Math.min(1, v)); }
+      function eio(t) { t = c01(t); return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }   // 慢—快—慢
+      function eo(t) { t = c01(t); return 1 - Math.pow(1 - t, 3); }                                      // 先快後慢
+      // 固定的亂數種子：每次看到的花園都長得一樣，但看起來自然不規則
+      var seedN = 20261030;
+      function rnd() {
+        seedN = (seedN + 0x6D2B79F5) | 0;
+        var t = Math.imul(seedN ^ (seedN >>> 15), 1 | seedN);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      }
+      function rr(a, b) { return a + (b - a) * rnd(); }
+      function r1(n) { return Math.round(n * 10) / 10; }
+      function r2(n) { return Math.round(n * 100) / 100; }
+
+      var GROUND_Y = 200;   // 地平線的高度
+
+      // ---- 莖：用曲線取樣，之後可以問「長到 f 的位置在哪、朝向哪裡」----
+      function Stem(x, h, lean, bend) {
+        var P = [
+          { x: x, y: GROUND_Y },
+          { x: x - bend, y: GROUND_Y - h * 0.38 },
+          { x: x + lean * 0.85 + bend * 0.3, y: GROUND_Y - h * 0.72 },
+          { x: x + lean, y: GROUND_Y - h }
+        ];
+        var N = 40, pts = [], cum = [0], i, t, u;
+        for (i = 0; i <= N; i++) {
+          t = i / N; u = 1 - t;
+          pts.push({
+            x: u * u * u * P[0].x + 3 * u * u * t * P[1].x + 3 * u * t * t * P[2].x + t * t * t * P[3].x,
+            y: u * u * u * P[0].y + 3 * u * u * t * P[1].y + 3 * u * t * t * P[2].y + t * t * t * P[3].y
+          });
+          if (i > 0) cum.push(cum[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));
+        }
+        var total = cum[N];
+        this.d = 'M' + r1(P[0].x) + ' ' + r1(P[0].y) + 'C' + r1(P[1].x) + ' ' + r1(P[1].y) + ' ' + r1(P[2].x) + ' ' + r1(P[2].y) + ' ' + r1(P[3].x) + ' ' + r1(P[3].y);
+        this.at = function (f) {
+          var target = c01(f) * total, k = 1;
+          while (k < N && cum[k] < target) k++;
+          var seg = cum[k] - cum[k - 1] || 1, w = (target - cum[k - 1]) / seg;
+          var a = pts[k - 1], b = pts[k];
+          return { x: a.x + (b.x - a.x) * w, y: a.y + (b.y - a.y) * w, a: Math.atan2(b.x - a.x, -(b.y - a.y)) * 180 / Math.PI };
+        };
+      }
+
+      // ---- 葉：一片簡單的橄欖形（兩條弧線）----
+      function Leaf(parent, color) {
+        var g = mk('g', {}, parent);
+        mk('path', { d: 'M0 0C-6 -6 -6 -17 0 -24C6 -17 6 -6 0 0Z', fill: color, opacity: 0.85 }, g);
+        return g;
+      }
+
+      // ---- 花：三種幾何造型 ----
+      //  petals：一圈半透明的圓，重疊處顏色自然加深
+      //  fan   ：由大到小疊起來的半圓（像日出）
+      //  orb   ：由內向外擴開的同心圓
+      var CENTER = '#f8d77f';
+      function Head(parent, R, pal, type, n, double) {
+        var g = mk('g', {}, parent);
+        var parts = [], center = null, i;
+
+        if (type === 'petals') {
+          var rings = double
+            ? [{ n: n, d: 0.52, r: 0.5,  off: 0,       cols: [pal[1], pal[2]], op: 0.55 },
+               { n: n, d: 0.26, r: 0.27, off: 180 / n, cols: [pal[0], pal[0]], op: 0.6 }]
+            : [{ n: n, d: 0.52, r: 0.5,  off: 0,       cols: [pal[1], pal[2]], op: 0.6 }];
+          rings.forEach(function (rg, ri) {
+            for (var k = 0; k < rg.n; k++) {
+              parts.push({
+                el: mk('circle', { cx: 0, cy: 0, r: 1, fill: rg.cols[k % 2], opacity: rg.op }, g),
+                ang: (rg.off + k * 360 / rg.n) * Math.PI / 180,
+                d: R * rg.d, r: R * rg.r, str: ri * 0.12 + (k / rg.n) * 0.18
+              });
+            }
+          });
+          center = mk('circle', { cx: 0, cy: 0, r: r1(R * 0.15), fill: CENTER }, g);
+        } else if (type === 'fan') {
+          [[1, pal[2]], [0.66, pal[1]], [0.34, pal[0]]].forEach(function (f, k) {
+            var rad = r1(R * f[0]);
+            parts.push({ el: mk('path', { d: 'M' + (-rad) + ' 0A' + rad + ' ' + rad + ' 0 0 1 ' + rad + ' 0Z', fill: f[1] }, g), str: k * 0.12 });
+          });
+        } else {   // orb
+          [[1, pal[2], 0.6, 0], [0.62, pal[1], 0.85, 0], [0.3, pal[0], 1, 1.5]].forEach(function (f, k) {
+            parts.push({ el: mk('circle', { cx: 0, cy: 0, r: r1(R * f[0]), fill: f[1], opacity: f[2] }, g), rad: R * f[0], str: (2 - k) * 0.14, bud: f[3] });
+          });
+        }
+
+        return {
+          g: g,
+          // bp：含苞（0→1 慢慢鼓起來）　op：綻放（0→1 慢慢展開）
+          set: function (bp, op) {
+            var hb = eo(bp);
+            if (hb <= 0.001) { g.setAttribute('opacity', 0); return; }
+            g.setAttribute('opacity', 1);
+            var oc = eio(op), ext = 0;   // ext：花朵往下延伸的距離，用來讓花永遠「坐」在莖尖上
+            for (i = 0; i < parts.length; i++) {
+              var P = parts[i], o = eio((op - P.str) / 0.7);
+              if (type === 'petals') {
+                var pr = P.r * (0.55 + 0.45 * o), pd = P.d * o;
+                P.el.setAttribute('cx', r1(Math.sin(P.ang) * pd));
+                P.el.setAttribute('cy', r1(-Math.cos(P.ang) * pd));
+                P.el.setAttribute('r', r1(pr));
+                ext = Math.max(ext, pd + pr);
+              } else if (type === 'fan') {
+                P.el.setAttribute('transform', 'scale(' + r2(0.35 + 0.65 * o) + ')');
+              } else {
+                var sc = P.bud + (1 - P.bud) * o;
+                P.el.setAttribute('transform', 'scale(' + r2(sc) + ')');
+                ext = Math.max(ext, P.rad * sc);
+              }
+            }
+            g.setAttribute('transform', 'translate(0 ' + r1(-ext * hb) + ') scale(' + r2(hb) + ')' + (type === 'petals' ? ' rotate(' + r1(-30 * (1 - oc)) + ')' : ''));
+            if (center) {
+              var co = eio((op - 0.25) / 0.6);
+              center.setAttribute('opacity', co);
+              center.setAttribute('transform', 'scale(' + r2(0.3 + 0.7 * co) + ')');
+            }
+          }
+        };
+      }
+
+      // ---- 一株植物 = 一條細線莖 + 幾片葉 + 一朵花 ----
+      var PALS = {
+        purple:   ['#8806ce', '#a747db', '#c17ee6'],
+        pink:     ['#d4609f', '#e58fc0', '#f4b8d9'],
+        lavender: ['#8a72d8', '#a995ea', '#cfc3f6'],
+        peach:    ['#e98a66', '#f3a98a', '#fac9b0']
+      };
+      var STEM_COLOR = '#86a984';
+      var GREENS = ['#8fb08c', '#a3c1a0', '#7ea27c'];
+
+      function Plant(parent, o) {
+        var root = mk('g', { 'class': 'sway' }, parent);
+        root.style.transformOrigin = o.x + 'px ' + GROUND_Y + 'px';
+        root.style.setProperty('--amp', o.amp + 'deg');
+        root.style.animationDuration = o.dur + 's';
+        root.style.animationDelay = '-' + o.delay + 's';
+        var stem = new Stem(o.x, o.h, o.lean, o.bend);
+        var path = mk('path', { d: stem.d, fill: 'none', stroke: STEM_COLOR, 'stroke-width': o.sw, 'stroke-linecap': 'round', pathLength: 1, 'stroke-dasharray': 1, 'stroke-dashoffset': 1, opacity: 0 }, root);
+        var leaves = [];
+        for (var i = 0; i < o.leaves.length; i++) {
+          var L = o.leaves[i];
+          leaves.push({ el: Leaf(root, GREENS[Math.floor(rnd() * GREENS.length)]), f: L.f, side: L.side, ang: rr(30, 52), size: L.size });
+        }
+        var headPos = mk('g', {}, root);
+        var head = Head(headPos, o.R, PALS[o.pal], o.type, o.n, o.double);
+        return {
+          start: o.start, dur: o.dur2,
+          update: function (sp, bp, op) {
+            path.setAttribute('opacity', sp > 0.002 ? 1 : 0);
+            path.setAttribute('stroke-dashoffset', r1((1 - sp) * 1000) / 1000);
+            for (var i = 0; i < leaves.length; i++) {
+              var L = leaves[i], lp = eio((sp - L.f) / 0.25);
+              if (lp <= 0.001) { L.el.setAttribute('opacity', 0); continue; }
+              var pos = stem.at(Math.min(L.f, sp));
+              L.el.setAttribute('opacity', 1);
+              L.el.setAttribute('transform', 'translate(' + r1(pos.x) + ' ' + r1(pos.y) + ') rotate(' + r1(pos.a + L.side * (10 + L.ang * lp)) + ') scale(' + r2(L.size * lp) + ')');
+            }
+            var tip = stem.at(sp);
+            headPos.setAttribute('transform', 'translate(' + r1(tip.x) + ' ' + r1(tip.y) + ') rotate(' + r1(tip.a * 0.6) + ')');
+            head.set(bp, op);
+          }
+        };
+      }
+
+      // ================= 建立畫面（由後往前疊）=================
+      svg.innerHTML = '';
+
+      // 1) 背景色塊：從地平線慢慢升起的柔和半圓
+      var sunLayer = mk('g', { 'class': 'g-suns' }, svg);
+      var suns = [
+        { cx: 160, r: 72, col: '#c9b8f2', op: 0.20, s: 2.3, d: 1.2 },
+        { cx: 238, r: 46, col: '#f4b8d9', op: 0.22, s: 3.4, d: 1.1 },
+        { cx: 82,  r: 38, col: '#fac9b0', op: 0.26, s: 3.7, d: 1.1 }
+      ].map(function (s) {
+        s.el = mk('path', { d: 'M' + (-s.r) + ' 0A' + s.r + ' ' + s.r + ' 0 0 1 ' + s.r + ' 0Z', fill: s.col, opacity: s.op, transform: 'translate(' + s.cx + ' ' + GROUND_Y + ') scale(0)' }, sunLayer);
+        return s;
+      });
+
+      // 2) 地平線：一條細線，從中間慢慢向兩側延伸
+      var horizon = mk('line', { x1: 108, y1: GROUND_Y, x2: 212, y2: GROUND_Y, 'class': 'g-horizon', 'stroke-width': 1.2, 'stroke-linecap': 'round' }, svg);
+
+      // 3) 地平線上的小圓點（花園長成後才出現）
+      var dots = [[44, '#c17ee6'], [70, '#f4b8d9'], [118, '#fac9b0'], [205, '#cfc3f6'], [246, '#c17ee6'], [272, '#fac9b0']].map(function (d) {
+        return { el: mk('circle', { cx: d[0], cy: GROUND_Y - 1.8, r: 0, fill: d[1] }, svg), start: 4.0 + Math.abs(d[0] - 160) / 160 * 0.5 };
+      });
+
+      // 4) 種子：一顆小圓點 + 一圈慢慢呼吸的細環
+      var seedG = mk('g', {}, svg);
+      var seedRing = mk('circle', { cx: 160, cy: 195, r: 9, fill: 'none', stroke: '#c17ee6', 'stroke-width': 1, opacity: 0, 'class': 'seed-ring' }, seedG);
+      var seedDot = mk('circle', { cx: 160, cy: 195, r: 4.5, fill: '#a747db' }, seedG);
+
+      // 5) 花：位置、高度、大小、造型、顏色都手排，刻意不對稱
+      var secondary = [
+        { x: -120, h: 46,  R: 10, pal: 'lavender', type: 'orb',    back: 1 },
+        { x: -95,  h: 70,  R: 14, pal: 'pink',     type: 'petals', n: 5, back: 1 },
+        { x: -62,  h: 100, R: 19, pal: 'peach',    type: 'fan',    back: 1 },
+        { x: -78,  h: 36,  R: 8,  pal: 'purple',   type: 'orb',    back: 0 },
+        { x: -30,  h: 58,  R: 13, pal: 'pink',     type: 'fan',    back: 0 },
+        { x: 28,   h: 78,  R: 13, pal: 'lavender', type: 'petals', n: 5, back: 0 },
+        { x: 45,   h: 38,  R: 8,  pal: 'peach',    type: 'orb',    back: 0 },
+        { x: 62,   h: 104, R: 19, pal: 'pink',     type: 'petals', n: 6, back: 1 },
+        { x: 98,   h: 64,  R: 16, pal: 'purple',   type: 'fan',    back: 1 },
+        { x: 124,  h: 52,  R: 11, pal: 'lavender', type: 'orb',    back: 0 }
+      ];
+      var layerBack = mk('g', {}, svg), layerMain = mk('g', {}, svg), layerFront = mk('g', {}, svg);
+      var plants = [];
+      secondary.forEach(function (s) {
+        var x = 160 + s.x, ds = Math.abs(s.x) / 160;
+        var leavesDef = [{ f: 0.34, side: -1, size: rr(0.55, 0.75) }, { f: 0.55, side: 1, size: rr(0.5, 0.7) }];
+        if (s.h > 90) leavesDef.push({ f: 0.2, side: 1, size: rr(0.65, 0.8) });
+        var pl = Plant(s.back ? layerBack : layerFront, {
+          x: x, h: s.h, lean: rr(-12, 12), bend: rr(-8, 8), sw: 1.5, R: s.R, pal: s.pal, type: s.type, n: s.n,
+          leaves: leavesDef, amp: r1(rr(0.7, 1.4)), dur: r1(rr(7, 11)), delay: r1(rr(0, 8)),
+          start: 4.06 + ds * 0.5 + rr(0, 0.08), dur2: 0.4
+        });
+        plants.push(pl);
+      });
+
+      // 中央第一朵花（兩圈圓，像一朵簡化的曼陀羅）
+      var main = Plant(layerMain, {
+        x: 160, h: 112, lean: 4, bend: 6, sw: 2.2, R: 26, pal: 'purple', type: 'petals', n: 6, double: true,
+        leaves: [
+          { f: 0.08, side: -1, size: 0.7 }, { f: 0.1, side: 1, size: 0.66 },
+          { f: 0.34, side: -1, size: 1.0 }, { f: 0.5, side: 1, size: 1.0 },
+          { f: 0.68, side: -1, size: 0.8 }
+        ],
+        amp: 0.9, dur: 9.5, delay: 1.5, start: 0, dur2: 1
+      });
+
+      // 6) 光點（花園長成後，非常緩慢地飄起）
+      var lights = mk('g', { opacity: 0 }, svg);
+      var lightCols = ['#f4b8d9', '#fac9b0', '#cfc3f6'];
+      for (var l = 0; l < 8; l++) {
+        var dot = mk('circle', { cx: r1(rr(30, 290)), cy: r1(rr(70, 180)), r: r1(rr(1, 1.8)), fill: lightCols[l % 3], opacity: 0.7 }, lights);
+        dot.setAttribute('class', 'mote');
+        dot.style.animationDuration = r1(rr(9, 15)) + 's';
+        dot.style.animationDelay = '-' + r1(rr(0, 12)) + 's';
+      }
+
+      function set(p) {
+        // 地平線：從中間向兩側慢慢延伸
+        var hw = 52 + 84 * eio(p / 4.6);
+        horizon.setAttribute('x1', r1(160 - hw));
+        horizon.setAttribute('x2', r1(160 + hw));
+        // 種子：稍微鼓起，發芽後淡成莖底的一個小點，細環消失
+        var sw = c01(p / 0.6);
+        seedDot.setAttribute('r', r2(4.5 + 0.7 * sw));
+        seedRing.setAttribute('opacity', r2(0.55 * c01(p / 0.25) * (1 - c01((p - 1.2) / 0.6))));
+        seedG.setAttribute('opacity', r2(1 - 0.45 * c01((p - 1.2) / 1.2)));
+        // 背景半圓：從地平線慢慢升起
+        for (var s = 0; s < suns.length; s++) {
+          var S = suns[s];
+          S.el.setAttribute('transform', 'translate(' + S.cx + ' ' + GROUND_Y + ') scale(' + r2(eo((p - S.s) / S.d)) + ')');
+        }
+        // 中央主莖：發芽 → 抽高 → 長葉，之後含苞、開花
+        main.update(eio((p - 0.45) / 2.05), eio((p - 2.5) / 0.5), eio((p - 3) / 1));
+        // 其他花：從中心向外蔓延
+        for (var j = 0; j < plants.length; j++) {
+          var q = (p - plants[j].start) / plants[j].dur;
+          plants[j].update(eio(q / 0.6), eio((q - 0.45) / 0.2), eio((q - 0.6) / 0.4));
+        }
+        for (var k = 0; k < dots.length; k++) dots[k].el.setAttribute('r', r2(1.8 * eo((p - dots[k].start) / 0.4)));
+        lights.setAttribute('opacity', r2(eio((p - 4.3) / 0.6)));
+      }
+      set(0);
+      return { set: set };
+    }
+
+    var $ = function (id) { return document.getElementById(id); };
+    var els = {
+      total: $('garden-total'), stageName: $('garden-stage-name'), bar: $('garden-bar'), fill: $('garden-fill'),
+      banner: $('garden-banner'), error: $('garden-error'),
+      retry: $('garden-retry'), plant: $('plant'), glow: $('garden-glow')
+    };
+    var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var lastLoad = 0;
+    var loading = false;
+
+    function stageIndexFor(total) {
+      var idx = 0;
+      for (var i = 0; i < GARDEN.STAGES.length; i++) { if (total >= GARDEN.STAGES[i].min) idx = i; }
+      return idx;
+    }
+
+    var scene = buildScene(els.plant);
+    var grow = { p: 0, target: 0, raf: 0, visible: false };
+
+    function setP(p) {
+      grow.p = p;
+      scene.set(p);
+      els.glow.style.opacity = String(0.3 + 0.7 * Math.min(1, p / 4));
+    }
+    function runTo() {
+      cancelAnimationFrame(grow.raf);
+      var from = grow.p, to = grow.target;
+      if (Math.abs(to - from) < 0.001) return;
+      // 走得越遠，花的時間越長（約 1.2~16 秒）；全程慢—快—慢，比以前更悠哉
+      var dur = Math.max(1200, Math.min(16000, Math.abs(to - from) * 3200 + 1200));
+      var t0 = null;
+      function step(ts) {
+        if (t0 === null) t0 = ts;
+        var u = Math.min(1, (ts - t0) / dur);
+        var e = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+        setP(from + (to - from) * e);
+        if (u < 1) grow.raf = requestAnimationFrame(step); else setP(to);
+      }
+      grow.raf = requestAnimationFrame(step);
+    }
+    function growTo(p, snap) {
+      grow.target = p;
+      if (reduceMotion || snap) { cancelAnimationFrame(grow.raf); setP(p); return; }
+      if (grow.visible) runTo();
+    }
+    // 畫面捲到花園時才開始長
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (entries) {
+        if (entries[0].isIntersecting && !grow.visible) { grow.visible = true; if (!reduceMotion) runTo(); }
+      }, { threshold: 0.4 }).observe(els.plant);
+    } else {
+      grow.visible = true;
+    }
+
+    function formatNum(n) { return Number(n).toLocaleString('zh-TW'); }
+
+    function animateNumber(to) {
+      if (reduceMotion || to === 0) { els.total.textContent = formatNum(to); return; }
+      var start = null, dur = 900;
+      function step(ts) {
+        if (start === null) start = ts;
+        var p = Math.min(1, (ts - start) / dur);
+        els.total.textContent = formatNum(Math.round(to * (1 - Math.pow(1 - p, 3))));
+        if (p < 1) requestAnimationFrame(step); else els.total.textContent = formatNum(to);
+      }
+      requestAnimationFrame(step);
+    }
+
+    function render(total) {
+      var idx = stageIndexFor(total);
+      var cur = GARDEN.STAGES[idx];
+      var next = GARDEN.STAGES[idx + 1];
+      var pct;
+      var span = next ? (next.min - cur.min) : (cur.full ? (cur.full - cur.min) : 0);
+      var frac = span > 0 ? Math.max(0, Math.min(1, (total - cur.min) / span)) : 1;
+      pct = frac * 100;
+      pct = Math.max(0, Math.min(100, pct));
+
+      growTo(idx + frac);
+      els.plant.setAttribute('aria-label', '守望花園：' + cur.label);
+      animateNumber(total);
+      els.stageName.textContent = cur.label;
+      els.fill.style.width = pct.toFixed(1) + '%';
+      els.bar.setAttribute('aria-valuenow', String(Math.round(pct)));
+      els.bar.setAttribute('aria-valuetext', next ? ('已完成 ' + Math.round(pct) + '%') : '持續成長中');
+      els.error.classList.add('hidden');
+
+      // 達成新階段時，顯示簡短鼓勵訊息（只在比上次來訪更高的階段才顯示）
+      var seen = null;
+      try { seen = localStorage.getItem('tbc_garden_stage'); } catch (e) {}
+      var seenIdx = -1;
+      for (var i = 0; i < GARDEN.STAGES.length; i++) { if (GARDEN.STAGES[i].id === seen) seenIdx = i; }
+      if (seenIdx >= 0 && idx > seenIdx) {
+        els.banner.textContent = GARDEN.BANNER;
+        els.banner.classList.remove('hidden');
+      } else {
+        els.banner.classList.add('hidden');
+      }
+      try { localStorage.setItem('tbc_garden_stage', cur.id); } catch (e) {}
+    }
+
+    function renderFailure() {
+      // 讀取失敗：維持穩定的預設畫面（播種），不顯示任何數字或進度
+      growTo(0, true);
+      els.total.textContent = '—';
+      els.stageName.textContent = '暫時無法顯示';
+      els.fill.style.width = '0%';
+      els.bar.removeAttribute('aria-valuenow');
+      els.bar.setAttribute('aria-valuetext', '無法讀取');
+      els.banner.classList.add('hidden');
+      els.error.classList.remove('hidden');
+    }
+
+    function renderLoading() {
+      els.stageName.textContent = '載入中';
+      els.total.classList.add('garden-skeleton');
+      els.error.classList.add('hidden');
+    }
+
+    function load() {
+      if (loading) return;
+      loading = true;
+      renderLoading();
+      var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, GARDEN.TIMEOUT_MS);
+      fetch(GARDEN.SUPABASE_URL + '/rest/v1/rpc/' + GARDEN.RPC_NAME, {
+        method: 'POST',
+        headers: { 'apikey': GARDEN.SUPABASE_KEY, 'Content-Type': 'application/json' },
+        body: '{}',
+        signal: ctrl ? ctrl.signal : undefined
+      })
+        .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+        .then(function (data) {
+          var n = Number(data);
+          if (data === null || typeof data === 'object' || !isFinite(n) || n < 0) throw new Error('bad data');
+          lastLoad = Date.now();
+          els.total.classList.remove('garden-skeleton');
+          render(Math.floor(n));
+        })
+        .catch(function (err) {
+          console.error('讀取禱告回應總數失敗:', err);
+          els.total.classList.remove('garden-skeleton');
+          renderFailure();
+        })
+        .then(function () { clearTimeout(timer); loading = false; });
+    }
+
+    els.retry.addEventListener('click', load);
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible' && lastLoad && Date.now() - lastLoad > GARDEN.REFRESH_AFTER_MS) load();
+    });
+    load();
+  })();
+  </script>
 </body>
 </html>

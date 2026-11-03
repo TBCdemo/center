@@ -77,13 +77,13 @@
           Calendar, User, LogOut, Heart, Monitor, Users, Smile, BookOpen, 
           Coffee, RefreshCw, AlertCircle, ArrowLeft, UserCheck, HandHeart, 
           Clock, Briefcase, Info, Link as LinkIcon, X, Timer, UserX, CalendarPlus,
-          Copy, Check, Home, Menu
+          Copy, Check, Home, Menu, GraduationCap, Star, FolderOpen, ShieldCheck
         } from 'lucide-react';
         import { createClient } from '@supabase/supabase-js';
 
         // --- Supabase 初始化設定 ---
-        const SUPABASE_URL = "https://iwmkzsredvbgcqvqlayn.supabase.co";
-        const SUPABASE_KEY = "sb_publishable_GwDMLoXcHaTzQDCcQlDuGw_4J9mwiaA";
+        const SUPABASE_URL = "https://jcepavwocdujoeoqxvsd.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_Tj2n8e3yY1HyvaFzXRyO_w_PWrVFB7E";
         const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
         
         // --- 儲存輔助函式 ---
@@ -477,7 +477,7 @@
         }
 
         // --- Views ---
-        function NavMenu({ light, onBack, onLogout }) {
+        function NavMenu({ light, invert, onBack, onLogout }) {
           const [open, setOpen] = useState(false);
           const itemCls = "w-full flex items-center gap-3 px-4 py-3.5 text-sm font-medium text-slate-600 transition-colors text-left";
           return (
@@ -490,7 +490,7 @@
                 className={`w-11 h-11 flex items-center justify-center rounded-full transition-colors ${
                   light
                     ? 'bg-white border border-slate-200 text-slate-600 shadow-sm hover:text-indigo-600'
-                    : 'bg-white/15 text-white hover:bg-white/25'
+                    : (invert ? 'bg-white/15 text-white hover:bg-white/25' : 'bg-white/15 text-white hover:bg-white/25')
                 }`}
               >
                 {open ? <X size={22} /> : <Menu size={22} />}
@@ -525,54 +525,73 @@
           );
         }
 
-        // 將登入帳號（手機或 email）轉成遮蔽顯示格式，與「個人設定」相同，例如 0922***575
-        const VIRTUAL_DOMAIN = "@tbc.gmail.com";
-        const maskAccountForDisplay = (rawEmail) => {
-          if (!rawEmail) return '';
-          if (rawEmail.endsWith(VIRTUAL_DOMAIN)) {
-            const phone = rawEmail.replace(VIRTUAL_DOMAIN, '');
-            return phone.length >= 7 ? `${phone.slice(0, 4)}***${phone.slice(-3)}` : phone;
-          }
-          const atIndex = rawEmail.indexOf('@');
-          if (atIndex === -1) return rawEmail;
-          return `${rawEmail.slice(0, 3)}${'*'.repeat(7)}@${rawEmail.slice(atIndex + 1)}`;
+        // 權限對應的圖示與提示文字（和後台「同工資料中心」一致）
+        const ROLE_META = {
+          member:      { label: '會友',       Icon: User },
+          coworker:    { label: '同工',       Icon: UserCheck },
+          admin_staff: { label: '行政',       Icon: FolderOpen },
+          leader:      { label: '領袖',       Icon: Star },
+          pastor:      { label: '牧師',       Icon: GraduationCap },
+          admin:       { label: '系統管理員', Icon: ShieldCheck },
         };
 
         // 頂部列（漢堡選單 + 標題）＋ 會員資料區，仿 momo 版面
         function AppHeader({ title, name, seasonType, onBack, onLogout, canSwitch, onSwitch, subText }) {
-          const bg = seasonType === 'view' ? 'bg-indigo-600' : 'bg-emerald-600';
-          const [maskedAccount, setMaskedAccount] = useState('');
+          // 預排表用淺色主色 #8ebe84，文字改深綠色才看得清楚；服事表維持原本的靛藍＋白字
+          const isNext = seasonType !== 'view';
+          const bg = isNext ? 'bg-[#8ebe84]' : 'bg-indigo-600';
+          const fg = isNext ? 'text-white' : 'text-white';
+          const softBtn = isNext ? 'bg-white/15 hover:bg-white/25' : 'bg-white/15 hover:bg-white/25';
+          const avatarBg = isNext ? 'bg-white/20' : 'bg-white/20';
+
+          // 權限圖示：只有「登入帳號本人」就是畫面上這個姓名時才顯示他的權限；
+          // 查別人的姓名、沒登入、或讀不到，一律顯示一般的人像圖示（不顯示任何權限）
+          const [role, setRole] = useState(null);
           useEffect(() => {
             let alive = true;
-            supabase.auth.getSession().then(({ data }) => {
-              if (alive) setMaskedAccount(maskAccountForDisplay(data?.session?.user?.email));
-            }).catch(() => {});
+            setRole(null);
+            (async () => {
+              try {
+                const { data } = await supabase.auth.getSession();
+                const uid = data?.session?.user?.id;
+                if (!uid || !name) return;
+                const { data: myIds } = await supabase.rpc('my_member_ids');
+                const mine = (myIds || []).map(x => (typeof x === 'string' ? x : Object.values(x || {})[0]));
+                if (mine.length === 0) return;
+                const { data: rows } = await supabase.from('vw_public_members').select('id').eq('name', name);
+                if (!(rows || []).some(r => mine.includes(r.id))) return;
+                const { data: r } = await supabase.from('user_roles').select('role').eq('user_uid', uid).maybeSingle();
+                if (alive) setRole(r?.role || 'member');
+              } catch (e) {}
+            })();
             return () => { alive = false; };
-          }, []);
+          }, [name]);
+          const meta = role ? ROLE_META[role] : null;
+          const RoleIcon = meta ? meta.Icon : User;
+
           return (
             <React.Fragment>
-              <nav className={`${bg} text-white sticky top-0 z-50 transition-colors duration-500`} style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+              <nav className={`${bg} ${fg} sticky top-0 z-50 transition-colors duration-500`} style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
                 <div className="max-w-2xl mx-auto w-full px-4 sm:px-6 py-3 flex items-center justify-between">
-                  <NavMenu onBack={onBack} onLogout={onLogout} />
+                  <NavMenu invert={isNext} onBack={onBack} onLogout={onLogout} />
                   <h1 className="text-lg font-semibold">{title}</h1>
                   <div className="w-11 h-11 flex items-center justify-center shrink-0">
                     {canSwitch && (
-                      <button onClick={onSwitch} title="查詢切換" aria-label="查詢切換" className="w-11 h-11 flex items-center justify-center rounded-full bg-white/15 hover:bg-white/25 transition-colors">
+                      <button onClick={onSwitch} title="查詢切換" aria-label="查詢切換" className={`w-11 h-11 flex items-center justify-center rounded-full ${softBtn} transition-colors`}>
                         <RefreshCw size={20} />
                       </button>
                     )}
                   </div>
                 </div>
               </nav>
-              <div className={`${bg} text-white transition-colors duration-500`}>
+              <div className={`${bg} ${fg} transition-colors duration-500`}>
                 <div className="max-w-2xl mx-auto w-full px-4 sm:px-6 pt-1 pb-6 flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-                    <User size={32} />
+                  <div title={meta ? meta.label : undefined} aria-label={meta ? meta.label : undefined} className={`w-16 h-16 rounded-full ${avatarBg} flex items-center justify-center shrink-0 ${meta ? 'cursor-help' : ''}`}>
+                    <RoleIcon size={32} />
                   </div>
                   <div className="min-w-0">
                     <h2 className="text-2xl font-semibold truncate">{name}</h2>
-                    {maskedAccount && <p className="text-sm font-semibold text-white/90 mt-1.5 truncate">{maskedAccount}</p>}
-                    {subText && <p className="text-sm font-medium text-white/80 mt-0.5">{subText}</p>}
+                    {subText && <p className="text-sm font-medium opacity-80 mt-0.5">{subText}</p>}
                   </div>
                 </div>
               </div>
@@ -590,7 +609,7 @@
               </div>
               <div className="bg-white rounded-lg w-full max-w-md p-6 sm:p-8 border border-slate-100">
                 <div className="flex flex-col items-center mb-8">
-                  <div className={`p-4 rounded-lg text-white shadow-button mb-4 transition-colors duration-500 ${seasonType === 'view' ? 'bg-indigo-600' : 'bg-emerald-600'}`}>
+                  <div className={`p-4 rounded-lg shadow-button mb-4 transition-colors duration-500 ${seasonType === 'view' ? 'bg-indigo-600 text-white' : 'bg-[#8ebe84] text-white'}`}>
                     <Calendar size={32} />
                   </div>
                   <h2 className="text-2xl font-semibold text-slate-900 text-center leading-tight">歡迎查詢</h2>
@@ -609,7 +628,7 @@
                             <button 
                                 onClick={() => setSeasonType('next')}
                                 type="button"
-                                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 flex flex-col items-center justify-center leading-tight ${seasonType === 'next' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 flex flex-col items-center justify-center leading-tight ${seasonType === 'next' ? 'bg-white text-[#3f7a36] shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                             >
                                 <span>{seasonLabels.next}</span>
                                 <span>預排表</span>
@@ -630,7 +649,7 @@
                   </div>
 
                   {loginError && <div className="flex items-center gap-2 text-red-500 bg-red-50 p-3 rounded-lg text-sm font-medium"><AlertCircle size={16} /><span>{loginError}</span></div>}
-                  <button type="submit" className={`w-full text-white font-medium py-3.5 rounded-full hover:-translate-y-0.5 transition-all duration-200 text-base ${seasonType === 'view' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
+                  <button type="submit" className={`w-full font-medium py-3.5 rounded-full hover:-translate-y-0.5 transition-all duration-200 text-base ${seasonType === 'view' ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-[#8ebe84] hover:bg-[#7aab70] text-white'}`}>
                       查詢
                   </button>
                 </form>
@@ -845,7 +864,7 @@
               <main className="flex-grow p-4 sm:p-6 space-y-4 max-w-2xl mx-auto w-full">
                 <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
                     <div className="flex items-center gap-2">
-                        <Calendar className={seasonType === 'view' ? 'text-indigo-500' : 'text-emerald-500'} size={20} />
+                        <Calendar className={seasonType === 'view' ? 'text-indigo-500' : 'text-[#4f8a45]'} size={20} />
                         <h3 className="text-lg sm:text-xl font-medium text-slate-800">
                             {seasonType === 'view' ? `${seasonLabels.current} 服事班表` : `${seasonLabels.next} 預排班表`}
                         </h3>
@@ -853,7 +872,7 @@
                     {!isSyncing && isViewAllowed && displayShifts.length > 0 && (seasonType === 'view' || (seasonType === 'next' && nextButtonsConfig)) && (
                         <button
                             onClick={handleDownloadAllICS}
-                            className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium shadow-sm transition-all active:scale-95 text-white ${seasonType === 'view' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                            className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium shadow-sm transition-all active:scale-95 ${seasonType === 'view' ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-[#8ebe84] hover:bg-[#7aab70] text-white'}`}
                         >
                             <CalendarPlus size={14} />
                             全部加入行事曆（{displayShifts.length}）
@@ -880,15 +899,15 @@
                   <div className="flex flex-col items-center justify-center py-20 animate-in fade-in">
                     <div className="bg-white p-8 rounded-lg shadow-sm border border-slate-100 w-full max-w-sm text-center">
                         <div className="mb-4 relative mx-auto w-16 h-16">
-                             <svg className={`animate-spin w-full h-full ${seasonType === 'view' ? 'text-indigo-100' : 'text-emerald-100'}`} viewBox="0 0 24 24">
+                             <svg className={`animate-spin w-full h-full ${seasonType === 'view' ? 'text-indigo-100' : 'text-[#e3efe0]'}`} viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                              </svg>
-                             <div className={`absolute inset-0 flex items-center justify-center text-xs font-semibold ${seasonType === 'view' ? 'text-indigo-500' : 'text-emerald-500'}`}>{progress}%</div>
+                             <div className={`absolute inset-0 flex items-center justify-center text-xs font-semibold ${seasonType === 'view' ? 'text-indigo-500' : 'text-[#4f8a45]'}`}>{progress}%</div>
                         </div>
                         <h3 className="text-lg font-semibold text-slate-800 mb-6">Loading</h3>
                         <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                            <div className={`h-full rounded-full transition-all duration-300 ease-out ${seasonType === 'view' ? 'bg-indigo-500' : 'bg-emerald-500'}`} style={{ width: `${progress}%` }}></div>
+                            <div className={`h-full rounded-full transition-all duration-300 ease-out ${seasonType === 'view' ? 'bg-indigo-500' : 'bg-[#8ebe84]'}`} style={{ width: `${progress}%` }}></div>
                         </div>
                     </div>
                   </div>
