@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <script src="../management/tbc-config.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -82,8 +83,7 @@
         import { createClient } from '@supabase/supabase-js';
 
         // --- Supabase 初始化設定 ---
-        const SUPABASE_URL = "https://iwmkzsredvbgcqvqlayn.supabase.co";
-        const SUPABASE_KEY = "sb_publishable_GwDMLoXcHaTzQDCcQlDuGw_4J9mwiaA";
+        const { SUPABASE_URL, SUPABASE_KEY } = window.TBC_CONFIG;   // 來自 management/tbc-config.js
         const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
         
         // --- 儲存輔助函式 ---
@@ -223,7 +223,11 @@
                     ]);
 
                     // 🟢 尋找 SYSTEM_CONFIG 解析開關狀態
-                    const configMember = membersData.find(m => m.name === 'SYSTEM_CONFIG');
+                    const sysSwitch = (name) => {
+                        const mem = membersData.find(m => m.name === name);
+                        return mem ? (quarterSettingsData || []).find(q => q.member_id === mem.id && q.quarter === 'SYSTEM') : null;
+                    };
+                    const configMember = sysSwitch('SYSTEM_CONFIG');
                     if (configMember) {
                         const status = configMember.availability_status || 'CURRENT';
                         const parsedConfig = {
@@ -243,7 +247,7 @@
                     }
 
                     // 🟢 尋找 SYSTEM_NEXT_BUTTONS 解析預排表按鈕狀態
-                    const buttonConfigMember = membersData.find(m => m.name === 'SYSTEM_NEXT_BUTTONS');
+                    const buttonConfigMember = sysSwitch('SYSTEM_NEXT_BUTTONS');
                     if (buttonConfigMember) {
                         setNextButtonsConfig(buttonConfigMember.availability_status === 'ON');
                     } else {
@@ -336,21 +340,19 @@
                       let unavail = '';
                       if (qs?.unavailable_dates) {
                           try { unavail = typeof qs.unavailable_dates === 'string' ? JSON.parse(qs.unavailable_dates).join(',') : qs.unavailable_dates.join(','); } catch(e) { unavail = qs.unavailable_dates; }
-                      } else if (m.unavailable_dates) {
-                          try { unavail = typeof m.unavailable_dates === 'string' ? JSON.parse(m.unavailable_dates).join(',') : m.unavailable_dates.join(','); } catch(e) { unavail = m.unavailable_dates; }
                       }
 
                       return {
                           id: m.id,
                           name: m.name,
-                          session: qs?.preferred_session || m.preferred_session || '皆可',
+                          session: qs?.preferred_session || '皆可',
                           unavailable: unavail,
-                          willingness: qs?.availability_status || m.availability_status || '可排班',
+                          willingness: qs?.availability_status || '可排班',
                           groupId: m.group_id || '',
-                          session2: parseInt(qs?.dual_service_pref ?? m.dual_service_pref ?? 0, 10) === 1 ? '二堂同崗' : (parseInt(qs?.dual_service_pref ?? m.dual_service_pref ?? 0, 10) === 2 ? '二堂異崗' : ''),
+                          session2: parseInt(qs?.dual_service_pref ?? 0, 10) === 1 ? '二堂同崗' : (parseInt(qs?.dual_service_pref ?? 0, 10) === 2 ? '二堂異崗' : ''),
                           roles: pRoles,
-                          rawDualPref: parseInt(qs?.dual_service_pref ?? m.dual_service_pref ?? 0, 10),
-                          newcomerRule: qs?.newcomer_rule ?? m.newcomer_rule ?? null 
+                          rawDualPref: parseInt(qs?.dual_service_pref ?? 0, 10),
+                          newcomerRule: qs?.newcomer_rule ?? null 
                       };
                   });
               setPeopleData(transformedPeople);
@@ -531,8 +533,8 @@
           coworker:    { label: '同工',       Icon: UserCheck },
           admin_staff: { label: '行政',       Icon: FolderOpen },
           leader:      { label: '領袖',       Icon: Star },
-          pastor:      { label: '牧師',       Icon: GraduationCap },
-          admin:       { label: '系統管理員', Icon: ShieldCheck },
+          pastor:      { label: '牧者',       Icon: GraduationCap },
+          admin:       { label: '管理員', Icon: ShieldCheck },
         };
 
         // 頂部列（漢堡選單 + 標題）＋ 會員資料區，仿 momo 版面

@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
 
+    <script src="../management/tbc-config.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = { theme: { extend: { colors: { indigo: {50: '#f7eefc', 100: '#eddaf8', 200: '#d9afef', 300: '#c17ee6', 400: '#a747db', 500: '#941fd3', 600: '#8806ce', 700: '#7205ad', 800: '#5c048c', 900: '#49036f'}, emerald: {50: '#f7eefc', 100: '#eddaf8', 200: '#d9afef', 300: '#c17ee6', 400: '#a747db', 500: '#941fd3', 600: '#8806ce', 700: '#7205ad', 800: '#5c048c', 900: '#49036f'}, sky: {50: '#f7eefc', 100: '#eddaf8', 200: '#d9afef', 300: '#c17ee6', 400: '#a747db', 500: '#941fd3', 600: '#8806ce', 700: '#7205ad', 800: '#5c048c', 900: '#49036f'} } } } }
@@ -60,12 +61,11 @@
         import { createClient } from '@supabase/supabase-js';
 
         // ==========================================
-        // 連線設定（與 manager.html 相同的公開金鑰）
+        // 連線設定（網址與金鑰統一放在 management 的 tbc-config.js）
         // 資料安全不靠這把金鑰，而是靠資料庫裡的警衛規則與權限窗口。
         // 與 manager.html、search.html 連同一個專案（jcepavwocdujoeoqxvsd），登入狀態會自動共用。
         // ==========================================
-        const SUPABASE_URL = "https://iwmkzsredvbgcqvqlayn.supabase.co";
-        const SUPABASE_KEY = "sb_publishable_GwDMLoXcHaTzQDCcQlDuGw_4J9mwiaA";
+        const { SUPABASE_URL, SUPABASE_KEY } = window.TBC_CONFIG;   // 來自 management/tbc-config.js
         const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
         const VIRTUAL_DOMAIN = "@tbc.gmail.com";
         const formatEmailForAuth = (acc) => { const t = (acc || '').trim(); return t.includes('@') ? t : `${t}${VIRTUAL_DOMAIN}`; };
@@ -106,7 +106,7 @@
         };
         const ACTION_LABEL = {
             submitted: '貼文', approved: '核准', returned: '退回',
-            resubmitted: '編輯重新送審', visibility_changed: '誰可以看到貼文變更',
+            resubmitted: '重新送審', visibility_changed: '誰可以看到貼文變更',
             category_changed: '分類變更', privacy_changed: '隱私設定變更', content_edited: '內容修改',
         };
 
@@ -149,8 +149,8 @@
         const btnCancel = `h-12 rounded-full border border-slate-300 bg-slate-50 text-slate-600 text-base font-medium hover:bg-slate-100 active:bg-slate-200 transition-colors duration-150 ${disabledCls} ${focusRing}`;
         const btnSubmitDark = `h-12 rounded-full inline-flex items-center justify-center gap-2 bg-slate-700 text-white text-base font-medium hover:bg-slate-800 active:bg-slate-900 transition-colors duration-150 ${disabledCls} ${focusRing}`;
         const btnReturnSoft = `h-12 rounded-full bg-red-100 text-red-700 text-base font-medium hover:bg-red-200 active:bg-red-300 transition-colors duration-150 ${disabledCls} ${focusRing}`;
-        // 卡片右上角的小按鈕（編輯、取消、儲存、編輯重新送審）
-        const btnGhost = `inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-sm font-medium text-zinc-600 bg-zinc-50 hover:bg-zinc-100 active:bg-zinc-200 transition-colors duration-150 ${disabledCls} ${focusRing}`;
+        // 卡片右上角的小按鈕（編輯、取消、儲存、刪除、重新送審）：沒有底色，圖示＋文字
+        const btnGhost = `inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-sm font-medium text-zinc-600 hover:text-zinc-900 active:text-black transition-colors duration-150 ${disabledCls} ${focusRing}`;
         const btnDanger = `px-4 py-2.5 rounded-full text-sm font-medium border border-red-200 text-red-700 bg-white hover:bg-red-50 active:bg-red-100 transition-colors duration-150 ${disabledCls} ${focusRing}`;
         const inputCls = "w-full bg-zinc-50 border border-zinc-200 rounded-lg px-4 py-3 text-zinc-800 font-medium hover:border-zinc-300 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 transition-colors duration-150";
 
@@ -168,6 +168,7 @@
         const CheckIcon = (p) => <Icon {...p} d={<path d="M20 6 9 17l-5-5" />} />;
         const BellIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M10.268 21a2 2 0 0 0 3.464 0" /><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" /></React.Fragment>} />;
         const MenuIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M4 12h16" /><path d="M4 18h16" /><path d="M4 6h16" /></React.Fragment>} />;
+        const EllipsisIcon = (p) => <Icon {...p} d={<React.Fragment><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></React.Fragment>} />;
         const EllipsisVerticalIcon = (p) => <Icon {...p} d={<React.Fragment><circle cx="12" cy="5" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="12" cy="19" r="1" /></React.Fragment>} />;
         const SquarePlusIcon = (p) => <Icon {...p} d={<React.Fragment><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M8 12h8" /><path d="M12 8v8" /></React.Fragment>} />;
         const UserIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></React.Fragment>} />;
@@ -199,6 +200,12 @@
         const CircleXIcon = (p) => <Icon {...p} d={<React.Fragment><circle cx="12" cy="12" r="10" /><path d="m15 9-6 6" /><path d="m9 9 6 6" /></React.Fragment>} />;
         const UndoIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" /></React.Fragment>} />;
         const XMarkIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M18 6 6 18" /><path d="m6 6 12 12" /></React.Fragment>} />;
+        const ShieldIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /><path d="m9 12 2 2 4-4" /></React.Fragment>} />;
+        const UserCheckIcon = (p) => <Icon {...p} d={<React.Fragment><path d="m16 11 2 2 4-4" /><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></React.Fragment>} />;
+        const FolderOpenIcon = (p) => <Icon {...p} d={<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" />} />;
+        const StarIcon = (p) => <Icon {...p} d={<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" />} />;
+        const GraduationCapIcon = (p) => <Icon {...p} d={<React.Fragment><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z" /><path d="M22 10v6" /><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5" /></React.Fragment>} />;
+        const MessageIcon = (p) => <Icon {...p} d={<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />} />;
         const ActivityIcon = (p) => <Icon {...p} d={<path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" />} />;
 
         // 日期區間：開始日 00:00:00 到結束日 23:59:59（以瀏覽器所在時區計算）
@@ -285,6 +292,15 @@
                 if (error) fail(error);
                 return count || 0;
             },
+            // 貼文「更新」（回覆）：誰能回覆、誰能看，都由資料庫判斷
+            updates: async (postId) => {
+                const d = await rpc('get_prayer_updates', { p_post_id: postId });
+                return { canReply: !!(d && d.can_reply), items: (d && d.items) || [] };
+            },
+            addUpdate: (postId, content) => rpc('add_prayer_update', { p_post_id: postId, p_content: content }),
+            deleteUpdate: (id) => rpc('delete_prayer_update', { p_id: id }),
+            editUpdate: (id, content) => rpc('edit_prayer_update', { p_id: id, p_content: content }),
+            updateCounts: async (ids) => (await rpc('get_prayer_update_counts', { p_ids: ids })) || {},
             markRead: (id) => rpc('mark_prayer_notification_read', { p_id: id }),
             markAllRead: () => rpc('mark_all_prayer_notifications_read', {}),
             pendingCount: async () => {
@@ -308,7 +324,7 @@
         const CategoryAvatar = ({ id }) => {
             const I = CATEGORY_ICON[id] || UserIcon;
             return (
-                <span className="w-10 h-10 shrink-0 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center" title={categoryLabel(id)} role="img" aria-label={`分類：${categoryLabel(id)}`}>
+                <span className="w-10 h-10 shrink-0 rounded-full bg-zinc-100 text-indigo-600 flex items-center justify-center" title={categoryLabel(id)} role="img" aria-label={`分類：${categoryLabel(id)}`}>
                     <I size={20} />
                 </span>
             );
@@ -580,21 +596,23 @@
             useLayoutEffect(() => { if (!expanded) measure(); }, [expanded, text, measure]);
             useEffect(() => {
                 window.addEventListener('resize', measure);
+                window.addEventListener('tbc-fontsize', measure);   // 按 A 改字級後，重新量一次要不要顯示「...更多」
                 if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
-                return () => window.removeEventListener('resize', measure);
+                return () => { window.removeEventListener('resize', measure); window.removeEventListener('tbc-fontsize', measure); };
             }, [measure]);
 
-            const moreCls = `text-[15px] leading-6 font-medium text-zinc-400 hover:text-zinc-700 active:text-zinc-900 transition-colors duration-150 rounded ${focusRing}`;
+            const fsStyle = { fontSize: 'var(--post-fs, 15px)', lineHeight: 1.6 };
+            const moreCls = `font-medium text-zinc-400 hover:text-zinc-700 active:text-zinc-900 transition-colors duration-150 rounded ${focusRing}`;
             return expanded ? (
-                <p className="text-[15px] leading-6 text-zinc-700 whitespace-pre-line break-words">
+                <p style={fsStyle} className="text-zinc-700 whitespace-pre-line break-words">
                     {text}
-                    <button type="button" onClick={() => setExpanded(false)} aria-expanded="true" className={`ml-2 ${moreCls}`}>較少</button>
+                    <button type="button" onClick={() => setExpanded(false)} aria-expanded="true" style={fsStyle} className={`ml-2 ${moreCls}`}>較少</button>
                 </p>
             ) : (
                 <div className="relative">
-                    <p ref={textRef} className="text-[15px] leading-6 text-zinc-700 whitespace-pre-line break-words line-clamp-3">{text}</p>
+                    <p ref={textRef} style={fsStyle} className="text-zinc-700 whitespace-pre-line break-words line-clamp-3">{text}</p>
                     {clamped && (
-                        <button type="button" onClick={() => setExpanded(true)} aria-expanded="false"
+                        <button type="button" onClick={() => setExpanded(true)} aria-expanded="false" style={fsStyle}
                             className={`absolute right-0 bottom-0 pl-10 bg-gradient-to-l from-white from-70% to-transparent ${moreCls}`}>...更多</button>
                     )}
                 </div>
@@ -640,34 +658,454 @@
             );
         };
 
-        const PostCard = ({ p, onResponded }) => {
+        // 「更新」：只有圖示＋更新數量。點了切到這則貼文的完整畫面（貼文＋所有留言）。
+        // 數量用「集中查詢」：同一個畫面的所有貼文，在 30 毫秒內合併成一次資料庫查詢。
+        const updateCounts = { cache: {}, waiters: {}, timer: null };
+        const fetchUpdateCount = (id) => new Promise((resolve) => {
+            const c = updateCounts;
+            if (id in c.cache) return resolve(c.cache[id]);
+            (c.waiters[id] = c.waiters[id] || []).push(resolve);
+            if (c.timer) return;
+            c.timer = setTimeout(async () => {
+                c.timer = null;
+                const waiters = c.waiters; c.waiters = {};
+                const ids = Object.keys(waiters);
+                let map = null;
+                try { map = await api.updateCounts(ids); } catch (e) { console.error('讀取回覆數量失敗:', e); }
+                ids.forEach(i => {
+                    const n = map ? Number(map[i]) || 0 : null;   // 讀取失敗時回傳 null，按鈕不顯示數字
+                    if (n !== null) c.cache[i] = n;
+                    waiters[i].forEach(r => r(n));
+                });
+            }, 30);
+        });
+        // 目前使用者是不是審查權限者（由 App 更新）：審查者即使還沒有更新，也能點進去新增第一則
+        const viewerState = { isReviewer: false };
+        const UpdatesButton = ({ postId, onClick, alwaysEnabled = false }) => {
+            const [n, setN] = useState(updateCounts.cache[postId] ?? null);
+            useEffect(() => {
+                let alive = true;
+                fetchUpdateCount(postId).then(v => { if (alive) setN(v); });
+                return () => { alive = false; };
+            }, [postId]);
+            // 沒有更新就不能點進去（貼文者從「我的禱告」、審查者例外，因為他們要新增第一則）
+            const disabled = n === 0 && !alwaysEnabled && !viewerState.isReviewer;
+            if (disabled) {
+                return (
+                    <span className="inline-flex items-center gap-1.5 text-zinc-300 cursor-default select-none" aria-label="沒有回覆" title="沒有回覆">
+                        <span className="p-2.5 -my-2.5 -mx-2.5 inline-flex"><MessageIcon size={18} /></span>
+                        <span className="text-sm tabular-nums font-medium ml-2.5 min-w-[0.75rem]">0</span>
+                    </span>
+                );
+            }
+            return (
+                <button type="button" onClick={onClick} aria-label={n === null ? '查看回覆' : `查看回覆，共 ${n} 則`} title="限定人員回覆"
+                    className={`inline-flex items-center gap-1.5 text-zinc-400 hover:text-zinc-700 transition-colors duration-150 rounded-full ${focusRing}`}>
+                    <span className="p-2.5 -my-2.5 -mx-2.5 rounded-full hover:bg-zinc-100 active:bg-zinc-200 transition-colors duration-150 inline-flex"><MessageIcon size={18} /></span>
+                    <span className="text-sm tabular-nums font-medium text-zinc-500 ml-2.5 min-w-[0.75rem]">{n === null ? '' : n}</span>
+                </button>
+            );
+        };
+
+        // 權限圖示（圓形淺灰底）：圖示依權限，領袖、牧師、管理員用琥珀色
+        const RoleAvatar = ({ role, size = 40 }) => {
+            const info = roleInfoOf(role);
+            const I = info.icon;
+            return (
+                <span style={{ width: size, height: size }} title={info.label} role="img" aria-label={`權限：${info.label}`}
+                    className={`shrink-0 rounded-full bg-zinc-100 ${info.high ? 'text-amber-500' : 'text-zinc-500'} flex items-center justify-center`}>
+                    <I size={Math.round(size / 2)} />
+                </span>
+            );
+        };
+
+        // 一則回覆：權限圖示＋姓名＋時間，下方是內容。審查權限者可以按「編輯」修改內容。
+        const ReplyItem = ({ u, onSaved, onDeleted }) => {
+            const [editing, setEditing] = useState(false);
+            const [confirmDel, setConfirmDel] = useState(false);
+            const [deleting, setDeleting] = useState(false);
+            useExclusiveEdit(editing, () => { setEditing(false); setError(''); });
+            const doDelete = async () => {
+                setDeleting(true); setError('');
+                try { await api.deleteUpdate(u.id); setConfirmDel(false); onDeleted(u.id); }
+                catch (err) { setError(err.message || '刪除失敗，稍後再試'); }
+                setDeleting(false);
+            };
+            const [draft, setDraft] = useState(u.content);
+            const [busy, setBusy] = useState(false);
             const [error, setError] = useState('');
-            const text = p.content ?? p.summary ?? '';
+            const fsStyle = { fontSize: 'var(--post-fs, 15px)', lineHeight: 1.6 };
+            const save = async () => {
+                const content = draft.trim();
+                if (!content || busy) return;
+                setBusy(true); setError('');
+                try { await api.editUpdate(u.id, content); onSaved(u.id, content); setEditing(false); }
+                catch (err) { setError(err.message || '暫時無法儲存，稍後再試'); }
+                setBusy(false);
+            };
+            return (
+                <div className="p-4 sm:p-5">
+                    <div className="flex items-center justify-between gap-3 mb-2.5">
+                        <div className="flex items-center gap-3 min-w-0">
+                            <RoleAvatar role={u.author_role} />
+                            <span className="text-[15px] font-medium text-zinc-900 truncate min-w-0">{u.author_name}</span>
+                            <span className="text-sm text-zinc-400 tabular-nums shrink-0">{formatAgo(u.created_at)}</span>
+                        </div>
+                        {viewerState.isReviewer && !editing && (
+                            <PostMenu onEdit={() => { setDraft(u.content); setError(''); setEditing(true); }} onDelete={() => { setError(''); setConfirmDel(true); }} />
+                        )}
+                    </div>
+                    {editing ? (
+                        <div className="flex flex-col gap-3">
+                            <label className="flex flex-col gap-1.5">
+                                <span className="flex justify-between text-sm font-medium text-zinc-700">回覆內容 <span className="text-xs tabular-nums text-zinc-400">{draft.length}/500</span></span>
+                                <textarea value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={500} rows={5} className={`${inputCls} leading-relaxed resize-y`} />
+                            </label>
+                            <InlineError message={error} />
+                            <div className="grid grid-cols-2 gap-3">
+                                <button type="button" onClick={() => { setEditing(false); setError(''); }} disabled={busy} className={btnCancelWhite}><XMarkIcon size={16} />取消</button>
+                                <button type="button" onClick={save} disabled={busy || !draft.trim()} className={btnSubmitDark}><CheckIcon size={16} />{busy ? '儲存中…' : '儲存'}</button>
+                            </div>
+                        </div>
+                    ) : (
+                        <p style={fsStyle} className="text-zinc-700 whitespace-pre-line break-words">{u.content}</p>
+                    )}
+                    {confirmDel && (
+                        <ConfirmModal title="刪除回覆？" confirmLabel="刪除" busy={deleting} error={error}
+                            onCancel={() => { setConfirmDel(false); setError(''); }} onConfirm={doDelete} />
+                    )}
+                </div>
+            );
+        };
+
+        // 貼文完整畫面（像 Threads）：上面是貼文，下面是所有留言，中間用灰線分隔。
+        // 留言：權限圖示＋姓名＋時間，下方是內容。只有貼文者與審查權限者（資料庫判斷）會看到輸入框。
+        const PostDetailView = ({ id, goBack }) => {
+            const [post, setPost] = useState(undefined);       // undefined＝讀取中，null＝找不到
+            const [isPublicView, setIsPublicView] = useState(true);
+            const [state, setState] = useState({ status: 'loading', canReply: false, items: [] });
+            const [text, setText] = useState('');
+            const [busy, setBusy] = useState(false);
+            const [error, setError] = useState('');
+            // 審查者：貼文本身的編輯、刪除
+            const [postEditing, setPostEditing] = useState(false);
+            const [postDraft, setPostDraft] = useState('');
+            const [postSaving, setPostSaving] = useState(false);
+            const [postConfirmDel, setPostConfirmDel] = useState(false);
+            const [postDeleting, setPostDeleting] = useState(false);
+            const [postError, setPostError] = useState('');
+            useExclusiveEdit(postEditing, () => { setPostEditing(false); setPostError(''); });
+            const savePost = async () => {
+                const content = postDraft.trim();
+                if (!content) { setPostError('內容不可空白'); return; }
+                if (content === (post.content ?? post.summary ?? '')) { setPostEditing(false); return; }
+                setPostSaving(true); setPostError('');
+                try { await api.editContent(post.id, content); setPost(pst => ({ ...pst, content })); setPostEditing(false); }
+                catch (err) { setPostError(err.message || '儲存失敗，稍後再試'); }
+                setPostSaving(false);
+            };
+            const deletePost = async () => {
+                setPostDeleting(true); setPostError('');
+                try { await api.deletePost(post.id); setPostConfirmDel(false); goBack(); }
+                catch (err) { setPostError(err.message || '刪除失敗，稍後再試'); }
+                setPostDeleting(false);
+            };
+
+            useEffect(() => {
+                let alive = true;
+                setPost(undefined);
+                (async () => {
+                    let d = null;
+                    try { d = await api.detail(id); } catch (e) { console.error('讀取貼文失敗:', e); }
+                    if (!alive) return;
+                    if (d) { setPost(d); setIsPublicView(true); return; }
+                    // 不公開的貼文：貼文者本人與審查者讀得到（資料庫規則決定）
+                    try {
+                        const rows = await api.postsByIds([id]);
+                        if (!alive) return;
+                        const r = rows[0];
+                        if (r) { setPost({ id: r.id, category: r.category, content: r.content, created_at: r.created_at, display_name: r.show_name ? r.author_name : ANON_NAME, response_count: 0, has_responded: false }); setIsPublicView(false); return; }
+                    } catch (e) { console.error('讀取貼文失敗:', e); }
+                    if (alive) setPost(null);
+                })();
+                api.updates(id)
+                    .then(r => { if (!alive) return; updateCounts.cache[id] = r.items.length; setState({ status: 'ok', canReply: r.canReply, items: r.items }); })
+                    .catch(err => { console.error('讀取回覆失敗:', err); if (alive) setState({ status: 'error', canReply: false, items: [] }); });
+                return () => { alive = false; };
+            }, [id]);
+
+            const send = async () => {
+                const content = text.trim();
+                if (!content || busy) return;
+                setBusy(true); setError('');
+                try {
+                    const row = await api.addUpdate(id, content);
+                    setState(st => { const items = [...st.items, row]; updateCounts.cache[id] = items.length; return { ...st, items }; });
+                    setText('');
+                } catch (err) { setError(err.message || '暫時無法送出，稍後再試'); }
+                setBusy(false);
+            };
+
+            const fsStyle = { fontSize: 'var(--post-fs, 15px)', lineHeight: 1.6 };
+            const back = <BackButton onClick={goBack} label="返回" />;
+            if (post === undefined) return <PageShell back={back}><Skeletons /></PageShell>;
+            if (post === null) return <PageShell back={back}><EmptyBox message="找不到這則貼文，或它沒有公開" /></PageShell>;
+            const name = !post.display_name || post.display_name === '匿名' ? ANON_NAME : post.display_name;
+
+            return (
+                <PageShell back={back}>
+                    <div className="bg-white rounded-lg border border-zinc-200 shadow-sm divide-y divide-zinc-200">
+                        {/* 貼文 */}
+                        <div className="p-4 sm:p-5">
+                            <div className="flex items-center justify-between gap-3 mb-2.5">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <CategoryAvatar id={post.category} />
+                                    <span className="text-[15px] font-medium text-zinc-900 truncate min-w-0">{name}</span>
+                                </div>
+                                {viewerState.isReviewer && !postEditing && <PostMenu onEdit={() => { setPostDraft(post.content ?? post.summary ?? ''); setPostError(''); setPostEditing(true); }} onDelete={() => { setPostError(''); setPostConfirmDel(true); }} />}
+                            </div>
+                            {postEditing ? (
+                                <div className="flex flex-col gap-3">
+                                    <label className="flex flex-col gap-1.5">
+                                        <span className="flex justify-between text-sm font-medium text-zinc-700">內容 <span className="text-xs tabular-nums text-zinc-400">{postDraft.length}/800</span></span>
+                                        <textarea value={postDraft} onChange={(e) => setPostDraft(e.target.value)} maxLength={800} rows={6} className={`${inputCls} leading-relaxed resize-y`} />
+                                    </label>
+                                    <InlineError message={postError} />
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button type="button" onClick={() => { setPostEditing(false); setPostError(''); }} disabled={postSaving} className={btnCancelWhite}><XMarkIcon size={16} />取消</button>
+                                        <button type="button" onClick={savePost} disabled={postSaving || !postDraft.trim()} className={btnSubmitDark}><CheckIcon size={16} />{postSaving ? '儲存中…' : '儲存'}</button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <p style={fsStyle} className="text-zinc-700 whitespace-pre-line break-words">{post.content ?? post.summary ?? ''}</p>
+                            )}
+                            {postConfirmDel && (
+                                <ConfirmModal title="刪除貼文？" confirmLabel="刪除" busy={postDeleting} error={postError}
+                                    onCancel={() => { setPostConfirmDel(false); setPostError(''); }} onConfirm={deletePost} />
+                            )}
+                            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-3 text-zinc-500">
+                                {isPublicView
+                                    ? <PrayButton postId={post.id} count={Number(post.response_count) || 0} responded={!!post.has_responded} onResponded={() => {}} onError={setError} />
+                                    : null}
+                                <span className="inline-flex items-center gap-1.5 text-sm tabular-nums shrink-0">
+                                    <ClockIcon size={18} /><span className="sr-only">時間：</span>{formatAgo(post.created_at)}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* 所有留言：權限圖示＋姓名，下方是內容，之間用灰線分隔 */}
+                        {state.status === 'loading' && <div className="p-4 sm:p-5 text-sm text-zinc-400">讀取留言中</div>}
+                        {state.status === 'error' && <div className="p-4 sm:p-5 text-sm text-zinc-500">暫時無法讀取留言</div>}
+                        {state.items.map(u => (
+                            <ReplyItem key={u.id} u={u} onSaved={(rid, content) => setState(st => ({ ...st, items: st.items.map(x => x.id === rid ? { ...x, content } : x) }))}
+                                onDeleted={(rid) => setState(st => { const items = st.items.filter(x => x.id !== rid); updateCounts.cache[id] = items.length; return { ...st, items }; })} />
+                        ))}
+
+                        {/* 輸入框：只有貼文者與審查權限者看得到；版面同發表貼文 */}
+                        {state.canReply && (
+                            <form onSubmit={(e) => { e.preventDefault(); send(); }} className="p-4 sm:p-5 flex flex-col gap-4">
+                                <label className="flex flex-col gap-1.5">
+                                    <span className="flex justify-between text-sm font-medium text-zinc-700">你想說什麼 <span className="text-xs tabular-nums text-zinc-400">{text.length}/500</span></span>
+                                    <textarea value={text} onChange={(e) => setText(e.target.value)} maxLength={500} rows={5} placeholder="新增回覆" className={`${inputCls} leading-relaxed resize-y`} />
+                                </label>
+                                <InlineError message={error} />
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button type="button" onClick={() => { setText(''); setError(''); }} disabled={busy} className={btnCancelWhite}><XMarkIcon size={16} />清除內容</button>
+                                    <button type="submit" disabled={busy || !text.trim()} className={btnSubmitDark}><SendIcon size={16} />{busy ? '送出中…' : '送出'}</button>
+                                </div>
+                            </form>
+                        )}
+                    </div>
+                </PageShell>
+            );
+        };
+
+        // 同一時間只能開一個編輯視窗：這個編輯打開時，會自動關掉另一個正在編輯的（貼文、回覆都算）
+        const editLock = { cur: null };
+        const useExclusiveEdit = (editing, close) => {
+            const id = useRef({}).current;
+            const closeRef = useRef(close);
+            closeRef.current = close;
+            useEffect(() => {
+                if (editing) {
+                    const prev = editLock.cur;
+                    if (prev && prev.id !== id) prev.close();
+                    editLock.cur = { id, close: () => closeRef.current() };
+                }
+                return () => { if (editLock.cur && editLock.cur.id === id) editLock.cur = null; };
+            }, [editing]);
+        };
+
+        // 貼文右上角的「三個點」選單：審查者才看得到，選項是編輯、刪除
+        const PostMenu = ({ onEdit, onDelete }) => {
+            const [open, setOpen] = useState(false);
+            const boxRef = useRef(null);
+            useEffect(() => {
+                if (!open) return;
+                const onDown = (e) => { if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false); };
+                const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+                document.addEventListener('mousedown', onDown);
+                document.addEventListener('touchstart', onDown);
+                window.addEventListener('keydown', onKey);
+                return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('touchstart', onDown); window.removeEventListener('keydown', onKey); };
+            }, [open]);
+            const itemCls = `w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-left hover:bg-zinc-50 active:bg-zinc-100 transition-colors duration-150 ${focusRing}`;
+            return (
+                <div ref={boxRef} className="relative shrink-0">
+                    <button type="button" onClick={() => setOpen(v => !v)} aria-haspopup="menu" aria-expanded={open} aria-label="更多" title="更多"
+                        className={`p-2 -m-2 rounded-full text-zinc-400 hover:text-zinc-700 transition-colors duration-150 ${focusRing}`}><EllipsisIcon size={20} /></button>
+                    {open && (
+                        <div role="menu" className="absolute right-0 top-full mt-3 z-20 min-w-[8rem] bg-white rounded-lg border border-zinc-200 shadow-lg py-1 overflow-hidden">
+                            <button type="button" role="menuitem" onClick={() => { setOpen(false); onEdit(); }} className={`${itemCls} text-zinc-700`}><PencilIcon size={16} />編輯</button>
+                            <button type="button" role="menuitem" onClick={() => { setOpen(false); onDelete(); }} className={`${itemCls} text-red-600`}><TrashIcon size={16} />刪除</button>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const PostCard = ({ p, onResponded, onDeleted }) => {
+            const [error, setError] = useState('');
+            const [edited, setEdited] = useState(null);       // 審查者編輯後的內容（先顯示在這張卡片上）
+            const [editing, setEditing] = useState(false);
+            const [draft, setDraft] = useState('');
+            const [saving, setSaving] = useState(false);
+            const [confirmDel, setConfirmDel] = useState(false);
+            const [deleting, setDeleting] = useState(false);
+            const [menuError, setMenuError] = useState('');
+            const isReviewer = viewerState.isReviewer;
+            useExclusiveEdit(editing, () => { setEditing(false); setMenuError(''); });
+            const saveEdit = async () => {
+                const content = draft.trim();
+                if (!content) { setMenuError('內容不可空白'); return; }
+                if (content === (edited ?? p.content ?? p.summary ?? '')) { setEditing(false); return; }
+                setSaving(true); setMenuError('');
+                try { await api.editContent(p.id, content); setEdited(content); setEditing(false); }
+                catch (err) { setMenuError(err.message || '儲存失敗，稍後再試'); }
+                setSaving(false);
+            };
+            const doDelete = async () => {
+                setDeleting(true); setMenuError('');
+                try { await api.deletePost(p.id); setConfirmDel(false); if (onDeleted) onDeleted(p.id); }
+                catch (err) { setMenuError(err.message || '刪除失敗，稍後再試'); }
+                setDeleting(false);
+            };
+            const text = edited ?? p.content ?? p.summary ?? '';
             const name = !p.display_name || p.display_name === '匿名' ? ANON_NAME : p.display_name;
             return (
                 <li className="bg-white rounded-lg border border-zinc-200 shadow-sm p-4 sm:p-5">
-                    <div className="flex items-center gap-3 mb-2.5">
-                        <CategoryAvatar id={p.category} />
-                        <span className="text-[15px] font-medium text-zinc-900 truncate min-w-0">{name}</span>
+                    <div className="flex items-center justify-between gap-3 mb-2.5">
+                        <div className="flex items-center gap-3 min-w-0">
+                            <CategoryAvatar id={p.category} />
+                            <span className="text-[15px] font-medium text-zinc-900 truncate min-w-0">{name}</span>
+                        </div>
+                        {isReviewer && <PostMenu onEdit={() => { setDraft(text); setMenuError(''); setEditing(true); }} onDelete={() => { setMenuError(''); setConfirmDel(true); }} />}
                     </div>
 
-                    <ClampText text={text} />
+                    {editing ? (
+                        <div className="flex flex-col gap-3">
+                            <label className="flex flex-col gap-1.5">
+                                <span className="flex justify-between text-sm font-medium text-zinc-700">內容 <span className="text-xs tabular-nums text-zinc-400">{draft.length}/800</span></span>
+                                <textarea value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={800} rows={6} className={`${inputCls} leading-relaxed resize-y`} />
+                            </label>
+                            <InlineError message={menuError} />
+                            <div className="grid grid-cols-2 gap-3">
+                                <button type="button" onClick={() => { setEditing(false); setMenuError(''); }} disabled={saving} className={btnCancelWhite}><XMarkIcon size={16} />取消</button>
+                                <button type="button" onClick={saveEdit} disabled={saving || !draft.trim()} className={btnSubmitDark}><CheckIcon size={16} />{saving ? '儲存中…' : '儲存'}</button>
+                            </div>
+                        </div>
+                    ) : <ClampText text={text} />}
 
                     <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-3 text-zinc-500">
                         <PrayButton postId={p.id} count={Number(p.response_count) || 0} responded={!!p.has_responded} onResponded={onResponded} onError={setError} />
+                        <UpdatesButton postId={p.id} onClick={() => go(`#/post/${p.id}`)} />
                         <span className="inline-flex items-center gap-1.5 text-sm tabular-nums shrink-0">
                             <ClockIcon size={18} /><span className="sr-only">時間：</span>{formatAgo(p.created_at)}
                         </span>
                     </div>
                     {error && <div className="mt-2"><InlineError message={error} /></div>}
+                    {confirmDel && (
+                        <ConfirmModal title="刪除貼文？" confirmLabel="刪除" busy={deleting} error={menuError}
+                            onCancel={() => { setConfirmDel(false); setMenuError(''); }} onConfirm={doDelete} />
+                    )}
                 </li>
+            );
+        };
+
+        // 文字大小切換：三個大小不同的「A」，選擇會記在這個瀏覽器
+        const FONT_SIZES = [
+            { id: 'sm', px: 13, btn: 9, label: '小字' },
+            { id: 'md', px: 15, btn: 13, label: '標準字' },
+            { id: 'lg', px: 18, btn: 18, label: '大字' },
+        ];
+        const FONT_KEY = 'tbc_prayer_fontsize';
+        const applyFontSize = (id) => {
+            const f = FONT_SIZES.find(x => x.id === id) || FONT_SIZES[1];
+            document.documentElement.style.setProperty('--post-fs', f.px + 'px');
+            window.dispatchEvent(new Event('tbc-fontsize'));
+        };
+        const loadFontSize = () => { try { return localStorage.getItem(FONT_KEY) || 'md'; } catch (e) { return 'md'; } };
+        // 一開啟頁面就套用上次選的大小
+        try { document.documentElement.style.setProperty('--post-fs', (FONT_SIZES.find(x => x.id === loadFontSize()) || FONT_SIZES[1]).px + 'px'); } catch (e) {}
+
+        const FontSizeSwitch = () => {
+            const [size, setSize] = useState(loadFontSize);
+            const pick = (id) => {
+                setSize(id);
+                try { localStorage.setItem(FONT_KEY, id); } catch (e) {}
+                applyFontSize(id);
+            };
+            return (
+                <div className="grid grid-cols-3 gap-1.5 w-36 shrink-0" role="group" aria-label="文字大小">
+                    {FONT_SIZES.map(f => {
+                        const active = size === f.id;
+                        return (
+                            <button key={f.id} type="button" onClick={() => pick(f.id)} aria-pressed={active} aria-label={f.label} title={f.label}
+                                className={`w-full h-10 rounded-lg inline-flex items-center justify-center font-medium transition-colors duration-150 active:scale-[0.98] ${focusRing} ${active ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-800 hover:bg-zinc-200'}`}
+                                style={{ fontSize: f.btn }}>A</button>
+                        );
+                    })}
+                </div>
+            );
+        };
+
+        // 目前登入者：權限圖示＋姓名（未登入顯示「訪客」）
+        // 權限代號、名稱、圖示與 MemberDataCenter 相同（領袖、牧師、管理員的圖示用琥珀色標出來）
+        const ROLE_INFO = {
+            member:      { icon: UserIcon,        label: '會友' },
+            coworker:    { icon: UserCheckIcon,   label: '同工' },
+            admin_staff: { icon: FolderOpenIcon,  label: '行政' },
+            leader:      { icon: StarIcon,        label: '領袖', high: true },
+            pastor:      { icon: GraduationCapIcon, label: '牧師', high: true },
+            admin:       { icon: ShieldIcon,      label: '管理員', high: true },
+        };
+        const roleInfoOf = (role) => ROLE_INFO[role === 'user' ? 'member' : role] || (role ? { icon: UserIcon, label: String(role) } : ROLE_INFO.member);
+        const UserBadge = ({ loggedIn, role, name }) => {
+            const [showRole, setShowRole] = useState(false);
+            // 點圖示：姓名換成權限文字；再點一次換回來，3 秒後也會自己換回來
+            useEffect(() => {
+                if (!showRole) return;
+                const t = setTimeout(() => setShowRole(false), 3000);
+                return () => clearTimeout(t);
+            }, [showRole]);
+            const info = loggedIn ? roleInfoOf(role) : { icon: UserIcon, label: '訪客' };
+            const I = info.icon;
+            const shown = loggedIn ? (name || '會員') : '訪客';
+            return (
+                <div className="flex items-center gap-2.5 min-w-0 text-zinc-700">
+                    <button type="button" onClick={() => setShowRole(v => !v)} aria-pressed={showRole} aria-label={`權限：${info.label}，點一下切換顯示`} title="點一下看權限"
+                        className={`w-10 h-10 shrink-0 rounded-full bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 ${info.high ? 'text-amber-500' : 'text-zinc-500'} flex items-center justify-center transition-colors duration-150 ${focusRing}`}>
+                        <I size={20} />
+                    </button>
+                    <span className="text-[15px] font-medium text-zinc-900 truncate min-w-0" aria-live="polite">{showRole ? info.label : shown}</span>
+                </div>
             );
         };
 
         // ==========================================
         // 首頁：最新禱告（像 Facebook 動態）
         // ==========================================
-        const HomeView = ({ goSubmit }) => {
+        const HomeView = ({ goSubmit, session, role, memberName }) => {
             const [results, setResults] = useState([]);
             const [status, setStatus] = useState('loading');
             const lastLoad = useRef(Date.now());
@@ -690,14 +1128,18 @@
 
             return (
                 <main className="max-w-2xl mx-auto w-full px-4 sm:px-6 pt-6 pb-20 animate-fade-in">
-                    <h2 className="text-[clamp(0.9375rem,4.6vw,1.5rem)] whitespace-nowrap font-semibold text-zinc-900 leading-snug mb-5">每一次禱告，都是一滴滋養生命的水</h2>
+                    <div className="flex items-center justify-between gap-3 mb-4">
+                        <UserBadge loggedIn={!!session} role={role} name={memberName} />
+                        <FontSizeSwitch />
+                    </div>
+                    <h2 className="text-[clamp(1.0625rem,5.4vw,1.5rem)] font-semibold text-zinc-900 leading-snug mb-5 break-words">今天，神感動你要為什麼禱告？</h2>
                     <section aria-live="polite">
                         {status === 'loading' && <Skeletons />}
                         {status === 'error' && <ErrorBox message="暫時無法載入，稍後再試" onRetry={() => load()} />}
                         {status === 'ok' && results.length === 0 && <EmptyBox message="讓我們一起守望禱告" action={<button onClick={goSubmit} className={btnDark}>新增貼文</button>} />}
                         {status === 'ok' && results.length > 0 && (
                             <ul className="flex flex-col gap-3">
-                                {results.map(p => <PostCard key={p.id} p={p} onResponded={(n) => patch(p.id, n)} />)}
+                                {results.map(p => <PostCard key={p.id} p={p} onResponded={(n) => patch(p.id, n)} onDeleted={(id) => setResults(l => l.filter(x => x.id !== id))} />)}
                             </ul>
                         )}
                         {status === 'ok' && results.length >= 50 && <p className="text-center text-sm text-zinc-400 mt-6">顯示最新 50 則，更多請用搜尋</p>}
@@ -721,18 +1163,23 @@
 
         const chipCls = (active) => `px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors duration-150 active:scale-[0.98] ${focusRing} ${active ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-800 hover:bg-zinc-200'}`;
 
+        // 搜尋條件記在這裡：點進貼文再返回時，回到原本的關鍵字與結果；從搜尋圖示重新進入則清空
+        let searchMemory = null;
+        const openSearch = () => { searchMemory = null; go('#/search'); };
         const SearchView = ({ goHome }) => {
-            const [draft, setDraft] = useState('');
-            const [category, setCategory] = useState('all');
-            const [showFilter, setShowFilter] = useState(false);
+            const mem = searchMemory || {};
+            const [draft, setDraft] = useState(mem.draft || '');
+            const [category, setCategory] = useState(mem.category || 'all');
+            const [showFilter, setShowFilter] = useState(!!mem.showFilter);
             const [recent, setRecent] = useState(loadRecent);
             const [editing, setEditing] = useState(false);
             const [results, setResults] = useState([]);
             const [status, setStatus] = useState('idle');
             const reqId = useRef(0);
-            const [dateFrom, setDateFrom] = useState('');
-            const [dateTo, setDateTo] = useState('');
-            const [showAll, setShowAll] = useState(false);   // 按下「全部」：直接列出所有貼文
+            const [dateFrom, setDateFrom] = useState(mem.dateFrom || '');
+            const [dateTo, setDateTo] = useState(mem.dateTo || '');
+            const [showAll, setShowAll] = useState(!!mem.showAll);   // 按下「全部」：直接列出所有貼文
+            useEffect(() => { searchMemory = { draft, category, showFilter, dateFrom, dateTo, showAll }; }, [draft, category, showFilter, dateFrom, dateTo, showAll]);
             const keyword = draft.trim();
             const rangeBad = dateFrom !== '' && dateTo !== '' && dateFrom > dateTo;
             const active = keyword !== '' || category !== 'all' || dateFrom !== '' || dateTo !== '' || showAll;
@@ -829,7 +1276,7 @@
                             {status === 'ok' && results.length === 0 && <EmptyBox message="找不到，換個關鍵字試試" />}
                             {status === 'ok' && results.length > 0 && (
                                 <ul className="flex flex-col gap-3">
-                                    {results.map(p => <PostCard key={p.id} p={p} onResponded={(n) => patch(p.id, n)} />)}
+                                    {results.map(p => <PostCard key={p.id} p={p} onResponded={(n) => patch(p.id, n)} onDeleted={(id) => setResults(l => l.filter(x => x.id !== id))} />)}
                                 </ul>
                             )}
                         </section>
@@ -998,7 +1445,7 @@
                             <CategoryAvatar id={post.category} />
                             <span className="text-[15px] font-medium text-zinc-900 truncate min-w-0">{name}</span>
                         </div>
-                        {returned && <button type="button" onClick={() => goEdit(post.id)} className={`${btnGhost} shrink-0`}><PencilIcon size={16} />編輯重新送審</button>}
+                        {returned && <button type="button" onClick={() => goEdit(post.id)} className={`${btnGhost} shrink-0`}><PencilIcon size={16} />重新送審</button>}
                     </div>
                     <ClampText text={post.content} />
                     {(returned || forceReason) && (
@@ -1009,6 +1456,7 @@
                     )}
                     <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-3 text-zinc-500">
                         {showStatus && <StatusLabel status={post.review_status} />}
+                        {post.review_status === 'approved' && <UpdatesButton postId={post.id} alwaysEnabled onClick={() => go(`#/post/${post.id}`)} />}
                         <span className="inline-flex items-center gap-1.5 text-sm tabular-nums shrink-0">
                             <ClockIcon size={18} /><span className="sr-only">時間：</span>{formatAgo(post.created_at)}
                         </span>
@@ -1103,7 +1551,7 @@
 
             return (
                 <PageShell back={<BackButton onClick={goMine} label="返回我的禱告" />}>
-                    <h2 className="text-2xl font-semibold text-zinc-900 mb-6">編輯重新送審</h2>
+                    <h2 className="text-2xl font-semibold text-zinc-900 mb-6">重新送審</h2>
                     {status === 'loading' && <Skeletons />}
                     {status === 'error' && <ErrorBox message="暫時無法載入，稍後再試" />}
                     {status === 'notfound' && <EmptyBox message="找不到貼文" action={<button onClick={goMine} className={btnDark}>回到我的禱告</button>} />}
@@ -1166,6 +1614,7 @@
                 }
             };
 
+            useExclusiveEdit(editing, () => { setEditing(false); setError(''); });
             const startEdit = () => { setDraft({ content: post.content }); setError(''); setEditing(true); };
             const cancelEdit = () => { setEditing(false); setError(''); };
             const saveEdit = async () => {
@@ -1229,7 +1678,7 @@
             );
             const trashBtn = (
                 <button type="button" onClick={() => setConfirmDel(true)} disabled={saving || deleting} aria-label="刪除貼文" title="刪除貼文"
-                    className={`${btnGhost} !px-2 hover:!text-red-600`}><TrashIcon size={16} /></button>
+                    className={`${btnGhost} hover:!text-red-600`}><TrashIcon size={16} />刪除</button>
             );
             const deleteBlock = confirmDel && (
                 <ConfirmModal title="刪除貼文？" confirmLabel="刪除" busy={deleting} error={error}
@@ -1267,11 +1716,14 @@
             // 待審查／已核准：顯示方式相同；按右上角「編輯」才展開內容與各項設定。待審查多了下方的核准、退回。
             const actions = (
                 <div className="flex items-center gap-1 shrink-0">
-                    {editing && <button type="button" onClick={cancelEdit} disabled={saving} className={ghostBtn}><XMarkIcon size={16} />取消</button>}
-                    <button type="button" onClick={editing ? saveEdit : startEdit} disabled={saving} aria-expanded={editing} className={ghostBtn}>
-                        {editing ? <CheckIcon size={16} /> : <PencilIcon size={16} />}{editing ? (saving ? '儲存中' : '儲存') : '編輯'}
-                    </button>
-                    {trashBtn}
+                    {editing ? (
+                        <>
+                            <button type="button" onClick={cancelEdit} disabled={saving} className={ghostBtn}><XMarkIcon size={16} />取消</button>
+                            <button type="button" onClick={saveEdit} disabled={saving} className={ghostBtn}><CheckIcon size={16} />{saving ? '儲存中' : '儲存'}</button>
+                        </>
+                    ) : (
+                        <PostMenu onEdit={startEdit} onDelete={() => setConfirmDel(true)} />
+                    )}
                 </div>
             );
             const decideBlock = !pending ? null : returning ? (
@@ -1368,9 +1820,9 @@
             const onDeleted = (id) => { setPosts(l => l.filter(p => p.id !== id)); setResults(l => l.filter(p => p.id !== id)); };
 
             if (!session) return <PageShell back={<BackButton onClick={goHome} label="返回禱告牆" />}><NeedLogin onLogin={onLogin} /></PageShell>;
-            if (!REVIEWER_ROLES.includes(role)) return <PageShell back={<BackButton onClick={goHome} label="返回禱告牆" />}><EmptyBox message="只有牧師、區長與管理員可以進入審查頁" /></PageShell>;
+            if (!REVIEWER_ROLES.includes(role)) return <PageShell back={<BackButton onClick={goHome} label="返回禱告牆" />}><EmptyBox message="權限不足" /></PageShell>;
 
-            const tabs = [{ id: 'pending', label: '待審查' }, { id: 'returned', label: '已退回' }, { id: 'approved', label: '編輯' }];
+            const tabs = [{ id: 'pending', label: '待審查' }, { id: 'returned', label: '已退回' }];
             const onChanged = async () => { if (searching) await runSearch(keyword, true); else await load(true); refreshPending(); };
 
             return (
@@ -1486,7 +1938,7 @@
 
         // ==========================================
         // 外框：頁首（漢堡選單｜守望花園｜新增貼文、搜尋、通知）與網址切換
-        // 網址：prayer.html / #/search / #/submit / #/mine / #/edit/編號 / #/review
+        // 網址：prayer.html / #/search / #/submit / #/mine / #/edit/編號 / #/post/編號 / #/review
         // ==========================================
         const UUID = '([0-9a-fA-F-]{36})';
         const parseRoute = () => {
@@ -1498,6 +1950,8 @@
             if (h === '#/notifications') return { name: 'notifications' };
             const m = h.match(new RegExp(`^#/edit/${UUID}$`));
             if (m) return { name: 'edit', id: m[1] };
+            const pm = h.match(new RegExp(`^#/post/${UUID}$`));
+            if (pm) return { name: 'post', id: pm[1] };
             return { name: 'home' };
         };
         const go = (hash) => { window.location.hash = hash; window.scrollTo(0, 0); };
@@ -1507,6 +1961,7 @@
             const [session, setSession] = useState(null);
             const [sessionReady, setSessionReady] = useState(false);
             const [role, setRole] = useState(null);
+            const [memberName, setMemberName] = useState('');
             const [pending, setPending] = useState(0);
             const [unread, setUnread] = useState(0);
             const [showLogin, setShowLogin] = useState(false);
@@ -1527,6 +1982,7 @@
 
             // 登入後，依帳號（電話或 email）比對 members 表找出本人姓名，寫入共用的 tbc_user（做法同 manager.html）
             useEffect(() => {
+                setMemberName('');
                 if (!session?.user?.email) return;
                 const emailLower = session.user.email.trim().toLowerCase();
                 const accountLower = extractAccountFromEmail(session.user.email).trim().toLowerCase();
@@ -1537,7 +1993,7 @@
                         const me = (m.email || '').trim().toLowerCase();
                         return me === emailLower || me === accountLower;
                     });
-                    if (mine?.name) setSharedUser(mine.name);
+                    if (mine?.name) { setSharedUser(mine.name); setMemberName(mine.name); }
                 });
                 return () => { alive = false; };
             }, [session?.user?.email]);
@@ -1553,6 +2009,7 @@
             }, [session?.user?.id]);
 
             const isReviewer = REVIEWER_ROLES.includes(role);
+            viewerState.isReviewer = isReviewer;
             const refreshPending = useCallback(() => { api.pendingCount().then(setPending).catch(() => {}); }, []);
             useEffect(() => { if (isReviewer) refreshPending(); }, [isReviewer, refreshPending]);
 
@@ -1623,7 +2080,7 @@
             const goThen = (fn) => () => { setMoreOpen(false); fn(); };
             const moreItems = [
                 { id: 'm-add', label: '新增貼文', icon: <SquarePlusIcon size={20} />, onClick: goThen(() => requireLogin('#/submit')) },
-                { id: 'm-search', label: '搜尋', icon: <SearchIcon size={20} />, onClick: goThen(() => go('#/search')) },
+                { id: 'm-search', label: '搜尋', icon: <SearchIcon size={20} />, onClick: goThen(() => openSearch()) },
                 { id: 'm-bell', label: '通知', icon: <BellIcon size={20} />, badge: session ? unread : 0, active: route.name === 'notifications', onClick: goThen(() => { setUnread(0); requireLogin('#/notifications'); }) },
                 { id: 'm-mine', label: '我的禱告', icon: <HandHeartIcon size={20} />, active: route.name === 'mine' || route.name === 'edit', onClick: goThen(() => requireLogin('#/mine')) },
                 ...(isReviewer ? [{ id: 'm-review', label: '貼文審核', icon: <ClipboardCheckIcon size={20} />, badge: pending, active: route.name === 'review', onClick: goThen(() => go('#/review')) }] : []),
@@ -1632,13 +2089,14 @@
 
             let body;
             if (!sessionReady && ['submit', 'mine', 'edit', 'review', 'notifications'].includes(route.name)) body = <PageShell><Skeletons /></PageShell>;
+            else if (route.name === 'post') body = <PostDetailView key={route.id} id={route.id} goBack={() => { if (window.history.length > 1) window.history.back(); else goHome(); }} />;
             else if (route.name === 'search') body = <SearchView goHome={goHome} />;
             else if (route.name === 'submit') body = <SubmitView session={session} onLogin={() => setShowLogin(true)} goMine={goMine} goHome={goHome} notify={notify} />;
             else if (route.name === 'mine') body = <MineView session={session} role={role} onLogin={() => setShowLogin(true)} goHome={goHome} goEdit={(id) => go(`#/edit/${id}`)} flash={flash} />;
             else if (route.name === 'edit') body = <EditView key={route.id} id={route.id} session={session} onLogin={() => setShowLogin(true)} goMine={goMine} notify={notify} />;
             else if (route.name === 'notifications') body = <NotificationsView session={session} role={role} onLogin={() => setShowLogin(true)} goHome={goHome} goEdit={(id) => go(`#/edit/${id}`)} refreshUnread={refreshUnread} />;
             else if (route.name === 'review') body = <ReviewView session={session} role={role} onLogin={() => setShowLogin(true)} goHome={goHome} refreshPending={refreshPending} />;
-            else body = <HomeView goSubmit={() => requireLogin('#/submit')} />;
+            else body = <HomeView goSubmit={() => requireLogin('#/submit')} session={session} role={role} memberName={memberName} />;
 
             const iconBtn = `relative inline-flex items-center justify-center w-11 h-11 max-[359px]:w-10 max-[359px]:h-10 rounded-full text-zinc-800 hover:bg-zinc-100 active:bg-zinc-200 transition-colors duration-150 ${focusRing}`;
 
@@ -1671,7 +2129,7 @@
                                 ) : (
                                 <div className="justify-self-end flex items-center">
                                     <button onClick={() => requireLogin('#/submit')} aria-label="新增貼文" title="新增貼文" className={iconBtn}><SquarePlusIcon size={24} /></button>
-                                    <button onClick={() => go('#/search')} aria-label="搜尋" title="搜尋" className={iconBtn}><SearchIcon size={24} /></button>
+                                    <button onClick={openSearch} aria-label="搜尋" title="搜尋" className={iconBtn}><SearchIcon size={24} /></button>
                                     <button onClick={() => { setUnread(0); requireLogin('#/notifications'); }} aria-label={unread > 0 ? `通知，${unread} 則未讀` : '通知'} title="通知" className={`${iconBtn} ${route.name === 'notifications' ? 'bg-zinc-100' : ''}`}>
                                         <BellIcon size={24} />
                                         {session && unread > 0 && <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-red-600 text-white text-xs font-medium tabular-nums">{unread > 99 ? '99+' : unread}</span>}

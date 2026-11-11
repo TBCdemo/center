@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="../management/tbc-config.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
   tailwind.config = { theme: { extend: {
@@ -192,8 +193,8 @@
     // 守望花園設定：所有數字與文字都集中在這裡，要調整只改這一處
     // ==========================================
     var GARDEN = {
-      SUPABASE_URL: "https://iwmkzsredvbgcqvqlayn.supabase.co",
-      SUPABASE_KEY: "sb_publishable_GwDMLoXcHaTzQDCcQlDuGw_4J9mwiaA",
+      SUPABASE_URL: window.TBC_CONFIG.SUPABASE_URL,
+      SUPABASE_KEY: window.TBC_CONFIG.SUPABASE_KEY,
       RPC_NAME: "get_prayer_total",   // 資料庫函式：只回傳「已核准且公開」貼文的回應總數
       BANNER: '讓我們繼續用禱告灌溉，期待美好的花朵綻放',   // 進入新階段時顯示
       TIMEOUT_MS: 8000,
