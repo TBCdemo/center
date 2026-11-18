@@ -479,48 +479,54 @@
         }
 
         // --- Views ---
-        function NavMenu({ light, invert, onBack, onLogout }) {
+        // 個人設定（齒輪）圖示：與守望花園相同的線條風格
+        const SettingsIcon = ({ size = 24 }) => (
+          <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        );
+
+        const ICON_BTN = "relative inline-flex items-center justify-center w-11 h-11 max-[359px]:w-10 max-[359px]:h-10 rounded-full text-zinc-800 hover:bg-zinc-100 active:bg-zinc-200 transition-colors duration-150";
+
+        // 漢堡選單（樣式與守望花園相同）：回首頁、我的禱告、我的服事、場地預約、登出
+        function NavMenu({ onBack, onLogout }) {
           const [open, setOpen] = useState(false);
-          const itemCls = "w-full flex items-center gap-3 px-4 py-3.5 text-sm font-medium text-slate-600 transition-colors text-left";
+          useEffect(() => {
+            if (!open) return;
+            const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+            window.addEventListener('keydown', onKey);
+            return () => window.removeEventListener('keydown', onKey);
+          }, [open]);
+          const goTo = (url) => () => { setOpen(false); window.location.href = url; };
+          const items = [
+            { id: 'index',  label: '回首頁',   icon: <Home size={20} />,      onClick: goTo('./index.html') },
+            { id: 'prayer', label: '我的禱告', icon: <HandHeart size={20} />, onClick: goTo('./prayer.html') },
+            { id: 'serve',  label: '我的服事', icon: <Clock size={20} />,     onClick: onBack ? () => { setOpen(false); onBack(); } : goTo('./search.html') },
+            { id: 'venue',  label: '場地預約', icon: <Calendar size={20} />,  onClick: goTo('./venue.html') },
+            ...(onLogout ? [{ id: 'out', label: '登出', icon: <LogOut size={20} />, onClick: () => { setOpen(false); onLogout(); } }] : []),
+          ];
           return (
             <div className="relative shrink-0">
               <button
                 onClick={() => setOpen(o => !o)}
-                title="選單"
-                aria-label="選單"
+                aria-label={open ? '關閉選單' : '開啟選單'}
                 aria-expanded={open}
-                className={`w-11 h-11 flex items-center justify-center rounded-full transition-colors ${
-                  light
-                    ? 'bg-white border border-slate-200 text-slate-600 shadow-sm hover:text-indigo-600'
-                    : (invert ? 'bg-white/15 text-white hover:bg-white/25' : 'bg-white/15 text-white hover:bg-white/25')
-                }`}
+                className={`${ICON_BTN} ${open ? '!bg-zinc-100 !rounded-lg' : ''} relative z-50`}
               >
-                {open ? <X size={22} /> : <Menu size={22} />}
+                {open ? <X size={24} /> : <Menu size={24} />}
               </button>
               {open && (
                 <React.Fragment>
-                  <div className="fixed inset-0 z-40" onClick={() => setOpen(false)}></div>
-                  <div className="absolute left-0 top-[calc(100%+8px)] z-50 w-52 bg-white rounded-lg shadow-xl border border-slate-100 overflow-hidden animate-in fade-in">
-                    <a href="./index.html" className={`${itemCls} hover:bg-indigo-50 hover:text-indigo-600`}>
-                      <Home size={18} /> 回首頁
-                    </a>
-                    <a href="./prayer.html" className={`${itemCls} hover:bg-rose-50 hover:text-rose-600 border-t border-slate-50`}>
-                      <HandHeart size={18} /> 我的禱告
-                    </a>
-                    {onBack && (
-                      <button onClick={() => { setOpen(false); onBack(); }} className={`${itemCls} hover:bg-indigo-50 hover:text-indigo-600 border-t border-slate-50`}>
-                        <Calendar size={18} /> 我的服事
+                  <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden="true"></div>
+                  <nav aria-label="主選單" className="absolute left-0 top-full mt-2 z-50 w-56 bg-white rounded-lg border border-zinc-100 shadow-lg overflow-hidden animate-in">
+                    {items.map((n, i) => (
+                      <button key={n.id} type="button" onClick={n.onClick}
+                        className={`w-full flex items-center gap-3 px-4 py-3.5 text-left text-sm font-medium text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 active:bg-zinc-100 focus-visible:outline-none focus-visible:bg-zinc-100 transition-colors duration-150 ${i > 0 ? 'border-t border-zinc-100' : ''}`}>
+                        <span className="shrink-0">{n.icon}</span>{n.label}
                       </button>
-                    )}
-                    <a href="./manager.html" className={`${itemCls} hover:bg-emerald-50 hover:text-emerald-600 border-t border-slate-50`}>
-                      <Users size={18} /> 個人設定
-                    </a>
-                    {onLogout && (
-                      <button onClick={() => { setOpen(false); onLogout(); }} className={`${itemCls} hover:bg-red-50 hover:text-red-500 border-t border-slate-100`}>
-                        <LogOut size={18} /> 登出
-                      </button>
-                    )}
-                  </div>
+                    ))}
+                  </nav>
                 </React.Fragment>
               )}
             </div>
@@ -532,20 +538,37 @@
           member:      { label: '會友',       Icon: User },
           coworker:    { label: '同工',       Icon: UserCheck },
           admin_staff: { label: '行政',       Icon: FolderOpen },
-          leader:      { label: '領袖',       Icon: Star },
-          pastor:      { label: '牧者',       Icon: GraduationCap },
-          admin:       { label: '管理員', Icon: ShieldCheck },
+          leader:      { label: '領袖',       Icon: Star, high: true },
+          pastor:      { label: '牧者',       Icon: GraduationCap, high: true },
+          admin:       { label: '管理員', Icon: ShieldCheck, high: true },
         };
 
-        // 頂部列（漢堡選單 + 標題）＋ 會員資料區，仿 momo 版面
-        function AppHeader({ title, name, seasonType, onBack, onLogout, canSwitch, onSwitch, subText }) {
-          // 預排表用淺色主色 #8ebe84，文字改深綠色才看得清楚；服事表維持原本的靛藍＋白字
-          const isNext = seasonType !== 'view';
-          const bg = isNext ? 'bg-[#8ebe84]' : 'bg-indigo-600';
-          const fg = isNext ? 'text-white' : 'text-white';
-          const softBtn = isNext ? 'bg-white/15 hover:bg-white/25' : 'bg-white/15 hover:bg-white/25';
-          const avatarBg = isNext ? 'bg-white/20' : 'bg-white/20';
+        // 頂端列（與守望花園相同）：左＝漢堡選單＋標題；右＝查詢切換、個人設定
+        function TopBar({ title, onBack, onLogout, canSwitch, onSwitch }) {
+          return (
+            <header className="bg-white border-b border-zinc-200 sticky top-0 z-40" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+              <div className="max-w-2xl mx-auto w-full px-3 sm:px-5 h-14 flex items-center justify-between gap-2">
+                <div className="flex items-center min-w-0">
+                  <NavMenu onBack={onBack} onLogout={onLogout} />
+                  <h1 className="ml-1 px-2 py-1 text-base min-[360px]:text-lg font-semibold text-zinc-900 whitespace-nowrap">{title}</h1>
+                </div>
+                <div className="flex items-center shrink-0">
+                  {canSwitch && (
+                    <button onClick={onSwitch} title="查詢切換" aria-label="查詢切換" className={ICON_BTN}>
+                      <RefreshCw size={24} />
+                    </button>
+                  )}
+                  <a href="./manager.html" title="個人設定" aria-label="個人設定" className={ICON_BTN}>
+                    <SettingsIcon size={24} />
+                  </a>
+                </div>
+              </div>
+            </header>
+          );
+        }
 
+        // 頂部列＋身分列（權限圖示＋姓名）
+        function AppHeader({ title, name, onBack, onLogout, canSwitch, onSwitch, subText }) {
           // 權限圖示：只有「登入帳號本人」就是畫面上這個姓名時才顯示他的權限；
           // 查別人的姓名、沒登入、或讀不到，一律顯示一般的人像圖示（不顯示任何權限）
           const [role, setRole] = useState(null);
@@ -573,27 +596,16 @@
 
           return (
             <React.Fragment>
-              <nav className={`${bg} ${fg} sticky top-0 z-50 transition-colors duration-500`} style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
-                <div className="max-w-2xl mx-auto w-full px-4 sm:px-6 py-3 flex items-center justify-between">
-                  <NavMenu invert={isNext} onBack={onBack} onLogout={onLogout} />
-                  <h1 className="text-lg font-semibold">{title}</h1>
-                  <div className="w-11 h-11 flex items-center justify-center shrink-0">
-                    {canSwitch && (
-                      <button onClick={onSwitch} title="查詢切換" aria-label="查詢切換" className={`w-11 h-11 flex items-center justify-center rounded-full ${softBtn} transition-colors`}>
-                        <RefreshCw size={20} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </nav>
-              <div className={`${bg} ${fg} transition-colors duration-500`}>
-                <div className="max-w-2xl mx-auto w-full px-4 sm:px-6 pt-1 pb-6 flex items-center gap-4">
-                  <div title={meta ? meta.label : undefined} aria-label={meta ? meta.label : undefined} className={`w-16 h-16 rounded-full ${avatarBg} flex items-center justify-center shrink-0 ${meta ? 'cursor-help' : ''}`}>
-                    <RoleIcon size={32} />
+              <TopBar title={title} onBack={onBack} onLogout={onLogout} canSwitch={canSwitch} onSwitch={onSwitch} />
+              <div className="max-w-2xl mx-auto w-full px-4 sm:px-6 pt-4">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div title={meta ? meta.label : undefined} aria-label={meta ? meta.label : undefined}
+                    className={`w-10 h-10 shrink-0 rounded-full bg-zinc-100 ${meta && meta.high ? 'text-amber-500' : 'text-zinc-500'} flex items-center justify-center ${meta ? 'cursor-help' : ''}`}>
+                    <RoleIcon size={20} />
                   </div>
                   <div className="min-w-0">
-                    <h2 className="text-2xl font-semibold truncate">{name}</h2>
-                    {subText && <p className="text-sm font-medium opacity-80 mt-0.5">{subText}</p>}
+                    <h2 className="text-[15px] font-medium text-zinc-900 truncate">{name}</h2>
+                    {subText && <p className="text-sm text-zinc-500">{subText}</p>}
                   </div>
                 </div>
               </div>
@@ -603,12 +615,9 @@
 
         function LoginView({ name, setName, onLogin, loginError, isSyncing, syncStatus, progress, seasonType, setSeasonType, seasonLabels, systemConfig }) {
           return (
-            <div className="relative min-h-screen flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6 bg-white">
-              <div className="w-full max-w-md flex items-center justify-between mb-4 relative z-20">
-                <NavMenu light />
-                <span className="text-lg font-semibold latin-tight text-slate-800">TBC Together</span>
-                <div className="w-11 h-11 shrink-0"></div>
-              </div>
+            <div className="min-h-screen flex flex-col bg-white">
+              <TopBar title="我的服事" />
+              <div className="flex-1 flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6">
               <div className="bg-white rounded-lg w-full max-w-md p-6 sm:p-8 border border-slate-100">
                 <div className="flex flex-col items-center mb-8">
                   <div className={`p-4 rounded-lg shadow-button mb-4 transition-colors duration-500 ${seasonType === 'view' ? 'bg-indigo-600 text-white' : 'bg-[#8ebe84] text-white'}`}>
@@ -655,6 +664,7 @@
                       查詢
                   </button>
                 </form>
+              </div>
               </div>
             </div>
           );

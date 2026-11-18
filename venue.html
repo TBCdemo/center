@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>場地預約</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="../management/tbc-config.js"></script>
+<style>
+  /* 風格：TBC ONE（圓角、細框、不加陰影）＋ Together 紫色 #8806ce */
+  :root{ --bg:#ffffff; --card:#f7f9fa; --text:#262626; --sub:#595959; --mute:#8c8c8c; --border:#e8e8e8;
+         --primary:#8806ce; --primary-hover:#7205ad; --primary-tint:#f7eefc; --primary-ink:#5c048c;
+         --good:#8806ce; --adhoc:#f2f4cd; --busy:#c9c9c9; --bad:#d4380d; --bad-bg:#fff1f0; --green:#1f7a45; --green-bg:#e8f6ee; }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){ --bg:#0b1120; --card:#1e293b; --text:#f1f5f9; --sub:#94a3b8; --mute:#64748b; --border:#334155;
+      --adhoc:#33361a; --busy:#475569; --primary-tint:#3a1a4d; --primary-ink:#e6c9f6; --good:#d9afef; --bad:#ff7a45; --bad-bg:#3a1d17; --green:#6fd09a; --green-bg:#14301f; }
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; }
+  body{ background:var(--bg); color:var(--text); font-family:'Open Sans','Noto Sans TC',-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+        font-size:var(--fs,15px); letter-spacing:0; -webkit-tap-highlight-color:transparent;
+        padding-bottom:env(safe-area-inset-bottom,0px); }
+  button{ font:inherit; color:inherit; background:none; border:0; padding:0; cursor:pointer; }
+  button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{ outline:2px solid var(--primary); outline-offset:2px; }
+  input,select,textarea{ font:inherit; font-size:16px; color:var(--text); }
+  svg{ display:block; flex:none; }
+  .sr{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+
+  /* 頂端列（與守望花園、我的服事相同）：左漢堡選單＋標題、右功能圖示 */
+  .top{ position:sticky; top:0; z-index:30; background:var(--bg); border-bottom:1px solid var(--border); padding-top:env(safe-area-inset-top,0px); }
+  :root{ --fs:15px; --hov:#f4f4f5; --hov-soft:#fafafa; --menu-ink:#52525b; --menu-ink-hi:#18181b; --menu-line:#f4f4f5; }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --hov:#334155; --hov-soft:#273449; --menu-ink:#94a3b8; --menu-ink-hi:#f1f5f9; --menu-line:#334155; } }
+  .top-in{ max-width:672px; margin:0 auto; height:56px; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:0 12px; position:relative; }
+  @media (min-width:640px){ .top-in{ padding:0 20px; } }
+  .top-l{ display:flex; align-items:center; min-width:0; }
+  .mwrap{ position:relative; flex:none; }
+  .menu-btn,.hr button{ position:relative; width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; transition:background-color .15s ease; }
+  .menu-btn:hover,.hr button:hover{ background:var(--hov); }
+  .menu-btn:active,.hr button:active{ background:var(--hov); filter:brightness(.97); }
+  .menu-btn{ z-index:50; }
+  .menu-btn.open{ background:var(--hov); border-radius:8px; }
+  .top h1{ font-size:17px; font-weight:600; margin:0 0 0 4px; padding:4px 8px; white-space:nowrap; }
+  @media (min-width:360px){ .top h1{ font-size:18px; } }
+  @media (max-width:359px){ .menu-btn,.hr button{ width:40px; height:40px; } }
+  .hr{ display:flex; align-items:center; flex:none; }
+  .idrow{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px 10px; }
+  .who{ display:flex; align-items:center; gap:8px; font-size:15px; font-weight:500; min-width:0; }
+  .who b{ font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .who button.avatar:hover{ background:var(--border); }
+  .avatar.high{ color:#f59e0b; }
+  .fsw{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; width:144px; flex:none; }
+  .fsw button{ height:40px; border-radius:8px; background:var(--hov); font-weight:500; display:flex; align-items:center; justify-content:center; }
+  .fsw button[aria-pressed="true"]{ background:#18181b; color:#fff; }
+  .avatar{ width:40px; height:40px; border-radius:50%; background:var(--hov); color:#71717a; display:flex; align-items:center; justify-content:center; flex:none; }
+  .link{ color:var(--primary); font-size:15px; font-weight:600; padding:8px; border-radius:8px; }
+  .link:hover{ background:var(--primary-tint); }
+  .menu{ position:absolute; left:0; top:calc(100% + 8px); z-index:50; width:224px; background:var(--bg); border:1px solid var(--menu-line); border-radius:8px; overflow:hidden; box-shadow:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -4px rgba(0,0,0,.1); animation:menuIn .25s ease-out; }
+  @keyframes menuIn{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
+  .menu a,.menu button{ display:flex; align-items:center; gap:12px; width:100%; padding:14px 16px; font-size:14px; font-weight:500; color:var(--menu-ink); text-decoration:none; text-align:left; transition:background-color .15s ease,color .15s ease; }
+  .menu a + a,.menu a + button,.menu button + button{ border-top:1px solid var(--menu-line); }
+  .menu a:hover,.menu button:hover{ background:var(--hov-soft); color:var(--menu-ink-hi); }
+  .menu a:active,.menu button:active{ background:var(--hov); }
+  .menu-bg{ position:fixed; inset:0; z-index:40; }
+
+  main{ max-width:672px; margin:0 auto; padding-bottom:40px; }
+
+  /* 工具列：今天｜天 月｜找場地｜新增 */
+  .tb{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px; background:var(--card); border-bottom:1px solid var(--border); }
+  .btn-soft{ height:40px; padding:0 14px; border-radius:9999px; border:1px solid var(--border); background:var(--bg); font-weight:500; }
+  .btn-soft:hover{ background:var(--primary-tint); }
+  .seg{ display:flex; border:1px solid var(--border); border-radius:9999px; overflow:hidden; background:var(--bg); }
+  .seg button{ height:40px; min-width:56px; padding:0 14px; font-weight:500; color:var(--sub); }
+  .seg button[aria-pressed="true"]{ background:var(--primary); color:#fff; }
+  .tb-right{ display:flex; gap:6px; }
+  .btn-icon{ width:40px; height:40px; border-radius:50%; border:1px solid var(--border); background:var(--bg); display:flex; align-items:center; justify-content:center; color:var(--text); }
+  .btn-icon:hover{ background:var(--primary-tint); }
+  .btn-icon.primary{ background:var(--primary); border-color:var(--primary); color:#fff; }
+  .btn-icon.primary:hover{ background:var(--primary-hover); }
+
+  /* 標題＋前後翻頁 */
+  .nav{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:12px; }
+  .nav h2{ margin:0; font-size:20px; font-weight:700; }
+  .arrows{ display:flex; gap:2px; }
+  .arrows button{ width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:var(--text); }
+  .arrows button:hover{ background:var(--card); }
+  .arrows button:disabled{ opacity:.4; cursor:default; }
+
+  /* 月曆（比照後台：無外框、過去日期灰色、有預約只放一個點） */
+  .nav{ padding:12px 12px 4px 16px; }
+  .nav h2{ font-size:18px; }
+  .wk{ display:grid; grid-template-columns:repeat(7,1fr); color:var(--sub); font-size:14px; text-align:center; padding:6px 8px 0; }
+  .wk span{ padding:6px 0; }
+  .grid{ display:grid; grid-template-columns:repeat(7,1fr); padding:0 8px 10px; }
+  .cell{ height:50px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; font-size:16px; font-weight:500; }
+  .cell.out{ color:var(--mute); }
+  .cell.past{ color:var(--mute); }
+  .cell .n{ width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+  .cell.sel .n{ background:var(--primary-tint); color:var(--primary); font-weight:700; }
+  .cell.today .n{ background:var(--primary); color:#fff; font-weight:700; }
+  .dots{ height:5px; display:flex; }
+  .dots i{ width:5px; height:5px; border-radius:50%; background:var(--primary); }
+
+  /* 當天條列 */
+  .dayhead{ display:flex; align-items:center; gap:10px; padding:4px 4px 4px 16px; background:var(--card); border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
+  .dayhead b{ font-size:calc(var(--fs) + 2px); font-weight:700; }
+  .dayhead span.d{ color:var(--sub); font-size:14px; margin-left:auto; }
+  .list{ margin:0; padding:0; list-style:none; }
+  .ev{ display:flex; border-bottom:1px solid var(--border); min-height:72px; }
+  .ev-t{ width:84px; flex:none; background:var(--c); color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:8px 4px; }
+  .ev-t b{ font-size:19px; font-weight:700; line-height:1.15; }
+  .ev-t small{ font-size:12px; opacity:.9; }
+  .ev:not(.rec) .ev-b{ background:var(--adhoc); }
+  .ev-b{ flex:1; min-width:0; padding:10px 12px; display:flex; flex-direction:column; justify-content:center; gap:2px; }
+  .ev-sp{ font-size:calc(var(--fs) - 2px); font-weight:600; color:var(--c); }
+  .ev-ti{ font-size:calc(var(--fs) + 2px); font-weight:700; overflow-wrap:anywhere; }
+  .ev-meta{ font-size:13px; color:var(--sub); }
+  .ev.pending .ev-t{ background:var(--bg); color:var(--c); box-shadow:inset 0 0 0 2px var(--c); }
+  .ev.pending .ev-ti{ color:var(--sub); font-weight:500; }
+  .empty{ padding:36px 16px; text-align:center; color:var(--sub); }
+  .pager{ display:flex; justify-content:center; gap:12px; padding:18px 12px; }
+  .pbtn{ height:40px; padding:0 18px; border-radius:9999px; border:1px solid var(--border); background:var(--card); font-weight:500; }
+  .pbtn:disabled{ opacity:.4; cursor:default; }
+  .note{ margin:12px; padding:12px 14px; border-radius:8px; background:var(--bad-bg); color:var(--bad); font-size:14px; }
+  .skeleton{ padding:30px; text-align:center; color:var(--sub); }
+
+  /* 彈出視窗（手機從下方滑上來） */
+  .ov{ position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.45); display:flex; align-items:flex-end; justify-content:center; }
+  .sheet{ background:var(--bg); width:100%; max-width:560px; max-height:94dvh; border-radius:16px 16px 0 0; display:flex; flex-direction:column; animation:up .2s ease-out; }
+  @media (min-width:600px){ .ov{ align-items:center; } .sheet{ border-radius:16px; max-height:90dvh; } }
+  @keyframes up{ from{ transform:translateY(24px); opacity:.6; } }
+  @media (prefers-reduced-motion:reduce){ .sheet{ animation:none; } }
+  .sh-head{ display:flex; align-items:center; justify-content:space-between; padding:14px 16px 8px; }
+  .sh-head h3{ margin:0; font-size:18px; font-weight:700; }
+  .x{ width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+  .x:hover{ background:var(--card); }
+  .sh-body{ padding:4px 16px calc(16px + env(safe-area-inset-bottom,0px)); overflow-y:auto; flex:1; }
+  .sh-foot{ display:flex; gap:10px; padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px)); border-top:1px solid var(--border); }
+  .sh-foot > *{ flex:1; }
+  .btn{ height:46px; border-radius:9999px; font-weight:600; font-size:16px; display:inline-flex; align-items:center; justify-content:center; gap:6px; border:1px solid var(--border); background:var(--bg); }
+  .btn:hover{ background:var(--card); }
+  .btn.primary{ background:var(--primary); border-color:var(--primary); color:#fff; }
+  .btn.primary:hover{ background:var(--primary-hover); }
+  .btn:disabled{ opacity:.45; cursor:not-allowed; }
+  .f{ margin-bottom:14px; }
+  .f > label, .f > .lb{ display:block; font-weight:600; font-size:14px; margin-bottom:6px; }
+  .f .req{ color:var(--bad); }
+  .inp{ width:100%; height:46px; padding:0 12px; border:1px solid var(--border); border-radius:8px; background:var(--card); }
+  textarea.inp{ height:84px; padding:10px 12px; resize:vertical; }
+  .inp:focus{ border-color:var(--primary); }
+  select.inp,.selbtn{ appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; padding-right:34px; }
+  .selbtn{ text-align:left; }
+  .pills{ display:flex; flex-wrap:wrap; gap:8px; }
+  .pill{ height:40px; padding:0 16px; border-radius:9999px; border:1px solid var(--border); background:var(--bg); font-weight:500; }
+  .pill[aria-pressed="true"]{ background:var(--primary); border-color:var(--primary); color:#fff; }
+  .pill.good{ border-color:var(--green); color:var(--green); background:var(--green-bg); }
+  .big{ font-size:26px; font-weight:700; color:var(--primary); margin-top:10px; font-variant-numeric:tabular-nums; }
+  .avail{ margin:4px 0 14px; padding:10px 12px; border-radius:8px; font-size:14px; background:var(--card); }
+  .avail.ok{ color:var(--primary); background:var(--primary-tint); font-weight:600; }
+  .avail.no{ color:var(--bad); background:var(--bad-bg); }
+  .tl{ margin:6px 0 14px; }
+  .tl-bar{ position:relative; height:34px; border-radius:8px; background:var(--card); overflow:hidden; }
+  .tl-bar i{ position:absolute; top:0; bottom:0; background:var(--busy); }
+  .tl-bar b{ position:absolute; top:2px; bottom:2px; border-radius:6px; background:var(--primary); opacity:.9; }
+  .tl-bar b.bad{ background:var(--bad); }
+  .tl-ax{ position:relative; height:18px; font-size:12px; color:var(--mute); margin-top:4px; }
+  .tl-ax span{ position:absolute; transform:translateX(-50%); }
+  .tl-ax span:first-child{ transform:none; } .tl-ax span:last-child{ transform:translateX(-100%); }
+  .tl-lg{ display:flex; gap:14px; align-items:center; font-size:13px; color:var(--sub); margin-top:4px; }
+  .tl-lg i{ display:inline-block; width:12px; height:12px; border-radius:3px; background:var(--busy); margin-right:5px; vertical-align:-1px; }
+  .tl-lg .ok{ color:var(--primary); font-weight:700; } .tl-lg .no{ color:var(--bad); font-weight:700; }
+  .tl-why{ font-size:13px; color:var(--bad); margin-top:6px; }
+  .wait{ text-align:center; color:var(--sub); font-size:14px; margin:14px 0 4px; }
+  .tab{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+  .mine{ border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:10px; }
+  .mine-top{ display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
+  .mine-top b{ font-size:16px; overflow-wrap:anywhere; }
+  .tag{ flex:none; font-size:12px; font-weight:600; padding:3px 10px; border-radius:9999px; background:var(--card); color:var(--sub); }
+  .tag.pending{ background:#fff7e0; color:#a36a00; } .tag.approved{ background:var(--green-bg); color:var(--green); } .tag.rejected{ background:var(--bad-bg); color:var(--bad); }
+  .mine .m{ font-size:14px; color:var(--sub); margin-top:6px; }
+  .why{ margin-top:10px; padding:10px 12px; border-radius:8px; background:var(--bad-bg); color:var(--bad); font-size:14px; overflow-wrap:anywhere; }
+  .why small{ display:block; font-size:12px; opacity:.85; }
+  details{ border-top:1px solid var(--border); padding:10px 0; }
+  details:last-of-type{ border-bottom:1px solid var(--border); margin-bottom:14px; }
+  summary{ cursor:pointer; font-weight:600; list-style:none; display:flex; align-items:center; justify-content:space-between; min-height:32px; }
+  summary::-webkit-details-marker{ display:none; }
+  summary::after{ content:'+'; font-size:24px; font-weight:400; color:var(--sub); line-height:1; margin-right:4px; }
+  details[open] summary::after{ content:'−'; }
+  details > div{ padding-top:10px; }
+  .dates{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .dchip{ padding:4px 10px; border-radius:9999px; background:var(--card); font-size:13px; }
+  .dchip.bad{ background:var(--bad-bg); color:var(--bad); text-decoration:line-through; }
+  .chk{ display:flex; align-items:flex-start; gap:10px; margin-top:10px; font-size:14px; }
+  .chk input{ width:20px; height:20px; accent-color:var(--primary); margin:0; flex:none; }
+  .hint{ font-size:13px; color:var(--sub); margin-top:6px; }
+  .err{ color:var(--bad); font-size:14px; margin:8px 0; }
+  .qr{ display:flex; gap:10px; align-items:center; justify-content:space-between; padding:12px; margin-bottom:8px; border:1px solid var(--border); border-left:6px solid var(--c); border-radius:8px; }
+  .qr.busy{ background:var(--card); }
+  .qr b{ display:block; }
+  .qr .ok{ color:var(--primary); font-size:13px; font-weight:600; }
+  .qr .no{ color:var(--bad); font-size:13px; }
+  .qr .alts{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:6px; }
+  .qr .alts span{ color:var(--sub); font-size:13px; }
+  .qr .pill{ height:32px; padding:0 12px; font-size:13px; }
+  .qsum{ font-size:14px; color:var(--sub); margin:8px 0; }
+  .qsum b{ color:var(--text); }
+  .sp-panel{ margin-top:8px; padding:8px 12px; border:1px solid var(--border); border-radius:8px; }
+  .sp-panel .h{ display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--sub); margin-bottom:4px; }
+  .sp-panel .h button{ color:var(--primary); font-weight:600; padding:4px 6px; }
+  .sp-panel label{ display:flex; align-items:center; gap:10px; padding:8px 0; }
+  .sp-panel input{ width:20px; height:20px; accent-color:var(--primary); margin:0; }
+  .sp-panel i{ width:12px; height:12px; border-radius:3px; background:var(--c); }
+
+  /* 登入 */
+  .login{ background:var(--card); align-items:stretch; }
+  .login .box{ width:100%; max-width:420px; margin:auto; padding:16px; }
+  .login .card{ background:var(--bg); border:1px solid var(--border); border-radius:12px; padding:22px; }
+  .login h3{ margin:0 0 16px; text-align:center; font-size:18px; }
+  .login small{ display:block; text-align:center; color:var(--sub); margin-top:14px; }
+  .login small a{ color:var(--primary); font-weight:600; }
+
+  .toast{ position:fixed; left:50%; bottom:calc(24px + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); z-index:80; max-width:min(92vw,420px); padding:12px 18px; border-radius:8px; background:#262626; color:#fff; font-size:14px; animation:up .2s ease-out; }
+</style>
+</head>
+<body>
+<header class="top"><div class="top-in" id="top"></div></header>
+<main id="main"><div class="skeleton">載入中…</div></main>
+<div id="layer"></div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const { SUPABASE_URL, SUPABASE_KEY } = window.TBC_CONFIG;
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ============ 小工具 ============ */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pad = (n) => String(n).padStart(2, '0');
+const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
+const todayStr = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei' }).format(new Date());
+const parse = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)); };
+const fmt = (d) => `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+const addDays = (s, n) => { const d = parse(s); d.setUTCDate(d.getUTCDate() + n); return fmt(d); };
+const addMonths = (s, n) => { const d = parse(s); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() + n); return fmt(d); };
+const monthStart = (s) => s.slice(0, 7) + '-01';
+const dow = (s) => parse(s).getUTCDay();
+const dim = (s) => new Date(Date.UTC(+s.slice(0, 4), +s.slice(5, 7), 0)).getUTCDate();
+const monthGrid = (first) => { const lead = dow(first); const weeks = Math.ceil((lead + dim(first)) / 7); const st = addDays(first, -lead); return Array.from({ length: weeks * 7 }, (_, i) => addDays(st, i)); };
+const hm = (t) => String(t).slice(0, 5);
+const tmin = (t) => { const [h, m] = hm(t).split(':').map(Number); return h * 60 + m; };
+const m2hm = (m) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
+const opts = (a, b) => { const o = []; for (let m = tmin(a); m <= tmin(b); m += 15) o.push(m2hm(m)); return o; };
+const nowHm = () => new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date());
+const mdw = (d) => `${+d.slice(5, 7)}/${+d.slice(8, 10)}（${WEEK[dow(d)]}）`;
+const COLORS = ['#0070d5', '#0f8b8d', '#d9822b', '#8a5cd0', '#d4609f', '#4a9c5d', '#c25b4a', '#5b6b7a', '#b08900', '#2f6fb0'];
+const START_OPTS = opts('08:00', '22:45');
+const END_OPTS = opts('08:15', '23:45');
+const DURS = [[60, '1 小時'], [90, '1.5 小時'], [120, '2 小時'], [180, '3 小時']];
+const PAGE = 8;
+
+const IC = {
+  left: '<path d="m15 18-6-6 6-6"/>', right: '<path d="m9 18 6-6-6-6"/>', back: '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
+  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>', search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  menu: '<path d="M4 12h16"/><path d="M4 6h16"/><path d="M4 18h16"/>',
+  home: '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  hand: '<path d="M11 14h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 16"/><path d="m7 20 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9"/><path d="m2 15 6 6"/><path d="M19.5 8.5c.7-.7 1.5-1.6 1.5-2.7A2.73 2.73 0 0 0 16 4a2.78 2.78 0 0 0-5 1.8c0 1.2.8 2 1.5 2.8L16 12Z"/>',
+  cal: '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/>',
+  logout: '<path d="m16 17 5-5-5-5"/><path d="M21 12H9"/><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>',
+  login: '<path d="m10 17 5-5-5-5"/><path d="M15 12H3"/><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>',
+  list: '<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>',
+  usercheck: '<path d="m16 11 2 2 4-4"/><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>',
+  folder: '<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/>',
+  star: '<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>',
+  cap: '<path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/>',
+  shield: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',
+  sqplus: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/>',
+  user: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+};
+const svg = (n, s = 20) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n]}</svg>`;
+
+/* ============ 資料 ============ */
+const state = { role: 'member', fs: 'md', menu: false, view: 'month', sel: todayStr(), month: monthStart(todayStr()), page: 0, spaces: [], err: '', loading: true, session: null, name: '' };
+const cache = new Map();
+let lastLoad = 0;
+
+const colorOf = (id) => { const i = state.spaces.findIndex((s) => s.id === id); return COLORS[(i < 0 ? 0 : i) % COLORS.length]; };
+
+async function loadMonth(first, force) {
+  if (!force && cache.has(first)) return cache.get(first);
+  const g = monthGrid(first);
+  const { data, error } = await supabase.rpc('get_venue_public_events', { p_from: g[0], p_to: g[g.length - 1] });
+  if (error) throw error;
+  cache.set(first, data || []);
+  lastLoad = Date.now();
+  return data || [];
+}
+const eventsOn = (d) => (cache.get(monthStart(d)) || []).filter((e) => e.booking_date === d);
+const ensureDates = (dates) => Promise.all([...new Set(dates.map(monthStart))].map((m) => loadMonth(m)));
+
+async function loadSpaces() {
+  const { data, error } = await supabase.rpc('venue_list_public_spaces');
+  if (error) throw error;
+  state.spaces = data || [];
+}
+
+/* ============ 畫面：頂端列 ============ */
+const shortName = (n) => { n = (n || '').trim(); return /^[\u4e00-\u9fff]{2,3}$/.test(n) ? n.slice(1) : n; };   // 去掉姓氏
+const ROLE_INFO = { member: ['user', '會友'], coworker: ['usercheck', '同工'], admin_staff: ['folder', '行政'], leader: ['star', '區長', 1], pastor: ['cap', '牧者', 1], admin: ['shield', '管理員', 1] };
+const roleOf = () => ROLE_INFO[state.role] || ['user', state.role === 'r_wt7kod' ? '服事管家' : '會友'];
+const FONTS = [{ id: 'sm', px: 13, btn: 9, label: '小字' }, { id: 'md', px: 15, btn: 13, label: '標準字' }, { id: 'lg', px: 18, btn: 18, label: '大字' }];
+const FONT_KEY = 'tbc_venue_fontsize';
+const applyFont = (id) => { const f = FONTS.find((x) => x.id === id) || FONTS[1]; state.fs = f.id; document.documentElement.style.setProperty('--fs', f.px + 'px'); };
+try { applyFont(localStorage.getItem(FONT_KEY) || 'md'); } catch (e) { applyFont('md'); }
+function renderTop() {
+  $('#top').innerHTML = `
+    <div class="top-l">
+      <div class="mwrap">
+        <button class="menu-btn${state.menu ? ' open' : ''}" data-act="menu" aria-label="${state.menu ? '關閉選單' : '開啟選單'}" aria-expanded="${state.menu}">${svg(state.menu ? 'x' : 'menu', 24)}</button>
+        ${state.menu ? `<div class="menu-bg" data-act="menu"></div><nav class="menu" aria-label="主選單">
+          <a href="./index.html">${svg('home')}回首頁</a>
+          <a href="./prayer.html">${svg('hand')}我的禱告</a>
+          <a href="./search.html">${svg('clock')}我的服事</a>
+          <a href="./venue.html">${svg('cal')}場地預約</a>
+          ${state.session ? `<button data-act="logout">${svg('logout')}登出</button>` : `<button data-act="login">${svg('login')}登入</button>`}
+        </nav>` : ''}
+      </div>
+      <h1>場地預約</h1>
+    </div>
+    <div class="hr">
+      <button data-act="new" aria-label="新增預約" title="新增預約">${svg('sqplus', 24)}</button>
+      <button data-act="find" aria-label="快速找場地" title="快速找場地">${svg('search', 24)}</button>
+      <button data-act="mine" aria-label="我的預約" title="我的預約">${svg('list', 24)}</button>
+    </div>`;
+}
+function idRow() {
+  const [ic, label, high] = state.session ? roleOf() : ['user', '訪客'];
+  return `<div class="idrow"><div class="who"><button class="avatar${high ? ' high' : ''}" data-act="role" aria-label="權限：${label}，點一下切換顯示" title="點一下看權限">${svg(ic, 20)}</button><b id="idname" data-name="${esc(state.session ? (state.name || '會友') : '訪客')}" data-role="${label}">${esc(state.session ? (state.name || '會友') : '訪客')}</b></div>
+    <div class="fsw" role="group" aria-label="文字大小">${FONTS.map((f) => `<button data-act="fs" data-id="${f.id}" aria-pressed="${state.fs === f.id}" aria-label="${f.label}" title="${f.label}" style="font-size:${f.btn}px">A</button>`).join('')}</div></div>`;
+}
+
+/* ============ 畫面：主畫面（月曆＋當天條列） ============ */
+function render() {
+  renderTop();
+  const today = todayStr();
+  const sel = state.sel;
+  const first = monthStart(sel);
+  const monthEvents = cache.get(state.view === 'month' ? state.month : first) || null;
+  let h = idRow() + `
+    <div class="tb">
+      <button class="btn-soft" data-act="today">今天</button>
+      <div class="seg" role="group" aria-label="檢視方式">
+        <button data-act="view" data-v="day" aria-pressed="${state.view === 'day'}">天</button>
+        <button data-act="view" data-v="month" aria-pressed="${state.view === 'month'}">月</button>
+      </div>
+
+    </div>`;
+
+  if (state.err) h += `<div class="note" role="alert">${esc(state.err)} <button class="link" data-act="retry">重新載入</button></div>`;
+
+  if (state.view === 'month') {
+    const g = monthGrid(state.month);
+    const by = new Map();
+    for (const e of monthEvents || []) { if (!by.has(e.booking_date)) by.set(e.booking_date, []); by.get(e.booking_date).push(e); }
+    h += `<div class="nav"><h2>${state.month.slice(0, 4)}年${+state.month.slice(5, 7)}月</h2>
+      <div class="arrows"><button data-act="mprev" aria-label="上個月">${svg('left')}</button><button data-act="mnext" aria-label="下個月">${svg('right')}</button></div></div>
+      <div class="wk">${WEEK.map((w) => `<span>${w}</span>`).join('')}</div>
+      <div class="grid" role="grid" aria-label="月曆">${g.map((d) => {
+        const n = (by.get(d) || []).length;
+        return `<button class="cell${d.slice(0, 7) !== state.month.slice(0, 7) ? ' out' : ''}${d < today ? ' past' : ''}${d === sel ? ' sel' : ''}${d === today ? ' today' : ''}" data-act="pick" data-d="${d}" role="gridcell" aria-label="${+d.slice(5, 7)} 月 ${+d.slice(8, 10)} 日${n ? `，${n} 筆預約` : ''}">
+          <span class="n">${+d.slice(8, 10)}</span><span class="dots">${n ? '<i></i>' : ''}</span></button>`;
+      }).join('')}</div>`;
+  }
+
+  const relWord = sel === today ? '今天' : sel === addDays(today, 1) ? '明天' : sel === addDays(today, -1) ? '昨天' : '';
+  const left = relWord || `${+sel.slice(5, 7)}月${+sel.slice(8, 10)}日`;
+  const right = relWord ? `${sel.slice(0, 4)}年${+sel.slice(5, 7)}月${+sel.slice(8, 10)}日` : `星期${WEEK[dow(sel)]}`;
+  h += `<div class="dayhead"><b>${left}</b><span class="d">${right}</span>
+    <div class="arrows"><button data-act="dprev" aria-label="前一天">${svg('left')}</button><button data-act="dnext" aria-label="後一天">${svg('right')}</button></div></div>`;
+
+  const evs = (monthEvents || []).filter((e) => e.booking_date === sel).sort((a, b) => a.start_time.localeCompare(b.start_time) || a.space_name.localeCompare(b.space_name, 'zh-TW'));
+  if (!monthEvents && !state.err) h += `<div class="skeleton">載入中…</div>`;
+  else if (!evs.length) h += `<div class="empty">沒有人預約，歡迎來卡位</div>`;
+  else {
+    const pages = Math.ceil(evs.length / PAGE);
+    const pg = Math.min(state.page, pages - 1);
+    h += `<ul class="list">${evs.slice(pg * PAGE, pg * PAGE + PAGE).map((e) => `
+      <li class="ev ${e.kind === 'pending' ? 'pending' : ''}${e.is_recurring ? ' rec' : ''}" style="--c:${colorOf(e.space_id)}">
+        <div class="ev-t"><b>${hm(e.start_time)}</b><small>${hm(e.end_time)}</small></div>
+        <div class="ev-b"><span class="ev-sp">${esc(e.space_name)}</span><span class="ev-ti">${esc(e.title)}</span></div>
+      </li>`).join('')}</ul>`;
+    if (pages > 1) h += `<div class="pager"><button class="pbtn" data-act="pprev" ${pg === 0 ? 'disabled' : ''}>‹ 上一頁</button><button class="pbtn" data-act="pnext" ${pg >= pages - 1 ? 'disabled' : ''}>下一頁 ›</button></div>`;
+  }
+  $('#main').innerHTML = h;
+}
+
+async function select(d) {
+  state.sel = d; state.page = 0; state.month = monthStart(d);
+  render();
+  try { await loadMonth(state.month); state.err = ''; } catch (e) { state.err = '暫時無法讀取預約，請稍後再試'; console.error(e); }
+  render();
+}
+async function reload(force) {
+  state.err = '';
+  try { cache.clear(); await loadMonth(state.month, true); } catch (e) { state.err = '暫時無法讀取預約，請稍後再試'; console.error(e); }
+  render();
+}
+
+let roleTimer;
+$('#main').addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-act]'); if (!b) return;
+  const a = b.dataset.act, today = todayStr();
+  if (a === 'today') select(today);
+  else if (a === 'view') { state.view = b.dataset.v; state.month = monthStart(state.sel); select(state.sel); }
+  else if (a === 'pick') select(b.dataset.d);
+  else if (a === 'mprev' || a === 'mnext') {
+    const m = addMonths(state.month, a === 'mprev' ? -1 : 1);
+    const d = state.sel.slice(0, 7) === m.slice(0, 7) ? state.sel : (m.slice(0, 7) === today.slice(0, 7) ? today : m);
+    select(d);
+  }
+  else if (a === 'dprev') select(addDays(state.sel, -1));
+  else if (a === 'dnext') select(addDays(state.sel, 1));
+  else if (a === 'pprev') { state.page = Math.max(0, state.page - 1); render(); }
+  else if (a === 'pnext') { state.page += 1; render(); }
+  else if (a === 'retry') { reload(); }
+  else if (a === 'role') {
+    const n = $('#idname'); if (!n) return;
+    const showing = n.textContent === n.dataset.role;
+    n.textContent = showing ? n.dataset.name : n.dataset.role;
+    clearTimeout(roleTimer); if (!showing) roleTimer = setTimeout(() => { n.textContent = n.dataset.name; }, 3000);
+  }
+  else if (a === 'fs') { applyFont(b.dataset.id); try { localStorage.setItem(FONT_KEY, b.dataset.id); } catch (e) { /* 略過 */ } render(); }
+  else if (a === 'find') openFind();
+  else if (a === 'mine') needLogin(openMine);
+  else if (a === 'new') needLogin(() => openBooking({ date: state.sel >= todayStr() ? state.sel : todayStr() }));
+});
+$('#top').addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-act]'); if (!b) return;
+  const a = b.dataset.act;
+  if (a === 'menu') { state.menu = !state.menu; renderTop(); return; }
+  if (state.menu) { state.menu = false; renderTop(); }
+  if (a === 'login') openLogin();
+  if (a === 'logout') supabase.auth.signOut();
+  if (a === 'find') openFind();
+  if (a === 'mine') needLogin(openMine);
+  if (a === 'new') needLogin(() => openBooking({ date: state.sel >= todayStr() ? state.sel : todayStr() }));
+});
+
+/* ============ 通用：彈出視窗、提示 ============ */
+let openCount = 0;
+function sheet(title, body, foot, cls = '') {
+  const ov = document.createElement('div');
+  ov.className = 'ov ' + cls;
+  ov.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}">
+    <div class="sh-head"><h3>${esc(title)}</h3><button class="x" data-close aria-label="關閉">${svg('x', 22)}</button></div>
+    <div class="sh-body">${body}</div>${foot ? `<div class="sh-foot">${foot}</div>` : ''}</div>`;
+  $('#layer').appendChild(ov);
+  document.body.style.overflow = 'hidden'; openCount++;
+  const api = { el: ov, onClose: null, closed: false };
+  api.close = () => {
+    if (api.closed) return; api.closed = true;
+    document.removeEventListener('keydown', onKey);
+    ov.remove(); openCount--; if (!openCount) document.body.style.overflow = '';
+    if (api.onClose) api.onClose();
+  };
+  const onKey = (e) => { if (e.key === 'Escape' && ov === $('#layer').lastElementChild) api.close(); };
+  document.addEventListener('keydown', onKey);
+  ov.addEventListener('click', (e) => { if (e.target.closest('[data-close]')) api.close(); });
+  return api;
+}
+let toastTimer;
+function toast(msg) {
+  document.querySelectorAll('.toast').forEach((t) => t.remove());
+  const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); t.textContent = msg;
+  document.body.appendChild(t); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.remove(), 5000);
+}
+
+/* ============ 登入（會友以上；帳號規則同其他 Together 頁面） ============ */
+const VDOM = '@tbc.gmail.com';
+const toEmail = (a) => { const t = (a || '').trim(); return t.includes('@') ? t : t + VDOM; };
+let afterLogin = null;
+function needLogin(fn) { if (state.session) fn(); else { afterLogin = fn; openLogin(); } }
+function openLogin() {
+  const s = sheet('歡迎登入', `
+    <form id="lf"><div class="f"><label for="la">帳號</label><input id="la" class="inp" autocomplete="username" placeholder="電話號碼或電子郵件" required></div>
+    <div class="f"><label for="lp">密碼</label><input id="lp" class="inp" type="password" autocomplete="current-password" placeholder="6位以上英數組合" required></div>
+    <div class="err" id="le" role="alert"></div>
+    <button class="btn primary" style="width:100%" type="submit" id="lb">登入</button></form>
+    <p class="hint" style="text-align:center;margin-top:16px">首次設定密碼？請<a href="./manager.html#signup" style="color:var(--primary);font-weight:600">點這裡</a><br>沒有帳號、忘記密碼？請聯絡行政辦公室</p>`, '');
+  $('#la', s.el).focus();
+  $('#lf', s.el).addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = $('#lb', s.el); btn.disabled = true; btn.textContent = '處理中';
+    const { error } = await supabase.auth.signInWithPassword({ email: toEmail($('#la', s.el).value), password: $('#lp', s.el).value });
+    btn.disabled = false; btn.textContent = '登入';
+    if (error) { $('#le', s.el).textContent = /Invalid login/i.test(error.message) ? '登入失敗：帳號或密碼錯誤' : '登入發生問題，稍後再試'; return; }
+    s.onClose = null; s.close();
+  });
+  s.onClose = () => { afterLogin = null; };
+}
+
+async function onSession(session) {
+  state.session = session; state.name = ''; state.role = 'member';
+  render();
+  if (session) {
+    try { const { data } = await supabase.rpc('my_access'); if (data && data.name) state.name = data.name; if (data && data.top_role) state.role = data.top_role; } catch (e) { /* 沒有姓名也能用 */ }
+    render();
+    if (afterLogin) { const f = afterLogin; afterLogin = null; f(); }
+  }
+}
+
+/* ============ 共用：時間與時長選擇 ============ */
+const durHtml = (st, id) => `
+  <div class="f"><label for="${id}-st">開始時間</label>
+    <select class="inp" id="${id}-st">${(START_OPTS.includes(st.start) ? START_OPTS : [...START_OPTS, st.start].sort()).map((t) => `<option ${t === st.start ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+  <div class="f"><span class="lb">用多久</span>
+    <div class="pills" id="${id}-du">${DURS.map(([m, l]) => `<button type="button" class="pill" data-m="${m}" aria-pressed="${st.dur === m}">${l}</button>`).join('')}<button type="button" class="pill" data-m="0" aria-pressed="${st.dur === 0}">自訂</button></div>
+    <div id="${id}-ce" ${st.dur === 0 ? '' : 'hidden'} style="margin-top:8px"><label for="${id}-ed" class="hint" style="display:block;margin:0 0 4px">結束時間</label>
+      <select class="inp" id="${id}-ed">${END_OPTS.map((t) => `<option ${t === st.customEnd ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+    <div class="big" id="${id}-big"></div></div>`;
+const durMin = (st) => st.dur || (tmin(st.customEnd) - tmin(st.start));
+const endOf = (st) => m2hm(tmin(st.start) + durMin(st));
+const timeValid = (st) => { const d = durMin(st); return d > 0 && tmin(st.start) + d <= 24 * 60 - 1; };
+function bindDur(root, st, id, onChange) {
+  const sync = () => {
+    root.querySelectorAll(`#${id}-du .pill`).forEach((p) => p.setAttribute('aria-pressed', String(+p.dataset.m === st.dur)));
+    $(`#${id}-ce`, root).hidden = st.dur !== 0;
+    $(`#${id}-big`, root).textContent = timeValid(st) ? `${st.start} – ${endOf(st)}` : '';
+  };
+  $(`#${id}-st`, root).addEventListener('change', (e) => { st.start = e.target.value; sync(); onChange(); });
+  $(`#${id}-ed`, root).addEventListener('change', (e) => { st.customEnd = e.target.value; sync(); onChange(); });
+  $(`#${id}-du`, root).addEventListener('click', (e) => {
+    const p = e.target.closest('.pill'); if (!p) return;
+    const m = +p.dataset.m;
+    if (m === 0 && st.dur !== 0) { const e2 = timeValid(st) ? endOf(st) : ''; if (e2 && END_OPTS.includes(e2)) { st.customEnd = e2; $(`#${id}-ed`, root).value = e2; } }
+    st.dur = m; sync(); onChange();
+  });
+  sync();
+}
+
+/* ============ 新增預約 ============ */
+function openBooking(init, onBack) {
+  const today = todayStr();
+  const b = { title: '', space: init.spaceId || (state.spaces[0] && state.spaces[0].id) || '', date: init.date, start: init.start || '19:00', dur: init.dur ?? 120, customEnd: init.customEnd || '21:00',
+              repeat: false, weeks: 4, contact: state.name || '', org: '', phone: '', note: '', skip: false };
+  if (init.dur === undefined && init.durMin) { b.dur = DURS.some(([m]) => m === init.durMin) ? init.durMin : 0; if (b.dur === 0) b.customEnd = m2hm(tmin(b.start) + init.durMin); }
+  const s = sheet('新增預約', `
+    <form id="bf" novalidate>
+      <div class="f"><label for="bt">活動名稱 <span class="req">*</span></label><input id="bt" class="inp" maxlength="200" placeholder="例如：小組聚會、敬拜團練" data-first></div>
+      <div class="f"><label for="bs">場地 <span class="req">*</span></label><select id="bs" class="inp">${state.spaces.map((x) => `<option value="${x.id}" ${x.id === b.space ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div>
+      <div class="f"><label for="bd">日期 <span class="req">*</span></label><input id="bd" class="inp" type="date" min="${today}" value="${b.date}"></div>
+      ${durHtml(b, 'b')}
+      <div class="tl" id="bav" aria-live="polite"></div>
+      <div class="f" style="margin-top:14px"><label for="bc">聯絡人 <span class="req">*</span></label><input id="bc" class="inp" maxlength="50" value="${esc(b.contact)}"></div>
+      <details><summary>更多資訊</summary><div>
+        <div class="f"><label for="bo">借用單位</label><input id="bo" class="inp" maxlength="100"></div>
+        <div class="f"><label for="bp">聯絡電話</label><input id="bp" class="inp" type="tel" inputmode="tel" maxlength="30"></div>
+        <div class="f"><label for="bn">備註</label><textarea id="bn" class="inp" maxlength="500"></textarea></div>
+      </div></details>
+      <p class="wait">申請要審核，請耐心等候</p>
+      <div class="err" id="ber" role="alert"></div>
+    </form>`,
+    `<button type="button" class="btn" data-close>取消</button><button type="submit" form="bf" class="btn primary" id="bsub">送出申請</button>`);
+  const r = s.el, g = (id) => $(id, r);
+  let saved = false, token = 0;
+  s.onClose = () => { if (!saved && onBack) onBack(); };
+  setTimeout(() => { const f = r.querySelector('[data-first]'); if (f) f.focus(); }, 50);
+
+  const dates = () => [b.date];
+  const clash = (d) => eventsOn(d).filter((e) => e.space_id === b.space && tmin(e.start_time) < tmin(b.start) + durMin(b) && tmin(e.end_time) > tmin(b.start));
+  const errors = () => {
+    if (!b.title.trim()) return '請填寫活動名稱';
+    if (!b.date) return '請選擇日期';
+    if (b.date < today) return '不能預約過去的日期';
+    if (!timeValid(b)) return '結束時間要晚於開始時間，且不能超過 23:59';
+    if (!b.contact.trim()) return '請填寫聯絡人';
+    return '';
+  };
+  async function refresh() {
+    const my = ++token;
+    const ds = b.date && b.date >= today ? dates() : [];
+    try { await ensureDates(ds); } catch (e) { /* 伺服器送出時還會再檢查一次 */ }
+    if (my !== token || s.closed) return;
+    const av = g('#bav');
+    if (!ds.length) { av.innerHTML = ''; g('#bsub').disabled = false; return; }
+    const day = eventsOn(b.date).filter((e) => e.space_id === b.space);
+    const ok = !timeValid(b) || clash(b.date).length === 0;
+    const pos = (m) => Math.min(100, Math.max(0, (m - 480) / 900 * 100));
+    const seg = (a, z) => `left:${pos(a)}%;width:${Math.max(0, pos(z) - pos(a))}%`;
+    av.innerHTML = `<div class="tl-bar">${day.map((e) => `<i style="${seg(tmin(e.start_time), tmin(e.end_time))}"></i>`).join('')}${timeValid(b) ? `<b class="${ok ? '' : 'bad'}" style="${seg(tmin(b.start), tmin(b.start) + durMin(b))}"></b>` : ''}</div>
+      <div class="tl-ax">${[8, 11, 14, 17, 20, 23].map((h) => `<span style="left:${pos(h * 60)}%">${pad(h)}</span>`).join('')}</div>
+      <div class="tl-lg"><span><i></i>已預約</span>${timeValid(b) ? `<span class="${ok ? 'ok' : 'no'}">${ok ? '可預約' : '不可預約'}</span>` : ''}</div>
+      ${ok ? '' : `<div class="tl-why">${clash(b.date).map((e) => `${hm(e.start_time)}–${hm(e.end_time)}`).join('、')}</div>`}`;
+    g('#bsub').disabled = !ok;
+  }
+  const upd = () => { g('#ber').textContent = ''; refresh(); };
+  bindDur(r, b, 'b', upd);
+  g('#bt').addEventListener('input', (e) => { b.title = e.target.value; });
+  g('#bs').addEventListener('change', (e) => { b.space = e.target.value; upd(); });
+  g('#bd').addEventListener('change', (e) => { b.date = e.target.value; upd(); });
+  g('#bc').addEventListener('input', (e) => { b.contact = e.target.value; });
+  refresh();
+
+  g('#bf').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    b.org = g('#bo').value; b.phone = g('#bp').value; b.note = g('#bn').value;
+    const er = errors(); if (er) { g('#ber').textContent = er; return; }
+    const btn = g('#bsub'); btn.disabled = true; btn.textContent = '送出中…';
+    const ds = dates();
+    const { data, error } = await supabase.rpc('venue_submit_request', {
+      p_space_id: b.space, p_title: b.title.trim(), p_dates: ds, p_start_time: b.start, p_end_time: endOf(b),
+      p_org_unit: b.org.trim() || null, p_contact_name: b.contact.trim(), p_contact_phone: b.phone.trim() || null, p_note: b.note.trim() || null,
+      p_skip_conflicts: false,
+    });
+    btn.textContent = '送出申請';
+    if (error) {
+      btn.disabled = false;
+      if (error.code === '42501' || /請先登入/.test(error.message || '')) { s.close(); needLogin(() => openBooking(init, onBack)); return; }
+      g('#ber').textContent = error.message || '送出失敗，請稍後再試';
+      cache.clear(); refresh();
+      return;
+    }
+    saved = true; s.close();
+    const n = data && data.created || 1, sk = (data && data.skipped || []).length;
+    toast((data && data.status === 'approved' ? `已預約成功（共 ${n} 場）` : `已送出申請（共 ${n} 場），核准後會顯示活動名稱`) + (sk ? `；略過 ${sk} 場衝突` : ''));
+    cache.clear(); state.view = 'month'; await select(ds[0]);
+  });
+}
+
+/* ============ 快速找場地 ============ */
+const LUNCH_FROM = 12 * 60, LUNCH_TO = 13 * 60;
+function alternatives(busy, want, dur) {
+  let c = [];
+  for (let s = 8 * 60; s + dur <= 23 * 60; s += 15) if (busy.every((e) => !(tmin(e.start_time) < s + dur && tmin(e.end_time) > s))) c.push(s);
+  const nl = c.filter((s) => !(s < LUNCH_TO && s + dur > LUNCH_FROM));   // 盡量避開中午 12:00–13:00
+  if (nl.length) c = nl;
+  c.sort((a, b) => Math.abs(a - want) - Math.abs(b - want) || a - b);
+  const out = [];
+  for (const x of c) { if (out.every((o) => Math.abs(o - x) >= 45)) out.push(x); if (out.length >= 3) break; }
+  return out.sort((a, b) => a - b);
+}
+function openFind(prev) {
+  const today = todayStr();
+  const nh = parseInt(nowHm().slice(0, 2), 10);
+  const f = prev || { date: state.sel >= today ? state.sel : today, start: (state.sel === today || state.sel < today) ? `${pad(Math.min(22, Math.max(8, nh + 1)))}:00` : '19:00', dur: 120, customEnd: '21:00', sel: null };
+  const s = sheet('快速找場地', `
+    <div class="f"><label for="qd">日期</label><input id="qd" class="inp" type="date" min="${today}" value="${f.date}"></div>
+    ${durHtml(f, 'q')}
+    <div class="f"><span class="lb">場地</span>
+      <button type="button" class="inp selbtn" id="qsb" aria-expanded="false"></button>
+      <div class="sp-panel" id="qsp" hidden></div></div>
+    <div id="qres" aria-live="polite"></div>`, '');
+  const r = s.el, g = (id) => $(id, r);
+  let token = 0;
+  const active = state.spaces;
+  const allOn = () => !f.sel || active.every((x) => f.sel.has(x.id));
+  const label = () => (allOn() ? '全部場地' : !f.sel || f.sel.size === 0 ? '未選場地' : `${f.sel.size} 個場地`);
+  const drawSp = () => {
+    g('#qsb').textContent = label();
+    g('#qsp').innerHTML = `<div class="h"><span>勾選要查詢的場地</span><span><button type="button" data-all="1">全選</button><button type="button" data-all="0">取消</button></span></div>` +
+      active.map((x) => `<label style="--c:${colorOf(x.id)}"><input type="checkbox" data-sp="${x.id}" ${!f.sel || f.sel.has(x.id) ? 'checked' : ''}><i></i>${esc(x.name)}</label>`).join('');
+  };
+  async function run() {
+    const my = ++token, res = g('#qres');
+    if (!f.date || f.date < today) { res.innerHTML = `<div class="err">${f.date ? '不能預約過去的日期' : '請選擇日期'}</div>`; return; }
+    if (!timeValid(f)) { res.innerHTML = '<div class="err">結束時間要晚於開始時間，且不能超過 23:59</div>'; return; }
+    res.innerHTML = '<div class="qsum">查詢中…</div>';
+    try { await ensureDates([f.date]); } catch (e) { res.innerHTML = '<div class="err">暫時無法讀取預約，請稍後再試</div>'; return; }
+    if (my !== token || s.closed) return;
+    const st = tmin(f.start), dur = durMin(f), en = st + dur, day = eventsOn(f.date);
+    const rows = active.filter((x) => !f.sel || f.sel.has(x.id)).map((x) => {
+      const mine = day.filter((e) => e.space_id === x.id);
+      const cl = mine.filter((e) => tmin(e.start_time) < en && tmin(e.end_time) > st);
+      return { x, mine, cl, free: !cl.length, alts: cl.length ? alternatives(mine, st, dur) : [] };
+    }).sort((a, b) => (b.free - a.free) || a.x.name.localeCompare(b.x.name, 'zh-TW'));
+    const n = rows.filter((q) => q.free).length;
+    res.innerHTML = `<div class="qsum">${rows.length ? `<b>${mdw(f.date)} ${f.start}–${endOf(f)}</b>　${n ? `${n} 個場地可預約` : '這個時段都被占用了'}` : '沒有符合的場地'}</div>` +
+      rows.map((q) => `<div class="qr ${q.free ? '' : 'busy'}" style="--c:${colorOf(q.x.id)}"><div style="min-width:0"><b>${esc(q.x.name)}</b>${q.free
+        ? `<span class="ok">可預約</span>${q.mine.length ? `<div class="no" style="color:var(--sub)">不可預約：${q.mine.map((e) => `${hm(e.start_time)}–${hm(e.end_time)}`).join('、')}</div>` : ''}`
+        : `<span class="no">不可預約：${q.cl.map((e) => `${hm(e.start_time)}–${hm(e.end_time)}`).join('、')}</span>${q.alts.length ? `<div class="alts"><span>推薦時間</span>${q.alts.map((a) => `<button type="button" class="pill good" data-pick="${q.x.id}" data-s="${m2hm(a)}">${m2hm(a)}–${m2hm(a + dur)}</button>`).join('')}</div>` : ''}`}</div>
+        ${q.free ? `<button type="button" class="btn primary" style="flex:none;padding:0 20px;height:42px" data-pick="${q.x.id}" data-s="${f.start}">預約</button>` : ''}</div>`).join('');
+  }
+  drawSp();
+  bindDur(r, f, 'q', run);
+  g('#qd').addEventListener('change', (e) => { f.date = e.target.value; run(); });
+  g('#qsb').addEventListener('click', () => { const p = g('#qsp'); p.hidden = !p.hidden; g('#qsb').setAttribute('aria-expanded', String(!p.hidden)); });
+  g('#qsp').addEventListener('click', (e) => {
+    const a = e.target.closest('[data-all]'); if (!a) return;
+    f.sel = a.dataset.all === '1' ? null : new Set(); drawSp(); run();
+  });
+  g('#qsp').addEventListener('change', (e) => {
+    const c = e.target.closest('[data-sp]'); if (!c) return;
+    const n = new Set(f.sel || active.map((x) => x.id)); if (c.checked) n.add(c.dataset.sp); else n.delete(c.dataset.sp);
+    f.sel = active.every((x) => n.has(x.id)) ? null : n; g('#qsb').textContent = label(); run();
+  });
+  g('#qres').addEventListener('click', (e) => {
+    const p = e.target.closest('[data-pick]'); if (!p) return;
+    const pick = { spaceId: p.dataset.pick, start: p.dataset.s };
+    const go = () => openBooking({ date: f.date, spaceId: pick.spaceId, start: pick.start, dur: f.dur, customEnd: f.customEnd, durMin: f.dur ? undefined : durMin(f) },
+                                 () => openFind({ ...f }));   // 預約視窗按關閉，就回到這裡可以直接選別的場地
+    s.onClose = null; s.close();
+    needLogin(go);
+  });
+  run();
+}
+
+/* ============ 我的預約 ============ */
+const ST = { pending: '待審查', approved: '已核准', rejected: '已退回' };
+function openMine() {
+  const s = sheet('我的預約', '<div class="skeleton">載入中…</div>', '');
+  let rows = null, cat = 'all';
+  const body = s.el.querySelector('.sh-body');
+  const draw = () => {
+    const gs = new Map();
+    for (const r of rows) { const k = r.series_id || r.id; if (!gs.has(k)) gs.set(k, []); gs.get(k).push(r); }
+    const list = [...gs.values()].map((it) => it.sort((a, b) => a.booking_date.localeCompare(b.booking_date) || a.start_time.localeCompare(b.start_time)))
+      .sort((a, b) => b[0].created_at.localeCompare(a[0].created_at));
+    const shown = list.filter((it) => cat === 'all' || it[0].status === cat);
+    const cnt = (c) => list.filter((it) => c === 'all' || it[0].status === c).length;
+    body.innerHTML = `<div class="tab" role="tablist">${[['all', '全部'], ['pending', '待審查'], ['approved', '已核准'], ['rejected', '已退回']].map(([k, l]) => `<button class="pill" role="tab" data-cat="${k}" aria-pressed="${cat === k}">${l}${cnt(k) ? ` ${cnt(k)}` : ''}</button>`).join('')}</div>` +
+      (shown.length ? shown.map((it) => { const f = it[0]; return `<article class="mine"><div class="mine-top"><b>${esc(f.title)}</b><span class="tag ${esc(f.status)}">${esc(ST[f.status] || f.status)}</span></div>
+        <div class="m">${esc(f.space_name)}　${hm(f.start_time)} – ${hm(f.end_time)}</div>
+        <div class="dates">${it.map((x) => `<span class="dchip">${mdw(x.booking_date)}</span>`).join('')}</div>
+        ${f.status === 'rejected' ? `<div class="why"><small>退回原因</small>${esc(f.review_note || '（沒有填寫）')}</div>` : ''}</article>`; }).join('')
+        : '<div class="empty">預約全數過關</div>');
+  };
+  body.addEventListener('click', (e) => { const p = e.target.closest('[data-cat]'); if (p && rows) { cat = p.dataset.cat; draw(); } });
+  supabase.rpc('venue_my_requests').then(({ data, error }) => {
+    if (s.closed) return;
+    if (error) { body.innerHTML = '<div class="err">暫時無法讀取，請稍後再試</div>'; return; }
+    rows = data || []; draw();
+  });
+}
+
+/* ============ 啟動 ============ */
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && state.menu) { state.menu = false; renderTop(); } });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && lastLoad && Date.now() - lastLoad > 60000) reload(); });
+(async () => {
+  render();
+  supabase.auth.onAuthStateChange((_e, s) => { onSession(s); });
+  supabase.auth.getSession().then(({ data }) => onSession(data.session));
+  try { await loadSpaces(); } catch (e) { console.error(e); state.err = '暫時無法讀取場地，請稍後再試'; }
+  try { await loadMonth(state.month); } catch (e) { console.error(e); state.err = '暫時無法讀取預約，請稍後再試'; }
+  state.loading = false; render();
+})();
+</script>
+</body>
+</html>
