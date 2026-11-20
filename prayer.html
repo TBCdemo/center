@@ -141,8 +141,8 @@
         // 共用按鈕狀態樣式：hover / active / focus-visible / disabled
         const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2";
         const disabledCls = "disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none";
-        const btnPrimary = `px-5 py-2.5 rounded-full text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 transition-colors duration-150 ${disabledCls} ${focusRing}`;
-        const btnDark = `px-5 py-2.5 rounded-full text-sm font-medium text-white bg-zinc-900 hover:bg-zinc-700 active:bg-zinc-800 transition-colors duration-150 ${disabledCls} ${focusRing}`;
+        const btnPrimary = `px-5 py-2.5 rounded-full text-sm font-medium text-white bg-slate-700 hover:bg-slate-800 active:bg-slate-900 transition-colors duration-150 ${disabledCls} ${focusRing}`;
+        const btnDark = `px-5 py-2.5 rounded-full text-sm font-medium text-white bg-slate-700 hover:bg-slate-800 active:bg-slate-900 transition-colors duration-150 ${disabledCls} ${focusRing}`;
         const btnOutline = `px-4 py-2.5 rounded-full text-sm font-medium border border-zinc-200 text-zinc-700 bg-white hover:bg-zinc-50 active:bg-zinc-100 transition-colors duration-150 ${disabledCls} ${focusRing}`;
         // 大按鈕（兩顆等寬並排）：取消＝淺灰框、主要動作＝深灰底白字、退回＝淡紅底紅字
         const btnCancelWhite = `h-12 rounded-full inline-flex items-center justify-center gap-2 border border-slate-300 bg-white text-slate-600 text-base font-medium hover:bg-slate-50 active:bg-slate-100 transition-colors duration-150 ${disabledCls} ${focusRing}`;
@@ -477,7 +477,7 @@
                                 <InlineError message={error} />
 
                                 <button type="submit" disabled={busy}
-                                    className={`w-full bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-medium py-3.5 rounded-full transition-colors duration-150 mt-4 text-base ${disabledCls} ${focusRing}`}>
+                                    className={`w-full bg-slate-700 hover:bg-slate-800 active:bg-slate-900 text-white font-medium py-3.5 rounded-full transition-colors duration-150 mt-4 text-base ${disabledCls} ${focusRing}`}>
                                     {busy ? '處理中' : '登入'}
                                 </button>
                             </form>
@@ -1082,23 +1082,16 @@
         };
         const roleInfoOf = (role) => ROLE_INFO[role === 'user' ? 'member' : role] || (role ? { icon: UserIcon, label: String(role) } : ROLE_INFO.member);
         const UserBadge = ({ loggedIn, role, name }) => {
-            const [showRole, setShowRole] = useState(false);
-            // 點圖示：姓名換成權限文字；再點一次換回來，3 秒後也會自己換回來
-            useEffect(() => {
-                if (!showRole) return;
-                const t = setTimeout(() => setShowRole(false), 3000);
-                return () => clearTimeout(t);
-            }, [showRole]);
+            // 圖示＝最高權限；只是顯示，不可點、滑過也不提示
             const info = loggedIn ? roleInfoOf(role) : { icon: UserIcon, label: '訪客' };
             const I = info.icon;
             const shown = loggedIn ? (name || '會員') : '訪客';
             return (
                 <div className="flex items-center gap-2.5 min-w-0 text-zinc-700">
-                    <button type="button" onClick={() => setShowRole(v => !v)} aria-pressed={showRole} aria-label={`權限：${info.label}，點一下切換顯示`} title="點一下看權限"
-                        className={`w-10 h-10 shrink-0 rounded-full bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 ${info.high ? 'text-amber-500' : 'text-zinc-500'} flex items-center justify-center transition-colors duration-150 ${focusRing}`}>
+                    <div aria-hidden="true" className={`w-10 h-10 shrink-0 rounded-full bg-zinc-100 ${info.high ? 'text-amber-500' : 'text-zinc-500'} flex items-center justify-center`}>
                         <I size={20} />
-                    </button>
-                    <span className="text-[15px] font-medium text-zinc-900 truncate min-w-0" aria-live="polite">{showRole ? info.label : shown}</span>
+                    </div>
+                    <span className="text-[15px] font-medium text-zinc-900 truncate min-w-0">{shown}</span>
                 </div>
             );
         };
@@ -1739,7 +1732,7 @@
             ) : (
                 <div className="grid grid-cols-2 gap-3 mt-4">
                     <button onClick={() => run(() => api.approve(post.id, isPublic))} disabled={busy}
-                        className={`inline-flex items-center justify-center gap-2 h-12 rounded-full bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-base font-medium transition-colors duration-150 ${disabledCls} ${focusRing}`}>
+                        className={`inline-flex items-center justify-center gap-2 h-12 rounded-full bg-slate-700 hover:bg-slate-800 active:bg-slate-900 text-white text-base font-medium transition-colors duration-150 ${disabledCls} ${focusRing}`}>
                         <CheckIcon size={18} />{busy ? '處理中' : '核准'}
                     </button>
                     <button onClick={() => setReturning(true)} disabled={busy}
@@ -2004,8 +1997,18 @@
                 setRole(null); setPending(0);
                 if (!session?.user?.id) return;
                 let alive = true;
-                supabase.from('user_roles').select('role').eq('user_uid', session.user.id).maybeSingle()
-                    .then(({ data }) => { if (alive) setRole(data?.role || 'user'); });
+                (async () => {
+                    let top = null;
+                    try { const { data } = await supabase.rpc('my_access'); if (data && data.top_role) top = data.top_role; } catch (e) {}
+                    if (!top) {
+                        try {
+                            const { data } = await supabase.from('user_roles').select('role').eq('user_uid', session.user.id);
+                            const rank = (r) => ['member', 'coworker', 'admin_staff', 'leader', 'pastor', 'admin'].indexOf(r);
+                            top = (data || []).map(x => x.role).sort((x, y) => rank(y) - rank(x))[0] || null;
+                        } catch (e) {}
+                    }
+                    if (alive) setRole(top || 'user');
+                })();
                 return () => { alive = false; };
             }, [session?.user?.id]);
 
@@ -2046,7 +2049,7 @@
 
             const menuItems = [
                 { id: 'index', label: '回首頁', icon: <HouseIcon size={20} />, onClick: closeThen(() => { window.location.href = './index.html'; }) },
-                { id: 'prayer', label: '我的禱告', icon: <HandHeartIcon size={20} />, onClick: closeThen(() => goHome()) },
+                { id: 'prayer', label: '守望花園', icon: <HandHeartIcon size={20} />, onClick: closeThen(() => goHome()) },
                 { id: 'serve', label: '我的服事', icon: <ClockIcon size={20} />, onClick: closeThen(() => { window.location.href = './search.html'; }) },
                 { id: 'venue', label: '場地預約', icon: <CalendarIcon size={20} />, onClick: closeThen(() => { window.location.href = './venue.html'; }) },
                 session
@@ -2101,46 +2104,47 @@
             else body = <HomeView goSubmit={() => requireLogin('#/submit')} session={session} role={role} memberName={memberName} />;
 
             const iconBtn = `relative inline-flex items-center justify-center w-11 h-11 max-[359px]:w-10 max-[359px]:h-10 rounded-full text-zinc-800 hover:bg-zinc-100 active:bg-zinc-200 transition-colors duration-150 ${focusRing}`;
+            const iconBtnDark = `relative inline-flex items-center justify-center w-11 h-11 max-[359px]:w-10 max-[359px]:h-10 rounded-full text-white hover:bg-white/15 active:bg-white/25 transition-colors duration-150 ${focusRing}`;
 
             return (
                 <div className="min-h-screen flex flex-col">
                     {route.name !== 'search' && (
-                        <header className="bg-white border-b border-zinc-200 sticky top-0 z-40" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+                        <header className="bg-[#8806ce] border-b border-[#8806ce] sticky top-0 z-40" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
                             <div ref={rowRef} className="max-w-2xl mx-auto w-full px-3 sm:px-5 h-14 flex items-center justify-between gap-2">
                                 <div ref={leftRef} className="flex items-center min-w-0">
                                 <div className="relative shrink-0">
                                     <button onClick={() => { setMoreOpen(false); setMenuOpen(o => !o); }} aria-label={menuOpen ? '關閉選單' : '開啟選單'} aria-expanded={menuOpen}
-                                        className={`${iconBtn} ${menuOpen ? '!bg-zinc-100 !rounded-lg' : ''} relative z-50`}>
+                                        className={`${iconBtnDark} ${menuOpen ? '!bg-white/20 !rounded-lg' : ''} relative z-50`}>
                                         {menuOpen ? <XIcon size={24} /> : <MenuIcon size={24} />}
                                     </button>
                                     {menuOpen && <MenuDropdown onClose={() => setMenuOpen(false)} items={menuItems} />}
                                 </div>
                                 <a href="#" onClick={(e) => { e.preventDefault(); goHome(); }} className={`ml-1 px-2 py-1 rounded-md ${focusRing}`}>
-                                    <h1 className="text-base min-[360px]:text-lg font-semibold text-zinc-900 whitespace-nowrap">守望花園</h1>
+                                    <h1 className="text-base min-[360px]:text-lg font-semibold text-white whitespace-nowrap">守望花園</h1>
                                 </a>
                                 </div>
                                 {collapsed ? (
                                 <div className="relative shrink-0">
                                     <button onClick={() => { setMenuOpen(false); setMoreOpen(o => !o); }} aria-label={moreOpen ? '關閉更多功能' : (moreBadge > 0 ? `更多功能，${moreBadge} 則提醒` : '更多功能')} aria-expanded={moreOpen} title="更多"
-                                        className={`${iconBtn} ${moreOpen ? '!bg-zinc-100 !rounded-lg' : ''} relative z-50`}>
+                                        className={`${iconBtnDark} ${moreOpen ? '!bg-white/20 !rounded-lg' : ''} relative z-50`}>
                                         {moreOpen ? <XIcon size={24} /> : <EllipsisVerticalIcon size={24} />}
-                                        {!moreOpen && moreBadge > 0 && <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-red-600 text-white text-xs font-medium tabular-nums">{moreBadge > 99 ? '99+' : moreBadge}</span>}
+                                        {!moreOpen && moreBadge > 0 && <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-red-600 ring-2 ring-[#8806ce] text-white text-xs font-medium tabular-nums">{moreBadge > 99 ? '99+' : moreBadge}</span>}
                                     </button>
                                     {moreOpen && <MenuDropdown align="right" label="更多功能" onClose={() => setMoreOpen(false)} items={moreItems} />}
                                 </div>
                                 ) : (
                                 <div className="justify-self-end flex items-center">
-                                    <button onClick={() => requireLogin('#/submit')} aria-label="新增貼文" title="新增貼文" className={iconBtn}><SquarePlusIcon size={24} /></button>
-                                    <button onClick={openSearch} aria-label="搜尋" title="搜尋" className={iconBtn}><SearchIcon size={24} /></button>
-                                    <button onClick={() => { setUnread(0); requireLogin('#/notifications'); }} aria-label={unread > 0 ? `通知，${unread} 則未讀` : '通知'} title="通知" className={`${iconBtn} ${route.name === 'notifications' ? 'bg-zinc-100' : ''}`}>
+                                    <button onClick={() => requireLogin('#/submit')} aria-label="新增貼文" title="新增貼文" className={iconBtnDark}><SquarePlusIcon size={24} /></button>
+                                    <button onClick={openSearch} aria-label="搜尋" title="搜尋" className={iconBtnDark}><SearchIcon size={24} /></button>
+                                    <button onClick={() => { setUnread(0); requireLogin('#/notifications'); }} aria-label={unread > 0 ? `通知，${unread} 則未讀` : '通知'} title="通知" className={`${iconBtnDark} ${route.name === 'notifications' ? 'bg-white/20' : ''}`}>
                                         <BellIcon size={24} />
-                                        {session && unread > 0 && <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-red-600 text-white text-xs font-medium tabular-nums">{unread > 99 ? '99+' : unread}</span>}
+                                        {session && unread > 0 && <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-red-600 ring-2 ring-[#8806ce] text-white text-xs font-medium tabular-nums">{unread > 99 ? '99+' : unread}</span>}
                                     </button>
-                                    <button onClick={() => requireLogin('#/mine')} aria-label="我的禱告" title="我的禱告" className={`${iconBtn} ${route.name === 'mine' || route.name === 'edit' ? 'bg-zinc-100' : ''}`}><HandHeartIcon size={24} /></button>
+                                    <button onClick={() => requireLogin('#/mine')} aria-label="我的禱告" title="我的禱告" className={`${iconBtnDark} ${route.name === 'mine' || route.name === 'edit' ? 'bg-white/20' : ''}`}><HandHeartIcon size={24} /></button>
                                     {isReviewer && (
-                                        <button onClick={() => go('#/review')} aria-label={pending > 0 ? `貼文審核，${pending} 則待審查` : '貼文審核'} title="貼文審核" className={`${iconBtn} ${route.name === 'review' ? 'bg-zinc-100' : ''}`}>
+                                        <button onClick={() => go('#/review')} aria-label={pending > 0 ? `貼文審核，${pending} 則待審查` : '貼文審核'} title="貼文審核" className={`${iconBtnDark} ${route.name === 'review' ? 'bg-white/20' : ''}`}>
                                             <ClipboardCheckIcon size={24} />
-                                            {pending > 0 && <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-red-600 text-white text-xs font-medium tabular-nums">{pending > 99 ? '99+' : pending}</span>}
+                                            {pending > 0 && <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-red-600 ring-2 ring-[#8806ce] text-white text-xs font-medium tabular-nums">{pending > 99 ? '99+' : pending}</span>}
                                         </button>
                                     )}
                                 </div>

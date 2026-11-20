@@ -19,11 +19,17 @@
 </script>
 <style>
   /* 色彩依 DESIGN.md：白底畫布 #fff、淺灰帶 #f7f9fa、近黑墨色 #262626、次要灰 #595959；主色維持紫色 #8806ce */
-  :root{ --bg:#ffffff; --card:#f7f9fa; --text:#262626; --sub:#595959; --border:#e8e8e8; --primary:#8806ce; --primary-hover:#7205ad; --primary-tint:#f7eefc; --primary-ink:#5c048c; }
+  :root{
+  --btn:#334155; --btn-hover:#1e293b; --btn-press:#0f172a; --on-btn:#ffffff;
+ --bg:#ffffff; --card:#f7f9fa; --text:#262626; --sub:#595959; --border:#e8e8e8; --primary:#8806ce; --primary-hover:#7205ad; --primary-tint:#f7eefc; --primary-ink:#5c048c; }
   @media (prefers-color-scheme: dark){
-    :root:not([data-theme="light"]){ --bg:#0b1120; --card:#1e293b; --text:#f1f5f9; --sub:#94a3b8; --border:#334155; --primary-tint:#3a1a4d; --primary-ink:#e6c9f6; }
+    :root:not([data-theme="light"]){
+  --btn:#f1f5f9; --btn-hover:#e2e8f0; --btn-press:#cbd5e1; --on-btn:#0b1120;
+ --bg:#0b1120; --card:#1e293b; --text:#f1f5f9; --sub:#94a3b8; --border:#334155; --primary-tint:#3a1a4d; --primary-ink:#e6c9f6; }
   }
-  :root[data-theme="dark"]{ --bg:#0b1120; --card:#1e293b; --text:#f1f5f9; --sub:#94a3b8; --border:#334155; --primary-tint:#3a1a4d; --primary-ink:#e6c9f6; }
+  :root[data-theme="dark"]{
+  --btn:#f1f5f9; --btn-hover:#e2e8f0; --btn-press:#cbd5e1; --on-btn:#0b1120;
+ --bg:#0b1120; --card:#1e293b; --text:#f1f5f9; --sub:#94a3b8; --border:#334155; --primary-tint:#3a1a4d; --primary-ink:#e6c9f6; }
   html,body{ height:100%; }
   /* 字體：英文與數字用 Open Sans，中文自動退回 Noto Sans TC。字距預設為 0，所以中文維持正常 */
   body{
@@ -42,9 +48,9 @@
   @media (min-width:640px){ .tagline{ font-size:1.0625rem; } }
   /* 按鈕：全部是膠囊形。主要＝紫色實心，不加陰影 */
   .btn-pill{ display:inline-flex; align-items:center; justify-content:center; gap:.25rem; height:40px; padding:0 16px; border-radius:9999px; font-size:.875rem; font-weight:400; letter-spacing:0; transition:background-color .15s ease; }
-  .btn-primary{ background:var(--primary); color:#fff; }
-  .btn-primary:hover{ background:var(--primary-hover); }
-  .btn-primary:active{ background:var(--primary-ink); }
+  .btn-primary{ background:var(--btn); color:var(--on-btn); }
+  .btn-primary:hover{ background:var(--btn-hover); }
+  .btn-primary:active{ background:var(--btn-press); }
   .btn-pill:focus-visible{ outline:2px solid var(--primary); outline-offset:3px; }
   .entry-icon{ color:#8806ce; transition: transform .2s ease; }
   .entry:hover .entry-icon, .entry:focus-visible .entry-icon{ transform: translateY(-3px); }
@@ -101,7 +107,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="entry-icon w-9 h-9 sm:w-10 sm:h-10" aria-hidden="true">
           <path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"></path>
         </svg>
-        <span class="text-sm sm:text-base font-medium text-center whitespace-nowrap">我的禱告</span>
+        <span class="text-sm sm:text-base font-medium text-center whitespace-nowrap">守望花園</span>
       </a>
 
       <a href="./search.html" class="entry group flex flex-col items-center gap-2 min-w-0">
@@ -128,7 +134,7 @@
     <!-- 守望花園：全教會累積的有效禱告回應，決定植物長到哪個階段 -->
     <section id="garden" aria-labelledby="garden-title" class="mt-14 sm:mt-16">
       <div class="text-center mb-5">
-        <h2 id="garden-title" class="text-2xl sm:text-3xl font-semibold">守望花園</h2>
+        <h2 id="garden-title" class="sr-only">守望花園</h2>
         <p class="mt-2 text-base font-normal sub">一起澆灌禱告的種子</p>
       </div>
 

@@ -78,7 +78,7 @@
           Calendar, User, LogOut, Heart, Monitor, Users, Smile, BookOpen, 
           Coffee, RefreshCw, AlertCircle, ArrowLeft, UserCheck, HandHeart, 
           Clock, Briefcase, Info, Link as LinkIcon, X, Timer, UserX, CalendarPlus,
-          Copy, Check, Home, Menu, GraduationCap, Star, FolderOpen, ShieldCheck
+          Copy, Check, Home, Menu, GraduationCap, Star, FolderOpen, ShieldCheck, ChevronLeft
         } from 'lucide-react';
         import { createClient } from '@supabase/supabase-js';
 
@@ -487,10 +487,49 @@
           </svg>
         );
 
+        const ICON_BTN_DARK = "relative inline-flex items-center justify-center w-11 h-11 max-[359px]:w-10 max-[359px]:h-10 rounded-full text-white hover:bg-white/15 active:bg-white/25 transition-colors duration-150";
         const ICON_BTN = "relative inline-flex items-center justify-center w-11 h-11 max-[359px]:w-10 max-[359px]:h-10 rounded-full text-zinc-800 hover:bg-zinc-100 active:bg-zinc-200 transition-colors duration-150";
 
+        // ===== 文字大小（A A A）：與守望花園相同的三段按鈕；選擇會記在這支手機上 =====
+        const SERVE_FONTS = [
+          { id: 'sm', zoom: 0.87, btn: 9,  label: '小字' },
+          { id: 'md', zoom: 1,    btn: 13, label: '標準字' },
+          { id: 'lg', zoom: 1.2,  btn: 18, label: '大字' },
+        ];
+        const SERVE_FONT_KEY = 'tbc_serve_fontsize';
+        const loadServeFont = () => { try { return localStorage.getItem(SERVE_FONT_KEY) || 'md'; } catch (e) { return 'md'; } };
+        const useServeZoom = () => {
+          const [id, setId] = useState(loadServeFont);
+          useEffect(() => {
+            const on = () => setId(loadServeFont());
+            window.addEventListener('tbc-serve-fontsize', on);
+            return () => window.removeEventListener('tbc-serve-fontsize', on);
+          }, []);
+          return (SERVE_FONTS.find(f => f.id === id) || SERVE_FONTS[1]).zoom;
+        };
+        function FontSizeSwitch() {
+          const [size, setSize] = useState(loadServeFont);
+          const pick = (id) => {
+            setSize(id);
+            try { localStorage.setItem(SERVE_FONT_KEY, id); } catch (e) {}
+            window.dispatchEvent(new Event('tbc-serve-fontsize'));
+          };
+          return (
+            <div className="grid grid-cols-3 gap-1.5 w-36 shrink-0" role="group" aria-label="文字大小">
+              {SERVE_FONTS.map(f => {
+                const active = size === f.id;
+                return (
+                  <button key={f.id} type="button" onClick={() => pick(f.id)} aria-pressed={active} aria-label={f.label} title={f.label}
+                    className={`w-full h-10 rounded-lg inline-flex items-center justify-center font-medium transition-colors duration-150 active:scale-[0.98] ${active ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-800 hover:bg-zinc-200'}`}
+                    style={{ fontSize: f.btn }}>A</button>
+                );
+              })}
+            </div>
+          );
+        }
+
         // 漢堡選單（樣式與守望花園相同）：回首頁、我的禱告、我的服事、場地預約、登出
-        function NavMenu({ onBack, onLogout }) {
+        function NavMenu({ onBack, onLogout, onDark }) {
           const [open, setOpen] = useState(false);
           useEffect(() => {
             if (!open) return;
@@ -501,7 +540,7 @@
           const goTo = (url) => () => { setOpen(false); window.location.href = url; };
           const items = [
             { id: 'index',  label: '回首頁',   icon: <Home size={20} />,      onClick: goTo('./index.html') },
-            { id: 'prayer', label: '我的禱告', icon: <HandHeart size={20} />, onClick: goTo('./prayer.html') },
+            { id: 'prayer', label: '守望花園', icon: <HandHeart size={20} />, onClick: goTo('./prayer.html') },
             { id: 'serve',  label: '我的服事', icon: <Clock size={20} />,     onClick: onBack ? () => { setOpen(false); onBack(); } : goTo('./search.html') },
             { id: 'venue',  label: '場地預約', icon: <Calendar size={20} />,  onClick: goTo('./venue.html') },
             ...(onLogout ? [{ id: 'out', label: '登出', icon: <LogOut size={20} />, onClick: () => { setOpen(false); onLogout(); } }] : []),
@@ -512,7 +551,7 @@
                 onClick={() => setOpen(o => !o)}
                 aria-label={open ? '關閉選單' : '開啟選單'}
                 aria-expanded={open}
-                className={`${ICON_BTN} ${open ? '!bg-zinc-100 !rounded-lg' : ''} relative z-50`}
+                className={`${onDark ? ICON_BTN_DARK : ICON_BTN} ${open ? (onDark ? '!bg-white/20 !rounded-lg' : '!bg-zinc-100 !rounded-lg') : ''} relative z-50`}
               >
                 {open ? <X size={24} /> : <Menu size={24} />}
               </button>
@@ -544,31 +583,38 @@
         };
 
         // 頂端列（與守望花園相同）：左＝漢堡選單＋標題；右＝查詢切換、個人設定
-        function TopBar({ title, onBack, onLogout, canSwitch, onSwitch }) {
+        function TopBar({ title, onBack, onLogout, canSwitch, onSwitch, tone }) {
+          const bg = tone === 'next' ? 'bg-[#3f7a36] border-[#3f7a36]' : 'bg-[#8806ce] border-[#8806ce]';
           return (
-            <header className="bg-white border-b border-zinc-200 sticky top-0 z-40" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+            <header className={`${bg} border-b sticky top-0 z-40`} style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
               <div className="max-w-2xl mx-auto w-full px-3 sm:px-5 h-14 flex items-center justify-between gap-2">
                 <div className="flex items-center min-w-0">
-                  <NavMenu onBack={onBack} onLogout={onLogout} />
-                  <h1 className="ml-1 px-2 py-1 text-base min-[360px]:text-lg font-semibold text-zinc-900 whitespace-nowrap">{title}</h1>
+                  {onBack ? (
+                    <button type="button" onClick={onBack} title="回上一頁" aria-label="回上一頁" className={ICON_BTN_DARK}>
+                      <ChevronLeft size={24} />
+                    </button>
+                  ) : (
+                    <NavMenu onBack={onBack} onLogout={onLogout} onDark />
+                  )}
+                  <h1 className="ml-1 px-2 py-1 text-base min-[360px]:text-lg font-semibold text-white whitespace-nowrap">{title}</h1>
                 </div>
-                <div className="flex items-center shrink-0">
+                {!onBack && <div className="flex items-center shrink-0">
                   {canSwitch && (
-                    <button onClick={onSwitch} title="查詢切換" aria-label="查詢切換" className={ICON_BTN}>
+                    <button onClick={onSwitch} title="查詢切換" aria-label="查詢切換" className={ICON_BTN_DARK}>
                       <RefreshCw size={24} />
                     </button>
                   )}
-                  <a href="./manager.html" title="個人設定" aria-label="個人設定" className={ICON_BTN}>
+                  <a href="./manager.html" title="個人設定" aria-label="個人設定" className={ICON_BTN_DARK}>
                     <SettingsIcon size={24} />
                   </a>
-                </div>
+                </div>}
               </div>
             </header>
           );
         }
 
         // 頂部列＋身分列（權限圖示＋姓名）
-        function AppHeader({ title, name, onBack, onLogout, canSwitch, onSwitch, subText }) {
+        function AppHeader({ title, name, onBack, onLogout, canSwitch, onSwitch, subText, seasonType, showFontSwitch }) {
           // 權限圖示：只有「登入帳號本人」就是畫面上這個姓名時才顯示他的權限；
           // 查別人的姓名、沒登入、或讀不到，一律顯示一般的人像圖示（不顯示任何權限）
           const [role, setRole] = useState(null);
@@ -585,8 +631,15 @@
                 if (mine.length === 0) return;
                 const { data: rows } = await supabase.from('vw_public_members').select('id').eq('name', name);
                 if (!(rows || []).some(r => mine.includes(r.id))) return;
-                const { data: r } = await supabase.from('user_roles').select('role').eq('user_uid', uid).maybeSingle();
-                if (alive) setRole(r?.role || 'member');
+                // 最高權限：優先用資料庫整理好的 my_access.top_role；沒有再從所有權限中挑最高
+                let top = null;
+                try { const { data: acc } = await supabase.rpc('my_access'); if (acc && acc.top_role) top = acc.top_role; } catch (e) {}
+                if (!top) {
+                  const { data: rs } = await supabase.from('user_roles').select('role').eq('user_uid', uid);
+                  const rank = (x) => ['member', 'coworker', 'admin_staff', 'leader', 'pastor', 'admin'].indexOf(x);
+                  top = (rs || []).map(x => x.role).sort((x, y) => rank(y) - rank(x))[0] || null;
+                }
+                if (alive) setRole(top || 'member');
               } catch (e) {}
             })();
             return () => { alive = false; };
@@ -596,17 +649,20 @@
 
           return (
             <React.Fragment>
-              <TopBar title={title} onBack={onBack} onLogout={onLogout} canSwitch={canSwitch} onSwitch={onSwitch} />
+              <TopBar title={title} onBack={onBack} onLogout={onLogout} canSwitch={canSwitch} onSwitch={onSwitch} tone={seasonType} />
               <div className="max-w-2xl mx-auto w-full px-4 sm:px-6 pt-4">
+                <div className="flex items-center justify-between gap-3 min-w-0">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div title={meta ? meta.label : undefined} aria-label={meta ? meta.label : undefined}
-                    className={`w-10 h-10 shrink-0 rounded-full bg-zinc-100 ${meta && meta.high ? 'text-amber-500' : 'text-zinc-500'} flex items-center justify-center ${meta ? 'cursor-help' : ''}`}>
+                  <div aria-hidden="true"
+                    className={`w-10 h-10 shrink-0 rounded-full bg-zinc-100 ${meta && meta.high ? 'text-amber-500' : 'text-zinc-500'} flex items-center justify-center`}>
                     <RoleIcon size={20} />
                   </div>
                   <div className="min-w-0">
                     <h2 className="text-[15px] font-medium text-zinc-900 truncate">{name}</h2>
                     {subText && <p className="text-sm text-zinc-500">{subText}</p>}
                   </div>
+                </div>
+                {showFontSwitch && <FontSizeSwitch />}
                 </div>
               </div>
             </React.Fragment>
@@ -615,10 +671,19 @@
 
         function LoginView({ name, setName, onLogin, loginError, isSyncing, syncStatus, progress, seasonType, setSeasonType, seasonLabels, systemConfig }) {
           return (
-            <div className="min-h-screen flex flex-col bg-white">
-              <TopBar title="我的服事" />
-              <div className="flex-1 flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6">
-              <div className="bg-white rounded-lg w-full max-w-md p-6 sm:p-8 border border-slate-100">
+            <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
+              <div className="min-h-full w-full flex flex-col items-center justify-start sm:justify-center p-4 py-4 sm:py-8 relative">
+              <div className="fixed top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-indigo-600/10 blur-[120px] pointer-events-none"></div>
+              <div className="fixed bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-emerald-600/10 blur-[120px] pointer-events-none"></div>
+              <div className="w-full max-w-md flex items-center justify-between mb-4 relative z-20">
+                <button type="button" onClick={() => { if (window.history.length > 1) window.history.back(); else window.location.href = './index.html'; }} aria-label="回上一頁"
+                  className="w-11 h-11 shrink-0 flex items-center justify-center rounded-full bg-white border border-slate-100 text-slate-700 hover:bg-slate-50 active:bg-slate-100 transition-colors duration-150">
+                  <ChevronLeft size={22} />
+                </button>
+                <span className="text-lg font-semibold text-slate-800">我的服事</span>
+                <div className="w-11 h-11 shrink-0"></div>
+              </div>
+              <div className="bg-white rounded-lg w-full max-w-md p-6 sm:p-8 border border-slate-100 animate-in fade-in z-10 relative">
                 <div className="flex flex-col items-center mb-8">
                   <div className={`p-4 rounded-lg shadow-button mb-4 transition-colors duration-500 ${seasonType === 'view' ? 'bg-indigo-600 text-white' : 'bg-[#8ebe84] text-white'}`}>
                     <Calendar size={32} />
@@ -660,7 +725,7 @@
                   </div>
 
                   {loginError && <div className="flex items-center gap-2 text-red-500 bg-red-50 p-3 rounded-lg text-sm font-medium"><AlertCircle size={16} /><span>{loginError}</span></div>}
-                  <button type="submit" className={`w-full font-medium py-3.5 rounded-full hover:-translate-y-0.5 transition-all duration-200 text-base ${seasonType === 'view' ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-[#8ebe84] hover:bg-[#7aab70] text-white'}`}>
+                  <button type="submit" className={`w-full font-medium py-3.5 rounded-full hover:-translate-y-0.5 transition-all duration-200 text-base bg-slate-700 hover:bg-slate-800 active:bg-slate-900 text-white`}>
                       查詢
                   </button>
                 </form>
@@ -862,6 +927,7 @@
              return `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${details}&ctz=Asia/Taipei`;
           };
 
+          const serveZoom = useServeZoom();
           return (
             <div className="min-h-screen bg-white flex flex-col">
               <AppHeader
@@ -871,9 +937,10 @@
                 onLogout={onLogout}
                 canSwitch={!!(systemConfig.current && systemConfig.next)}
                 onSwitch={() => setSeasonType(seasonType === 'view' ? 'next' : 'view')}
+                showFontSwitch
               />
 
-              <main className="flex-grow p-4 sm:p-6 space-y-4 max-w-2xl mx-auto w-full">
+              <main className="flex-grow p-4 sm:p-6 space-y-4 max-w-2xl mx-auto w-full" style={{ zoom: serveZoom }}>
                 <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
                     <div className="flex items-center gap-2">
                         <Calendar className={seasonType === 'view' ? 'text-indigo-500' : 'text-[#4f8a45]'} size={20} />
@@ -884,7 +951,7 @@
                     {!isSyncing && isViewAllowed && displayShifts.length > 0 && (seasonType === 'view' || (seasonType === 'next' && nextButtonsConfig)) && (
                         <button
                             onClick={handleDownloadAllICS}
-                            className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium shadow-sm transition-all active:scale-95 ${seasonType === 'view' ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-[#8ebe84] hover:bg-[#7aab70] text-white'}`}
+                            className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium shadow-sm transition-all active:scale-95 bg-slate-700 hover:bg-slate-800 active:bg-slate-900 text-white`}
                         >
                             <CalendarPlus size={14} />
                             全部加入行事曆（{displayShifts.length}）
@@ -926,7 +993,7 @@
                 ) : (
                   displayShifts.length > 0 ? (
                     groupedShifts.map((dayGroup, index) => (
-                      <div key={index} className="bg-white rounded-lg p-5 shadow-sm border border-slate-200 flex flex-col gap-4 animate-in fade-in transition-transform hover:scale-[1.01]" style={{animationDelay: `${index * 50}ms`}}>
+                      <div key={index} className="bg-white rounded-lg p-5 shadow-sm border border-[#bab0af] flex flex-col gap-4 animate-in fade-in transition-transform hover:scale-[1.01]" style={{animationDelay: `${index * 50}ms`}}>
                         <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
                           <Calendar size={18} className="text-slate-400"/>
                           <span className="font-medium text-slate-700">{dayGroup.date}</span>
@@ -971,7 +1038,7 @@
                                                   </a>
                                               );
                                           })()}
-                                          <button onClick={() => onRequestSwap({ date: shift.date, role: shift.role, session: shift.rawSession, owner: name })} className="bg-white hover:bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-full transition-all active:scale-95 border border-emerald-200 flex-shrink-0 shadow-sm text-xs font-medium text-center whitespace-nowrap">
+                                          <button onClick={() => onRequestSwap({ date: shift.date, role: shift.role, session: shift.rawSession, owner: name })} className="bg-[#f2edf3] hover:bg-[#e9e1ea] text-zinc-800 px-3 py-1.5 rounded-full transition-all active:scale-95 border border-zinc-300 flex-shrink-0 shadow-sm text-xs font-medium text-center whitespace-nowrap">
                                             換班查詢
                                           </button>
                                       </>
@@ -1233,6 +1300,7 @@
             setCandidates(potential);
           }, [initialRequest, scheduleData, peopleData, seasonType]);
 
+          const serveZoom = useServeZoom();
           return (
             <div className="min-h-screen bg-white flex flex-col">
               <AppHeader
@@ -1242,8 +1310,8 @@
                 onBack={onBack}
                 onLogout={onLogout}
               />
-              <main className="flex-grow p-6 space-y-6 max-w-2xl mx-auto w-full">
-                <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+              <main className="flex-grow p-6 space-y-6 max-w-2xl mx-auto w-full" style={{ zoom: serveZoom }}>
+                <div className="bg-white p-6 rounded-lg shadow-sm border border-[#bab0af]">
                    <h3 className="text-xs font-medium text-slate-400 mb-3">幫今天的服事找合適人選：</h3>
                    <div className="flex items-center gap-4">
                       <div className="bg-indigo-50 p-4 rounded-lg text-indigo-600"><Calendar size={28} /></div>
@@ -1264,7 +1332,7 @@
                     </div>
                     {candidates.length > 0 ? (
                       candidates.map((person, idx) => (
-                          <div key={idx} className="bg-white p-5 rounded-lg border border-slate-100 shadow-sm transition-all">
+                          <div key={idx} className="bg-white p-5 rounded-lg border border-[#bab0af] shadow-sm transition-all">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-4">
                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-white  ${idx < 3 ? 'bg-emerald-500' : 'bg-slate-300'}`}>{idx + 1}</div>
@@ -1310,7 +1378,7 @@
                                     const isCopied = copiedId === uniqueId;
 
                                     return (
-                                      <div key={i} className="text-sm bg-indigo-50 text-indigo-600 pl-3 pr-1.5 py-1.5 rounded-lg border border-indigo-100 flex items-center gap-1 transition-all">
+                                      <div key={i} className="text-sm bg-[#f2edf3] text-indigo-600 pl-3 pr-1.5 py-1.5 rounded-lg border border-indigo-100 flex items-center gap-1 transition-all">
                                           <span className="font-medium">{formattedDate}</span>
                                           <span className="opacity-70 text-xs">
                                               ({swap.role}{swap.role !== '執事輪值' && ` • ${swap.session}`})
