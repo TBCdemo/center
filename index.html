@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- TBC ONE TBC Together — 由原始碼打包（src/center/index），勿手動修改 -->
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
@@ -8,64 +9,134 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
 <script src="../management/tbc-config.js"></script>
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-  tailwind.config = { theme: { extend: {
-                    colors: {
-                        indigo: {50: '#f7eefc', 100: '#eddaf8', 200: '#d9afef', 300: '#c17ee6', 400: '#a747db', 500: '#941fd3', 600: '#8806ce', 700: '#7205ad', 800: '#5c048c', 900: '#49036f'},
-                        emerald: {50: '#f6faf5', 100: '#ecf4ea', 200: '#d7e8d3', 300: '#bddab8', 400: '#a2ca9a', 500: '#8ebe84', 600: '#81b776', 700: '#6c9a63', 800: '#587c50', 900: '#466340'},
-                    },
-  } } }
-</script>
 <style>
-  /* 色彩依 DESIGN.md：白底畫布 #fff、淺灰帶 #f7f9fa、近黑墨色 #262626、次要灰 #595959；主色維持紫色 #8806ce */
+  /* TBC 會友端共用樣式：色彩、深色模式、字體大小、基本重設（全站只有這一份，改這裡所有會友端頁面一起更新） */
   :root{
   --btn:#334155; --btn-hover:#1e293b; --btn-press:#0f172a; --on-btn:#ffffff;
- --bg:#ffffff; --card:#f7f9fa; --text:#262626; --sub:#595959; --border:#e8e8e8; --primary:#8806ce; --primary-hover:#7205ad; --primary-tint:#f7eefc; --primary-ink:#5c048c; }
+ --bg:#ffffff; --card:#f7f9fa; --text:#262626; --sub:#595959; --mute:#8c8c8c; --border:#e8e8e8;
+         --primary:#8806ce; --primary-hover:#7205ad; --primary-tint:#f7eefc; --primary-ink:#5c048c;
+         --good:#8806ce; --adhoc:#f5f5f0; --busy:#c9c9c9; --bad:#d4380d; --bad-bg:#fff1f0; --green:#1f7a45; --green-bg:#e8f6ee; }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
   --btn:#f1f5f9; --btn-hover:#e2e8f0; --btn-press:#cbd5e1; --on-btn:#0b1120;
- --bg:#0b1120; --card:#1e293b; --text:#f1f5f9; --sub:#94a3b8; --border:#334155; --primary-tint:#3a1a4d; --primary-ink:#e6c9f6; }
+ --bg:#0b1120; --card:#1e293b; --text:#f1f5f9; --sub:#94a3b8; --mute:#64748b; --border:#334155;
+      --adhoc:#33361a; --busy:#475569; --primary-tint:#3a1a4d; --primary-ink:#e6c9f6; --good:#d9afef; --bad:#ff7a45; --bad-bg:#3a1d17; --green:#6fd09a; --green-bg:#14301f; }
   }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; }
+  body{ background:var(--bg); color:var(--text); font-family:'Open Sans','Noto Sans TC',-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+        font-size:var(--fs,15px); letter-spacing:0; -webkit-tap-highlight-color:transparent;
+        padding-bottom:env(safe-area-inset-bottom,0px); }
+  button{ font:inherit; color:inherit; background:none; border:0; padding:0; cursor:pointer; }
+  button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{ outline:2px solid var(--primary); outline-offset:2px; }
+  input,select,textarea{ font:inherit; font-size:16px; color:var(--text); }
+  svg{ display:block; flex:none; }
+  .sr{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+  :root{ --fs:15px; --hov:#f4f4f5; --hov-soft:#fafafa; --menu-ink:#52525b; --menu-ink-hi:#18181b; --menu-line:#f4f4f5; }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --btn:#f1f5f9; --btn-hover:#e2e8f0; --btn-press:#cbd5e1; --on-btn:#0b1120;
+ --hov:#334155; --hov-soft:#273449; --menu-ink:#94a3b8; --menu-ink-hi:#f1f5f9; --menu-line:#334155; } }
+
+
+  /* ===== 首頁版面（原本用 Tailwind 即時編譯，現在改成一般樣式；尺寸與舊版一致）===== */
   :root[data-theme="dark"]{
   --btn:#f1f5f9; --btn-hover:#e2e8f0; --btn-press:#cbd5e1; --on-btn:#0b1120;
- --bg:#0b1120; --card:#1e293b; --text:#f1f5f9; --sub:#94a3b8; --border:#334155; --primary-tint:#3a1a4d; --primary-ink:#e6c9f6; }
+  --bg:#0b1120; --card:#1e293b; --text:#f1f5f9; --sub:#94a3b8; --border:#334155; --primary-tint:#3a1a4d; --primary-ink:#e6c9f6; }
+  html{ line-height:1.5; -webkit-text-size-adjust:100%; }
   html,body{ height:100%; }
-  /* 字體：英文與數字用 Open Sans，中文自動退回 Noto Sans TC。字距預設為 0，所以中文維持正常 */
+  h1,h2,p{ margin:0; }
+  h1,h2{ font-size:inherit; font-weight:inherit; }
+  a{ color:inherit; text-decoration:none; }
+  .hidden{ display:none !important; }
   body{
-    background:var(--bg); color:var(--text);
-    font-family:'Open Sans', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    font-weight:400;
-    letter-spacing:0;
-    padding-top:env(safe-area-inset-top,0px);
-    padding-bottom:env(safe-area-inset-bottom,0px);
+    min-height:100dvh; display:flex; flex-direction:column; align-items:center;
+    padding:40px 24px 40px; font-weight:400; letter-spacing:0;
   }
+  @media (min-width:640px){ body{ padding-top:80px; } }
+  main{ width:100%; max-width:48rem; }
   .sub{ color:var(--sub); }
   /* 只有英文與數字才縮字距（DESIGN.md 的 -0.03em），中文不套用 */
   .latin-tight{ letter-spacing:-0.03em; }
+
+  /* 標題與標語 */
+  .hero{ text-align:center; margin-bottom:3rem; }
   .brand{ display:inline-block; max-width:100%; }
-  .tagline{ width:0; min-width:100%; white-space:nowrap; font-size:.9375rem; text-align:center; letter-spacing:0; }
+  .brand h1{ font-size:2.25rem; font-weight:700; line-height:1.08; }
+  @media (min-width:640px){ .brand h1{ font-size:3rem; } }
+  .tagline{ width:0; min-width:100%; white-space:nowrap; font-size:.9375rem; text-align:center; letter-spacing:0; margin-top:.75rem; font-weight:400; }
   @media (min-width:640px){ .tagline{ font-size:1.0625rem; } }
-  /* 按鈕：全部是膠囊形。主要＝紫色實心，不加陰影 */
+
+  /* 按鈕：全部是膠囊形。主要＝深色實心，不加陰影 */
   .btn-pill{ display:inline-flex; align-items:center; justify-content:center; gap:.25rem; height:40px; padding:0 16px; border-radius:9999px; font-size:.875rem; font-weight:400; letter-spacing:0; transition:background-color .15s ease; }
   .btn-primary{ background:var(--btn); color:var(--on-btn); }
   .btn-primary:hover{ background:var(--btn-hover); }
   .btn-primary:active{ background:var(--btn-press); }
   .btn-pill:focus-visible{ outline:2px solid var(--primary); outline-offset:3px; }
-  .entry-icon{ color:#8806ce; transition: transform .2s ease; }
-  .entry:hover .entry-icon, .entry:focus-visible .entry-icon{ transform: translateY(-3px); }
-  .entry:active .entry-icon{ transform: scale(.92); }
-  .entry:focus-visible{ outline: 2px solid #8806ce; outline-offset: 4px; border-radius: .75rem; }
+
+  /* 入口圖示：每排三個；新增頁面時由登記表（src/center/registry.js）自動長出來，超過三個會自動換排 */
+  .entries{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); column-gap:.5rem; row-gap:1.25rem; max-width:24rem; margin-left:auto; margin-right:auto; }
+  @media (min-width:640px){ .entries{ column-gap:1.5rem; max-width:28rem; } }
+  .entry{ display:flex; flex-direction:column; align-items:center; gap:.5rem; min-width:0; }
+  .entry-icon{ width:2.25rem; height:2.25rem; color:#8806ce; transition:transform .2s ease; }
+  @media (min-width:640px){ .entry-icon{ width:2.5rem; height:2.5rem; } }
+  .entry-name{ font-size:.875rem; line-height:1.25rem; font-weight:500; text-align:center; white-space:nowrap; }
+  @media (min-width:640px){ .entry-name{ font-size:1rem; line-height:1.5rem; } }
+  .entry:hover .entry-icon, .entry:focus-visible .entry-icon{ transform:translateY(-3px); }
+  .entry:active .entry-icon{ transform:scale(.92); }
+  .entry:focus-visible{ outline:2px solid #8806ce; outline-offset:4px; border-radius:.75rem; }
   @media (prefers-reduced-motion: reduce){ .entry-icon{ transition:none; } }
 
+  /* 入口圖示右上角的紅色數字 */
+  .entry-ico{ position:relative; display:inline-flex; }
+  .entry-badge{ position:absolute; top:-6px; right:-10px; min-width:18px; height:18px; padding:0 5px; border-radius:9999px; background:#d4101b; color:#fff; font-size:11px; font-weight:600; line-height:18px; text-align:center; font-variant-numeric:tabular-nums; box-shadow:0 0 0 2px var(--bg); }
+  .entry-badge[hidden]{ display:none; }
+
+  /* 服事提醒卡片（在入口圖示下方） */
+  .reminder{ max-width:24rem; margin:1.25rem auto 0; }
+  @media (min-width:640px){ .reminder{ max-width:28rem; } }
+  .reminder[hidden]{ display:none; }
+  .reminder-card{ display:flex; align-items:center; gap:1rem; padding:.875rem 1.125rem; background:var(--bg); border:1px solid var(--border); border-radius:1rem; transition:background-color .15s ease; }
+  .reminder-card:hover{ background:var(--hov-soft,#fafafa); }
+  .reminder-card:focus-visible{ outline:2px solid var(--primary); outline-offset:3px; }
+  .reminder-date{ flex:none; width:4.5rem; height:4.5rem; border-radius:.875rem; background:var(--hov,#f4f4f5); display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.25; }
+  .rd-m, .rd-w{ font-size:.8125rem; color:var(--text); }
+  .rd-d{ font-size:1.75rem; font-weight:500; line-height:1.15; font-variant-numeric:tabular-nums; }
+  .reminder-bd{ min-width:0; font-size:1rem; line-height:1.5rem; font-weight:400; color:var(--text); }
+
   /* ===== 守望花園 ===== */
+  .login-area{ text-align:center; }
+  .login-hint{ margin-top:1rem; font-size:1rem; line-height:1.5rem; }
+  .login-note{ font-size:.875rem; line-height:1.25rem; margin-top:.25rem; }
+  .login-hint a{ cursor:pointer; color:var(--primary); font-weight:500; text-decoration:underline; text-underline-offset:3px; }
+  .login-hint a:hover{ color:var(--primary-hover); }
+  .login-hint a:focus-visible{ outline:2px solid var(--primary); outline-offset:2px; border-radius:2px; }
+  #garden{ margin-top:1.5rem; }
+  @media (min-width:640px){ #garden{ margin-top:2rem; } }
+  .garden-head{ text-align:center; }
+  .login-hint[hidden], .login-note[hidden]{ display:none; }
+  .garden-head p{ margin-top:0; font-size:1rem; line-height:1.5rem; font-weight:400; }
   /* 卡片：8px 圓角、1px 細框、不加陰影（DESIGN.md：Flat + Outlined） */
-  .garden-card{ background:var(--card); border:1px solid var(--border); border-radius:8px; box-shadow:none; }
-  .garden-track{ background:rgba(100,116,139,.20); }
-  .garden-fill{ background:var(--primary); transition:width .8s ease; }
-  .garden-glow{ background:radial-gradient(closest-side, rgba(193,126,230,.28), rgba(193,126,230,.10) 70%, transparent); }
-  .stage-pill{ background:var(--primary-tint); color:var(--primary-ink); }
-  .banner-soft{ background:var(--primary-tint); color:var(--primary-ink); }
+  .garden-card{ background:var(--card); border:1px solid var(--border); border-radius:8px; box-shadow:none; padding:1.5rem; }
+  @media (min-width:640px){ .garden-card{ padding:2rem; } }
+  .garden-view{ position:relative; margin-left:auto; margin-right:auto; width:100%; max-width:360px; aspect-ratio:320/206; }
+  .garden-glow{ position:absolute; inset:0; border-radius:50%; background:radial-gradient(closest-side, rgba(193,126,230,.28), rgba(193,126,230,.10) 70%, transparent); }
+  #plant{ position:relative; width:100%; height:100%; }
+  .garden-sum{ margin-top:1rem; text-align:center; }
+  .garden-sum .lbl{ font-size:.875rem; line-height:1.25rem; font-weight:400; }
+  .garden-num{ margin-top:.25rem; font-weight:400; line-height:1; }
+  #garden-total{ font-size:3rem; line-height:1; font-weight:600; font-variant-numeric:tabular-nums; }
+  @media (min-width:640px){ #garden-total{ font-size:3.75rem; } }
+  .garden-num .unit{ font-size:1.125rem; line-height:1.75rem; font-weight:400; margin-left:.25rem; }
+  #garden-stage{ margin-top:.75rem; display:inline-flex; align-items:center; gap:.5rem; font-size:.875rem; line-height:1.25rem; font-weight:500; }
+  .stage-pill{ background:var(--primary-tint); color:var(--primary-ink); padding:.25rem .75rem; border-radius:9999px; }
+  .garden-bar{ margin:1.25rem auto 0; max-width:28rem; }
+  .garden-track{ background:rgba(100,116,139,.20); height:.75rem; border-radius:9999px; overflow:hidden; }
+  .garden-fill{ background:var(--primary); height:100%; border-radius:9999px; transition:width .8s ease; }
+  .banner-soft{ background:var(--primary-tint); color:var(--primary-ink); margin:1.25rem auto 0; max-width:28rem; text-align:center; font-size:.875rem; line-height:1.25rem; font-weight:500; border-radius:.5rem; padding:.75rem 1rem; }
+  #garden-error{ margin-top:1.25rem; text-align:center; }
+  #garden-error p{ font-size:.875rem; line-height:1.25rem; font-weight:400; color:#f5222d; }
+  #garden-error .btn-pill{ margin-top:.75rem; }
+  .garden-cta{ margin-top:1.5rem; text-align:center; }
   /* 擺動：幅度小、速度慢，每一株的幅度、速度、起點都不同，所以不會同步 */
   .sway{ animation:sway 9s ease-in-out infinite alternate; }
   @keyframes sway{ from{ transform:rotate(calc(var(--amp,1deg) * -1)); } to{ transform:rotate(var(--amp,1deg)); } }
@@ -86,568 +157,150 @@
     .sway, .seed-ring, .mote, .garden-skeleton{ animation:none; }
     .garden-fill{ transition:none; }
   }
-
 </style>
 </head>
-<body class="min-h-[100dvh] flex flex-col items-center p-6 pt-10 sm:pt-20 pb-10">
-  <main class="w-full max-w-3xl">
+<body>
+  <main>
 
-    <div class="text-center mb-12">
+    <div class="hero">
       <!-- 標語寬度要比 TBC Together 窄 -->
       <div class="brand">
-        <h1 class="text-4xl sm:text-5xl font-bold latin-tight" style="line-height:1.08">TBC Together</h1>
-        <p id="tagline" class="tagline mt-3 font-normal sub">一起禱告、一起服事、一起成長</p>
+        <h1 class="latin-tight">TBC Together</h1>
+        <p id="tagline" class="tagline sub">一起禱告、一起服事、一起成長</p>
       </div>
     </div>
 
-    <!-- 入口圖示：固定三欄，手機上也維持同一排；之後增加入口時，複製一個 <a class="entry ..."> 並把 grid-cols-3 改成對應數字 -->
-    <nav aria-label="功能入口" class="grid grid-cols-3 gap-x-2 sm:gap-x-6 max-w-sm sm:max-w-md mx-auto">
+    <!-- 入口圖示：由 src/center/registry.js 自動產生（src/center/index/entries.js） -->
+    <nav id="entries" class="entries" aria-label="功能入口"></nav>
 
-      <a href="./prayer.html" class="entry group flex flex-col items-center gap-2 min-w-0">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="entry-icon w-9 h-9 sm:w-10 sm:h-10" aria-hidden="true">
-          <path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"></path>
-        </svg>
-        <span class="text-sm sm:text-base font-medium text-center whitespace-nowrap">守望花園</span>
-      </a>
-
-      <a href="./search.html" class="entry group flex flex-col items-center gap-2 min-w-0">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="entry-icon w-9 h-9 sm:w-10 sm:h-10" aria-hidden="true">
-          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-          <path d="M16 3.128a4 4 0 0 1 0 7.744"></path>
-          <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
-          <circle cx="9" cy="7" r="4"></circle>
-        </svg>
-        <span class="text-sm sm:text-base font-medium text-center whitespace-nowrap">我的服事</span>
-      </a>
-
-      <a href="./venue.html" class="entry group flex flex-col items-center gap-2 min-w-0">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="entry-icon w-9 h-9 sm:w-10 sm:h-10" aria-hidden="true">
-          <path d="M8 2v4"></path><path d="M16 2v4"></path>
-          <rect width="18" height="18" x="3" y="4" rx="2"></rect>
-          <path d="M3 10h18"></path>
-        </svg>
-        <span class="text-sm sm:text-base font-medium text-center whitespace-nowrap">場地預約</span>
-      </a>
-
-    </nav>
+    <!-- 下週服事提醒：登入且未來 7 天內有服事才會顯示（entries.js） -->
+    <div id="reminder" class="reminder" hidden></div>
 
     <!-- 守望花園：全教會累積的有效禱告回應，決定植物長到哪個階段 -->
-    <section id="garden" aria-labelledby="garden-title" class="mt-14 sm:mt-16">
-      <div class="text-center mb-5">
-        <h2 id="garden-title" class="sr-only">守望花園</h2>
-        <p class="mt-2 text-base font-normal sub">一起澆灌禱告的種子</p>
-      </div>
+    <section id="garden" aria-labelledby="garden-title">
+      <div class="garden-head">
+        <h2 id="garden-title" class="sr">守望花園</h2>
+</div>
 
-      <div class="garden-card p-6 sm:p-8">
-        <div class="relative mx-auto w-full max-w-[360px] aspect-[320/206]">
-          <div id="garden-glow" class="garden-glow absolute inset-0 rounded-[50%]" aria-hidden="true" style="opacity:.3"></div>
-          <!-- 花園畫面由下方程式依「成長進度」畫出 -->
-          <svg id="plant" viewBox="0 0 320 206" class="relative w-full h-full" role="img" aria-label="守望花園"></svg>
+      <div class="garden-card">
+        <div class="garden-view">
+          <div id="garden-glow" class="garden-glow" aria-hidden="true" style="opacity:.3"></div>
+          <!-- 花園畫面由 garden.js 依「成長進度」畫出 -->
+          <svg id="plant" viewBox="0 0 320 206" role="img" aria-label="守望花園"></svg>
         </div>
 
-        <div class="mt-4 text-center" aria-live="polite">
-          <p class="text-sm font-normal sub">全教會禱告累計</p>
-          <p class="mt-1 font-normal leading-none">
-            <span id="garden-total" class="text-5xl sm:text-6xl tabular-nums font-semibold latin-tight">—</span>
-            <span class="text-lg font-normal sub ml-1">次</span>
+        <div class="garden-sum" aria-live="polite">
+          <p class="lbl sub">全教會禱告累計</p>
+          <p class="garden-num">
+            <span id="garden-total" class="latin-tight">—</span>
+            <span class="unit sub">次</span>
           </p>
-          <p id="garden-stage" class="mt-3 inline-flex items-center gap-2 text-sm font-medium">
-            <span class="stage-pill px-3 py-1 rounded-full" id="garden-stage-name">載入中</span>
+          <p id="garden-stage">
+            <span class="stage-pill" id="garden-stage-name">載入中</span>
           </p>
         </div>
 
-        <div class="mt-5 max-w-md mx-auto">
-          <div class="garden-track h-3 rounded-full overflow-hidden" role="progressbar" id="garden-bar" aria-label="花園成長進度" aria-valuemin="0" aria-valuemax="100">
-            <div id="garden-fill" class="garden-fill h-full rounded-full" style="width:0%"></div>
+        <div class="garden-bar">
+          <div class="garden-track" role="progressbar" id="garden-bar" aria-label="花園成長進度" aria-valuemin="0" aria-valuemax="100">
+            <div id="garden-fill" class="garden-fill" style="width:0%"></div>
           </div>
         </div>
 
-        <p id="garden-banner" class="banner-soft hidden mt-5 mx-auto max-w-md text-center text-sm font-medium rounded-lg px-4 py-3"></p>
+        <p id="garden-banner" class="banner-soft hidden"></p>
 
-        <div id="garden-error" class="hidden mt-5 text-center" role="alert">
-          <p class="text-sm font-normal" style="color:#f5222d">暫時無法讀取禱告回應次數，請稍後再試。</p>
-          <button id="garden-retry" type="button" class="btn-pill btn-primary mt-3">重新載入</button>
+        <div id="garden-error" class="hidden" role="alert">
+          <p>暫時無法讀取禱告回應次數，請稍後再試。</p>
+          <button id="garden-retry" type="button" class="btn-pill btn-primary">重新載入</button>
         </div>
 
-        <div class="mt-6 text-center">
-          <a href="./prayer.html" class="btn-pill btn-primary">去為彼此禱告 &rarr;</a>
+        <div class="garden-cta">
+          <a href="./prayer.html" class="btn-pill btn-primary">一起澆灌禱告的種子</a>
         </div>
+      </div>
+
+      <!-- 登入說明：放在灰底卡片下方（entries.js 登入後會隱藏） -->
+      <div class="login-area">
+        <p class="sub login-hint" id="login-hint"><a href="./manager.html" data-act="login">登入</a>或首次<a href="./manager.html#signup" data-act="signup">設定密碼</a></p>
+        <p class="sub login-note" id="login-note">沒有帳號、忘記密碼？請聯絡行政辦公室</p>
       </div>
     </section>
   </main>
 
-  <script>
-  (function () {
-    // 標語寬度最多為標題的 85%，若超過就自動縮小
-    (function fitTagline(){
-      var t = document.getElementById('tagline'); if (!t) return;
-      var fit = function(){
-        t.style.fontSize = '';
-        var size = parseFloat(getComputedStyle(t).fontSize);
-        var textW = function(){ var r = document.createRange(); r.selectNodeContents(t); return r.getBoundingClientRect().width; };
-        while (textW() > t.clientWidth * 0.85 && size > 10) { size -= 0.5; t.style.fontSize = size + 'px'; }
-      };
-      fit();
-      if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
-      window.addEventListener('resize', fit);
-    })();
+<script type="module">
+var St=[{id:"prayer",name:"守望花園",href:"./prayer.html",icon:"flame",menuIcon:"hand",badge:"prayer"},{id:"search",name:"我的服事",href:"./search.html",icon:"users",menuIcon:"clock"},{id:"venue",name:"場地預約",href:"./venue.html",icon:"calendar",menuIcon:"calendar",badge:"venue"}];var At="@tbc.gmail.com";var ft="tbc_user";var Et=e=>{let n=(e||"").trim();return n.includes("@")?n:n+At};var Mt=e=>{if(e){try{localStorage.setItem(ft,e)}catch{}try{let n=new Date;n.setTime(n.getTime()+720*60*60*1e3),document.cookie=`${ft}=${encodeURIComponent(e)}; expires=${n.toUTCString()}; path=/`}catch{}}};import{createClient as Kt}from"https://esm.sh/@supabase/supabase-js@2.45.4";var kt=()=>{let{SUPABASE_URL:e,SUPABASE_KEY:n}=window.TBC_CONFIG;return Kt(e,n)};var Vt={left:'<path d="m15 18-6-6 6-6"/>',x:'<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',home:'<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',hand:'<path d="M11 14h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 16"/><path d="m7 20 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9"/><path d="m2 15 6 6"/><path d="M19.5 8.5c.7-.7 1.5-1.6 1.5-2.7A2.73 2.73 0 0 0 16 4a2.78 2.78 0 0 0-5 1.8c0 1.2.8 2 1.5 2.8L16 12Z"/>',clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',calendar:'<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/>',flame:'<path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/>',sparkle:'<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>',user:'<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',usercheck:'<path d="m16 11 2 2 4-4"/><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>',folder:'<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/>',star:'<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>',cap:'<path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/>',shield:'<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',lock:'<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',eye:'<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>',eyeoff:'<path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/>',alert:'<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>'},U=(e,n=20,a={})=>`<svg${n?` width="${n}" height="${n}"`:""} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${a.sw||2}" stroke-linecap="round" stroke-linejoin="round"${a.cls?` class="${a.cls}"`:""} aria-hidden="true">${Vt[e]||""}</svg>`,V=e=>String(e??"").replace(/[&<>"']/g,n=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[n]);async function _t(e,{share:n=!0}={}){let{data:a,error:r}=await e.rpc("my_access");r&&console.error("my_access 失敗:",r);let m=a&&a.name||"",N=a&&a.roles||[];return n&&m&&Mt(m),{name:m,roles:N,top:a&&a.top_role||"member",features:a&&a.features||[],isAdmin:N.includes("admin")}}var Wt=`
+:root{ --lg-bg:#f8fafc; --lg-line:#f1f5f9; --lg-field:#f8fafc; --lg-field-line:#e2e8f0; --lg-warn-bg:#fffbeb; --lg-warn-ink:#b45309; --lg-warn-line:#fef3c7; }
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --lg-bg:#0b1120; --lg-line:#334155; --lg-field:#0f172a; --lg-field-line:#334155; --lg-warn-bg:rgba(245,158,11,.12); --lg-warn-ink:#fbbf24; --lg-warn-line:rgba(245,158,11,.25); } }
+.tbc-lg{ position:fixed; inset:0; z-index:100; background:var(--lg-bg); overflow-y:auto; color:var(--text,#262626); font-family:'Open Sans','Noto Sans TC',-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:var(--fs,15px); line-height:1.5; }
+.tbc-lg *{ box-sizing:border-box; }
+.tbc-lg [hidden]{ display:none !important; }
+.tbc-lg::before,.tbc-lg::after{ content:""; position:fixed; width:50vw; height:50vw; border-radius:50%; background:rgba(136,6,206,.10); filter:blur(120px); pointer-events:none; }
+.tbc-lg::before{ top:-10%; left:-10%; } .tbc-lg::after{ bottom:-10%; right:-10%; }
+:where(.tbc-lg) button{ font:inherit; color:inherit; background:none; border:0; padding:0; margin:0; cursor:pointer; }
+:where(.tbc-lg) input{ font:inherit; font-size:16px; color:inherit; margin:0; }
+.tbc-lg button:focus-visible{ outline:2px solid var(--primary,#8806ce); outline-offset:2px; }
+.tbc-lg-in{ min-height:100%; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding:16px; position:relative; }
+@media (min-width:640px){ .tbc-lg-in{ justify-content:center; padding:32px 16px; } }
+.tbc-lg-head{ width:100%; max-width:448px; display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; position:relative; z-index:2; }
+.tbc-lg-head i{ width:44px; height:44px; flex:none; }
+.tbc-lg-head span{ font-size:18px; font-weight:600; }
+.tbc-lg-x{ width:44px; height:44px; flex:none; border-radius:50%; background:var(--bg,#fff); border:1px solid var(--lg-line) !important; display:flex; align-items:center; justify-content:center; transition:background-color .15s ease; }
+.tbc-lg-x:hover{ background:var(--hov-soft,#fafafa); } .tbc-lg-x:active{ background:var(--hov,#f4f4f5); }
+.tbc-lg-card{ width:100%; max-width:448px; background:var(--bg,#fff); border:1px solid var(--lg-line); border-radius:8px; padding:24px; position:relative; z-index:2; animation:tbcLgIn .25s ease-out; }
+@media (min-width:640px){ .tbc-lg-card{ padding:32px; } }
+@keyframes tbcLgIn{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
+@media (prefers-reduced-motion:reduce){ .tbc-lg-card{ animation:none; } }
+.tbc-lg-f{ margin-bottom:16px; }
+.tbc-lg-f label{ display:block; font-size:12px; font-weight:500; color:var(--sub,#64748b); margin:0 0 6px 4px; }
+.tbc-lg-f label b{ color:#ef4444; font-weight:500; }
+.tbc-lg-w{ position:relative; }
+.tbc-lg-ic{ position:absolute; left:16px; top:50%; transform:translateY(-50%); color:#94a3b8; pointer-events:none; display:flex; }
+.tbc-lg-inp{ width:100%; background:var(--lg-field); border:1px solid var(--lg-field-line); border-radius:8px; padding:14px 16px 14px 44px; font-weight:600; color:var(--text,#262626); outline:none; transition:border-color .15s ease, box-shadow .15s ease; }
+.tbc-lg-inp:hover{ border-color:#cbd5e1; }
+.tbc-lg-inp:focus{ border-color:var(--primary,#8806ce); box-shadow:0 0 0 2px var(--primary-tint,#f2e5fb); }
+.tbc-lg .tbc-lg-inp:focus-visible{ outline:none; }
+.tbc-lg-inp.pw{ padding-right:48px; }
+.tbc-lg-eye{ position:absolute; right:8px; top:50%; transform:translateY(-50%); padding:8px !important; border-radius:8px; color:#94a3b8; display:flex; }
+.tbc-lg-eye:hover{ color:var(--primary,#8806ce); } .tbc-lg-eye:active{ background:var(--hov,#f4f4f5); }
+.tbc-lg-tip{ display:flex; align-items:flex-start; gap:8px; font-size:12px; font-weight:500; line-height:1.6; color:var(--lg-warn-ink); background:var(--lg-warn-bg); border:1px solid var(--lg-warn-line); border-radius:8px; padding:12px; margin-bottom:16px; }
+.tbc-lg-tip svg{ margin-top:2px; }
+.tbc-lg-err{ display:flex; align-items:flex-start; gap:8px; color:var(--bad,#d4380d); background:rgba(220,38,38,.07); border:1px solid rgba(220,38,38,.18); border-radius:8px; padding:10px 12px; font-size:14px; font-weight:500; margin-bottom:16px; }
+.tbc-lg-err svg{ margin-top:2px; }
+.tbc-lg-sub{ width:100%; height:48px; margin-top:8px !important; border-radius:9999px; font-size:16px; font-weight:500; background:var(--btn,#334155); color:var(--on-btn,#fff); transition:background-color .15s ease; }
+.tbc-lg-sub:hover{ background:var(--btn-hover,#1e293b); } .tbc-lg-sub:active{ background:var(--btn-press,#0f172a); }
+.tbc-lg-sub:disabled{ opacity:.5; cursor:not-allowed; pointer-events:none; }
+.tbc-lg-links{ margin-top:24px; display:flex; flex-direction:column; gap:16px; text-align:center; font-size:14px; font-weight:500; color:var(--sub,#64748b); }
+.tbc-lg-links button{ color:var(--primary,#8806ce); font-weight:500; padding:4px 2px; }
+.tbc-lg-links button:hover{ color:var(--primary-hover,#7205ad); }
+.tbc-lg-note{ font-size:12px; color:#94a3b8; padding-top:16px; border-top:1px solid var(--lg-line); }
+`,It=!1,Zt=()=>{if(It)return;It=!0;let e=document.createElement("style");e.setAttribute("data-tbc","shell-auth"),e.textContent=Wt,document.head.appendChild(e)},Jt=(e,n)=>{let a=e&&e.message||"";return/Invalid login credentials/i.test(a)?"登入失敗：帳號或密碼錯誤":/User already registered/i.test(a)?"Oops！帳號已經註冊過了":/Password should be at least/i.test(a)?"密碼長度至少需 6 個字元":/查無此帳號|驗證時發生錯誤|兩次輸入的密碼不同/.test(a)?a:n?a||"註冊發生問題，稍後再試":"登入發生問題，稍後再試"};function Ct({supabase:e,signup:n=!1,cancel:a="close",homeHref:r="./index.html",onCancel:m,onSuccess:N}={}){Zt();let B=!1,G=!1,y=!1,P=document.body.style.overflow;document.body.style.overflow="hidden";let L=document.createElement("div");L.className="tbc-lg",L.setAttribute("role","dialog"),L.setAttribute("aria-modal","true"),L.setAttribute("aria-labelledby","tbc-lg-title"),L.innerHTML=`<div class="tbc-lg-in">
+    <div class="tbc-lg-head">
+      <button type="button" class="tbc-lg-x" data-x aria-label="${a==="back"?"回上一頁":"關閉登入畫面"}">${U(a==="back"?"left":"x",22)}</button>
+      <span id="tbc-lg-title"></span><i></i>
+    </div>
+    <div class="tbc-lg-card">
+      <form id="tbc-lg-form">
+        <div class="tbc-lg-f"><label for="tbc-la">帳號</label><div class="tbc-lg-w"><span class="tbc-lg-ic">${U("user",18)}</span><input id="tbc-la" class="tbc-lg-inp" type="text" autocomplete="username" placeholder="電話號碼或電子郵件" required></div></div>
+        <div class="tbc-lg-f"><label for="tbc-lp">密碼</label><div class="tbc-lg-w"><span class="tbc-lg-ic">${U("lock",18)}</span><input id="tbc-lp" class="tbc-lg-inp pw" type="password" autocomplete="current-password" placeholder="6位以上英數組合" required><button type="button" class="tbc-lg-eye" data-eye="tbc-lp" aria-label="顯示密碼">${U("eye",18)}</button></div></div>
+        <div class="tbc-lg-f" data-su hidden><label for="tbc-lc">確認密碼 <b>*</b></label><div class="tbc-lg-w"><span class="tbc-lg-ic">${U("lock",18)}</span><input id="tbc-lc" class="tbc-lg-inp pw" type="password" autocomplete="new-password" placeholder="再次輸入密碼"><button type="button" class="tbc-lg-eye" data-eye="tbc-lc" aria-label="顯示密碼">${U("eye",18)}</button></div></div>
+        <div class="tbc-lg-tip" data-su hidden>${U("alert",16)}<span>僅限本會弟兄姊妹註冊，「帳號申請」洽行政辦公室</span></div>
+        <div class="tbc-lg-err" id="tbc-lg-err" role="alert" hidden>${U("alert",16)}<span></span></div>
+        <button type="submit" class="tbc-lg-sub" id="tbc-lg-sub">登入</button>
+      </form>
+      <div class="tbc-lg-links">
+        <div data-in>首次設定密碼？請<button type="button" data-go="up">點這裡</button></div>
+        <div data-su hidden>已有帳號？ <button type="button" data-go="in">登入</button></div>
+        <div class="tbc-lg-note" data-in>沒有帳號、忘記密碼？請聯絡行政辦公室</div>
+      </div>
+    </div>
+  </div>`,document.body.appendChild(L);let O=c=>L.querySelector(c),q=O("#tbc-la"),at=O("#tbc-lp"),Q=O("#tbc-lc"),Y=O("#tbc-lg-sub"),rt=O("#tbc-lg-err"),j=c=>{rt.hidden=!c,rt.querySelector("span").textContent=c||""},i=(c,f)=>{let $=O("#"+c.dataset.eye);$.type=f?"text":"password",c.innerHTML=U(f?"eyeoff":"eye",18),c.setAttribute("aria-label",f?"隱藏密碼":"顯示密碼")},u=c=>{B=c,O("#tbc-lg-title").textContent=c?"歡迎註冊":"歡迎登入",L.querySelectorAll("[data-su]").forEach(f=>{f.hidden=!c}),L.querySelectorAll("[data-in]").forEach(f=>{f.hidden=c}),Q.required=c,Q.value="",at.autocomplete=c?"new-password":"current-password",Y.textContent=c?"註冊":"登入",L.querySelectorAll("[data-eye]").forEach(f=>i(f,!1)),j("")};u(n);let o=()=>{y||(y=!0,document.removeEventListener("keydown",g),L.remove(),document.body.style.overflow=P)},b=()=>{if(a==="back"){window.history.length>1?window.history.back():window.location.href=r;return}o(),m&&m()},g=c=>{c.key==="Escape"&&a==="close"&&b()};return document.addEventListener("keydown",g),L.addEventListener("click",c=>{if(c.target.closest("[data-x]"))return b();let f=c.target.closest("[data-eye]");if(f)return i(f,O("#"+f.dataset.eye).type==="password");let $=c.target.closest("[data-go]");$&&(u($.dataset.go==="up"),q.focus())}),O("#tbc-lg-form").addEventListener("submit",async c=>{if(c.preventDefault(),G)return;G=!0,Y.disabled=!0,Y.textContent="處理中...",j("");let f=q.value,$=at.value,w=B,s=!1;try{let k=Et(f);if(w){if($!==Q.value)throw new Error("兩次輸入的密碼不同");let{data:R,error:nt}=await e.rpc("check_member_exists",{p_account:f});if(nt)throw console.error("驗證錯誤:",nt),new Error("驗證時發生錯誤，再試一次，或聯絡行政辦公室");if(!R)throw new Error("查無此帳號，再試一次，或聯絡行政辦公室");let{data:H,error:X}=await e.auth.signUp({email:k,password:$}),ot=H&&H.user&&H.user.identities&&H.user.identities.length===0,it=!X&&(!H||!H.user);if(ot||it)throw new Error("User already registered");if(X)throw X;alert("註冊成功"),u(!1)}else{let{error:R}=await e.auth.signInWithPassword({email:k,password:$});if(R)throw R;s=!0}}catch(k){/查無此帳號|兩次輸入|Invalid login|already registered/i.test(k.message||"")||console.error(k),j(Jt(k,w))}finally{G=!1,Y.disabled=!1,s||(Y.textContent=B?"註冊":"登入")}s&&(o(),N&&N())}),q.focus(),{close:o}}var ut=document.getElementById("entries");ut.innerHTML=St.filter(e=>e.entry!==!1).map(e=>`
+  <a href="${V(e.href)}" class="entry"${e.badge?` data-badge="${V(e.badge)}"`:""}>
+    <span class="entry-ico">${U(e.icon,null,{sw:1.75,cls:"entry-icon"})}<span class="entry-badge" hidden></span></span>
+    <span class="entry-name">${V(e.name)}</span>
+  </a>`).join("");var Nt=["日","一","二","三","四","五","六"],$t=(e,n)=>{let a=e.querySelector(".entry-badge");if(!a)return;let r=Number(n)||0;a.hidden=r<=0,a.textContent=r>99?"99+":String(r);let m=e.querySelector(".entry-name").textContent;e.setAttribute("aria-label",r>0?`${m}，${r} 則通知`:m)},Tt=e=>{let n=document.getElementById("reminder");if(!n)return;if(!e||!e.length){n.hidden=!0,n.innerHTML="";return}let a=new Map;e.forEach(y=>{a.has(y.service_session)||a.set(y.service_session,[]),a.get(y.service_session).push(y.service_role)});let r=[...a].map(([y,P])=>`${y}，${[...new Set(P)].join("、")}`).join("；"),[m,N,B]=e[0].service_date.split("-").map(Number),G=new Date(m,N-1,B).getDay();n.innerHTML=`<a class="reminder-card" href="./search.html" aria-label="${V(`${N}月${B}日 星期${Nt[G]} 服事：${r}`)}">
+    <span class="reminder-date"><span class="rd-m">${N}月</span><span class="rd-d">${B}</span><span class="rd-w">星期${Nt[G]}</span></span>
+    <span class="reminder-bd">${V(r)}</span>
+  </a>`,n.hidden=!1},W=kt(),Z=document.getElementById("login-hint"),Lt=document.getElementById("login-note"),Te=Z?Z.innerHTML:"",Qt=e=>{Z&&(Z.hidden=e,Lt&&(Lt.hidden=e))};Z&&Z.addEventListener("click",async e=>{let n=e.target.closest("[data-act]");if(!n)return;e.preventDefault();let a=n.dataset.act;Ct({supabase:W,cancel:"close",signup:a==="signup"})});async function et(){try{let{data:e}=await W.auth.getSession();if(Qt(!!e.session),!e.session){ut.querySelectorAll("[data-badge]").forEach(m=>$t(m,0)),Tt(null);return}let[n,a]=await Promise.all([W.rpc("home_badges"),W.rpc("my_upcoming_service")]),r=n&&n.data||{};ut.querySelectorAll("[data-badge]").forEach(m=>$t(m,r[m.dataset.badge])),Tt(a&&!a.error?a.data:null)}catch(e){console.error(e)}}et();W.auth.onAuthStateChange(e=>{e==="SIGNED_IN"?(_t(W).catch(()=>{}),et()):e==="SIGNED_OUT"&&et()});window.addEventListener("pageshow",e=>{e.persisted&&et()});document.addEventListener("visibilitychange",()=>{document.visibilityState==="visible"&&et()});var Xt=[{id:"all",label:"全部"},{id:"kingdom",label:"國度"},{id:"outreach",label:"宣教"},{id:"church",label:"教會"},{id:"fellowship",label:"團契"},{id:"personal",label:"個人"},{id:"thanks",label:"感恩"}],Le=Xt.filter(e=>e.id!=="all");var Rt="get_prayer_total",zt="讓我們繼續用禱告灌溉，期待美好的花朵綻放",J=[{id:"seed",name:"種子睡著了",label:"種子睡著了",min:0},{id:"sprout",name:"小芽冒出來",label:"小芽冒出來",min:100},{id:"grow",name:"小苗長大了",label:"小苗長大了",min:500},{id:"bloom",name:"花兒悄悄綻放",label:"花兒悄悄綻放",min:1e3},{id:"garden",name:"生命豐盛成長",label:"生命豐盛成長",min:2e3,full:3e3}],te=e=>{let n=0;for(let a=0;a<J.length;a++)e>=J[a].min&&(n=a);return n},Dt=e=>{let n=te(e),a=J[n],r=J[n+1]||null,m=r?r.min-a.min:a.full?a.full-a.min:0,N=m>0?Math.max(0,Math.min(1,(e-a.min)/m)):1;return{idx:n,stage:a,next:r,frac:N,pct:Math.max(0,Math.min(100,N*100)),p:n+N}};(function(){(function(){var u=document.getElementById("tagline");if(u){var o=function(){u.style.fontSize="";for(var b=parseFloat(getComputedStyle(u).fontSize),g=function(){var c=document.createRange();return c.selectNodeContents(u),c.getBoundingClientRect().width};g()>u.clientWidth*.85&&b>10;)b-=.5,u.style.fontSize=b+"px"};o(),document.fonts&&document.fonts.ready&&document.fonts.ready.then(o),window.addEventListener("resize",o)}})();var e={SUPABASE_URL:window.TBC_CONFIG.SUPABASE_URL,SUPABASE_KEY:window.TBC_CONFIG.SUPABASE_KEY,RPC_NAME:Rt,BANNER:zt,TIMEOUT_MS:8e3,REFRESH_AFTER_MS:6e4,STAGES:J};function n(i){var u="http://www.w3.org/2000/svg";function o(t,l,p){var x=document.createElementNS(u,t);for(var d in l)x.setAttribute(d,l[d]);return p&&p.appendChild(x),x}function b(t){return Math.max(0,Math.min(1,t))}function g(t){return t=b(t),t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2}function c(t){return t=b(t),1-Math.pow(1-t,3)}var f=20261030;function $(){f=f+1831565813|0;var t=Math.imul(f^f>>>15,1|f);return t=t+Math.imul(t^t>>>7,61|t)^t,((t^t>>>14)>>>0)/4294967296}function w(t,l){return t+(l-t)*$()}function s(t){return Math.round(t*10)/10}function k(t){return Math.round(t*100)/100}var R=200;function nt(t,l,p,x){var d=[{x:t,y:R},{x:t-x,y:R-l*.38},{x:t+p*.85+x*.3,y:R-l*.72},{x:t+p,y:R-l}],T=40,h=[],S=[0],C,A,E;for(C=0;C<=T;C++)A=C/T,E=1-A,h.push({x:E*E*E*d[0].x+3*E*E*A*d[1].x+3*E*A*A*d[2].x+A*A*A*d[3].x,y:E*E*E*d[0].y+3*E*E*A*d[1].y+3*E*A*A*d[2].y+A*A*A*d[3].y}),C>0&&S.push(S[C-1]+Math.hypot(h[C].x-h[C-1].x,h[C].y-h[C-1].y));var v=S[T];this.d="M"+s(d[0].x)+" "+s(d[0].y)+"C"+s(d[1].x)+" "+s(d[1].y)+" "+s(d[2].x)+" "+s(d[2].y)+" "+s(d[3].x)+" "+s(d[3].y),this.at=function(D){for(var M=b(D)*v,I=1;I<T&&S[I]<M;)I++;var F=S[I]-S[I-1]||1,_=(M-S[I-1])/F,z=h[I-1],K=h[I];return{x:z.x+(K.x-z.x)*_,y:z.y+(K.y-z.y)*_,a:Math.atan2(K.x-z.x,-(K.y-z.y))*180/Math.PI}}}function H(t,l){var p=o("g",{},t);return o("path",{d:"M0 0C-6 -6 -6 -17 0 -24C6 -17 6 -6 0 0Z",fill:l,opacity:.85},p),p}var X="#f8d77f";function ot(t,l,p,x,d,T){var h=o("g",{},t),S=[],C=null,A;if(x==="petals"){var E=T?[{n:d,d:.52,r:.5,off:0,cols:[p[1],p[2]],op:.55},{n:d,d:.26,r:.27,off:180/d,cols:[p[0],p[0]],op:.6}]:[{n:d,d:.52,r:.5,off:0,cols:[p[1],p[2]],op:.6}];E.forEach(function(v,D){for(var M=0;M<v.n;M++)S.push({el:o("circle",{cx:0,cy:0,r:1,fill:v.cols[M%2],opacity:v.op},h),ang:(v.off+M*360/v.n)*Math.PI/180,d:l*v.d,r:l*v.r,str:D*.12+M/v.n*.18})}),C=o("circle",{cx:0,cy:0,r:s(l*.15),fill:X},h)}else x==="fan"?[[1,p[2]],[.66,p[1]],[.34,p[0]]].forEach(function(v,D){var M=s(l*v[0]);S.push({el:o("path",{d:"M"+-M+" 0A"+M+" "+M+" 0 0 1 "+M+" 0Z",fill:v[1]},h),str:D*.12})}):[[1,p[2],.6,0],[.62,p[1],.85,0],[.3,p[0],1,1.5]].forEach(function(v,D){S.push({el:o("circle",{cx:0,cy:0,r:s(l*v[0]),fill:v[1],opacity:v[2]},h),rad:l*v[0],str:(2-D)*.14,bud:v[3]})});return{g:h,set:function(v,D){var M=c(v);if(M<=.001){h.setAttribute("opacity",0);return}h.setAttribute("opacity",1);var I=g(D),F=0;for(A=0;A<S.length;A++){var _=S[A],z=g((D-_.str)/.7);if(x==="petals"){var K=_.r*(.55+.45*z),pt=_.d*z;_.el.setAttribute("cx",s(Math.sin(_.ang)*pt)),_.el.setAttribute("cy",s(-Math.cos(_.ang)*pt)),_.el.setAttribute("r",s(K)),F=Math.max(F,pt+K)}else if(x==="fan")_.el.setAttribute("transform","scale("+k(.35+.65*z)+")");else{var yt=_.bud+(1-_.bud)*z;_.el.setAttribute("transform","scale("+k(yt)+")"),F=Math.max(F,_.rad*yt)}}if(h.setAttribute("transform","translate(0 "+s(-F*M)+") scale("+k(M)+")"+(x==="petals"?" rotate("+s(-30*(1-I))+")":"")),C){var wt=g((D-.25)/.6);C.setAttribute("opacity",wt),C.setAttribute("transform","scale("+k(.3+.7*wt)+")")}}}}var it={purple:["#8806ce","#a747db","#c17ee6"],pink:["#d4609f","#e58fc0","#f4b8d9"],lavender:["#8a72d8","#a995ea","#cfc3f6"],peach:["#e98a66","#f3a98a","#fac9b0"]},Ut="#86a984",bt=["#8fb08c","#a3c1a0","#7ea27c"];function gt(t,l){var p=o("g",{class:"sway"},t);p.style.transformOrigin=l.x+"px "+R+"px",p.style.setProperty("--amp",l.amp+"deg"),p.style.animationDuration=l.dur+"s",p.style.animationDelay="-"+l.delay+"s";for(var x=new nt(l.x,l.h,l.lean,l.bend),d=o("path",{d:x.d,fill:"none",stroke:Ut,"stroke-width":l.sw,"stroke-linecap":"round",pathLength:1,"stroke-dasharray":1,"stroke-dashoffset":1,opacity:0},p),T=[],h=0;h<l.leaves.length;h++){var S=l.leaves[h];T.push({el:H(p,bt[Math.floor($()*bt.length)]),f:S.f,side:S.side,ang:w(30,52),size:S.size})}var C=o("g",{},p),A=ot(C,l.R,it[l.pal],l.type,l.n,l.double);return{start:l.start,dur:l.dur2,update:function(E,v,D){d.setAttribute("opacity",E>.002?1:0),d.setAttribute("stroke-dashoffset",s((1-E)*1e3)/1e3);for(var M=0;M<T.length;M++){var I=T[M],F=g((E-I.f)/.25);if(F<=.001){I.el.setAttribute("opacity",0);continue}var _=x.at(Math.min(I.f,E));I.el.setAttribute("opacity",1),I.el.setAttribute("transform","translate("+s(_.x)+" "+s(_.y)+") rotate("+s(_.a+I.side*(10+I.ang*F))+") scale("+k(I.size*F)+")")}var z=x.at(E);C.setAttribute("transform","translate("+s(z.x)+" "+s(z.y)+") rotate("+s(z.a*.6)+")"),A.set(v,D)}}}i.innerHTML="";var Ot=o("g",{class:"g-suns"},i),ht=[{cx:160,r:72,col:"#c9b8f2",op:.2,s:2.3,d:1.2},{cx:238,r:46,col:"#f4b8d9",op:.22,s:3.4,d:1.1},{cx:82,r:38,col:"#fac9b0",op:.26,s:3.7,d:1.1}].map(function(t){return t.el=o("path",{d:"M"+-t.r+" 0A"+t.r+" "+t.r+" 0 0 1 "+t.r+" 0Z",fill:t.col,opacity:t.op,transform:"translate("+t.cx+" "+R+") scale(0)"},Ot),t}),mt=o("line",{x1:108,y1:R,x2:212,y2:R,class:"g-horizon","stroke-width":1.2,"stroke-linecap":"round"},i),st=[[44,"#c17ee6"],[70,"#f4b8d9"],[118,"#fac9b0"],[205,"#cfc3f6"],[246,"#c17ee6"],[272,"#fac9b0"]].map(function(t){return{el:o("circle",{cx:t[0],cy:R-1.8,r:0,fill:t[1]},i),start:4+Math.abs(t[0]-160)/160*.5}}),lt=o("g",{},i),Bt=o("circle",{cx:160,cy:195,r:9,fill:"none",stroke:"#c17ee6","stroke-width":1,opacity:0,class:"seed-ring"},lt),Ft=o("circle",{cx:160,cy:195,r:4.5,fill:"#a747db"},lt),Gt=[{x:-120,h:46,R:10,pal:"lavender",type:"orb",back:1},{x:-95,h:70,R:14,pal:"pink",type:"petals",n:5,back:1},{x:-62,h:100,R:19,pal:"peach",type:"fan",back:1},{x:-78,h:36,R:8,pal:"purple",type:"orb",back:0},{x:-30,h:58,R:13,pal:"pink",type:"fan",back:0},{x:28,h:78,R:13,pal:"lavender",type:"petals",n:5,back:0},{x:45,h:38,R:8,pal:"peach",type:"orb",back:0},{x:62,h:104,R:19,pal:"pink",type:"petals",n:6,back:1},{x:98,h:64,R:16,pal:"purple",type:"fan",back:1},{x:124,h:52,R:11,pal:"lavender",type:"orb",back:0}],Ht=o("g",{},i),Pt=o("g",{},i),qt=o("g",{},i),tt=[];Gt.forEach(function(t){var l=160+t.x,p=Math.abs(t.x)/160,x=[{f:.34,side:-1,size:w(.55,.75)},{f:.55,side:1,size:w(.5,.7)}];t.h>90&&x.push({f:.2,side:1,size:w(.65,.8)});var d=gt(t.back?Ht:qt,{x:l,h:t.h,lean:w(-12,12),bend:w(-8,8),sw:1.5,R:t.R,pal:t.pal,type:t.type,n:t.n,leaves:x,amp:s(w(.7,1.4)),dur:s(w(7,11)),delay:s(w(0,8)),start:4.06+p*.5+w(0,.08),dur2:.4});tt.push(d)});for(var Yt=gt(Pt,{x:160,h:112,lean:4,bend:6,sw:2.2,R:26,pal:"purple",type:"petals",n:6,double:!0,leaves:[{f:.08,side:-1,size:.7},{f:.1,side:1,size:.66},{f:.34,side:-1,size:1},{f:.5,side:1,size:1},{f:.68,side:-1,size:.8}],amp:.9,dur:9.5,delay:1.5,start:0,dur2:1}),xt=o("g",{opacity:0},i),jt=["#f4b8d9","#fac9b0","#cfc3f6"],ct=0;ct<8;ct++){var dt=o("circle",{cx:s(w(30,290)),cy:s(w(70,180)),r:s(w(1,1.8)),fill:jt[ct%3],opacity:.7},xt);dt.setAttribute("class","mote"),dt.style.animationDuration=s(w(9,15))+"s",dt.style.animationDelay="-"+s(w(0,12))+"s"}function vt(t){var l=52+84*g(t/4.6);mt.setAttribute("x1",s(160-l)),mt.setAttribute("x2",s(160+l));var p=b(t/.6);Ft.setAttribute("r",k(4.5+.7*p)),Bt.setAttribute("opacity",k(.55*b(t/.25)*(1-b((t-1.2)/.6)))),lt.setAttribute("opacity",k(1-.45*b((t-1.2)/1.2)));for(var x=0;x<ht.length;x++){var d=ht[x];d.el.setAttribute("transform","translate("+d.cx+" "+R+") scale("+k(c((t-d.s)/d.d))+")")}Yt.update(g((t-.45)/2.05),g((t-2.5)/.5),g((t-3)/1));for(var T=0;T<tt.length;T++){var h=(t-tt[T].start)/tt[T].dur;tt[T].update(g(h/.6),g((h-.45)/.2),g((h-.6)/.4))}for(var S=0;S<st.length;S++)st[S].el.setAttribute("r",k(1.8*c((t-st[S].start)/.4)));xt.setAttribute("opacity",k(g((t-4.3)/.6)))}return vt(0),{set:vt}}var a=function(i){return document.getElementById(i)},r={total:a("garden-total"),stageName:a("garden-stage-name"),bar:a("garden-bar"),fill:a("garden-fill"),banner:a("garden-banner"),error:a("garden-error"),retry:a("garden-retry"),plant:a("plant"),glow:a("garden-glow")},m=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches,N=0,B=!1,G=n(r.plant),y={p:0,target:0,raf:0,visible:!1};function P(i){y.p=i,G.set(i),r.glow.style.opacity=String(.3+.7*Math.min(1,i/4))}function L(){cancelAnimationFrame(y.raf);var i=y.p,u=y.target;if(Math.abs(u-i)<.001)return;var o=Math.max(1200,Math.min(16e3,Math.abs(u-i)*3200+1200)),b=null;function g(c){b===null&&(b=c);var f=Math.min(1,(c-b)/o),$=f<.5?2*f*f:1-Math.pow(-2*f+2,2)/2;P(i+(u-i)*$),f<1?y.raf=requestAnimationFrame(g):P(u)}y.raf=requestAnimationFrame(g)}function O(i,u){if(y.target=i,m||u){cancelAnimationFrame(y.raf),P(i);return}y.visible&&L()}"IntersectionObserver"in window?new IntersectionObserver(function(i){i[0].isIntersecting&&!y.visible&&(y.visible=!0,m||L())},{threshold:.4}).observe(r.plant):y.visible=!0;function q(i){return Number(i).toLocaleString("zh-TW")}function at(i){if(m||i===0){r.total.textContent=q(i);return}var u=null,o=900;function b(g){u===null&&(u=g);var c=Math.min(1,(g-u)/o);r.total.textContent=q(Math.round(i*(1-Math.pow(1-c,3)))),c<1?requestAnimationFrame(b):r.total.textContent=q(i)}requestAnimationFrame(b)}function Q(i){var u=Dt(i),o=u.idx,b=u.stage,g=u.next,c=u.frac,f=u.pct;O(o+c),r.plant.setAttribute("aria-label","守望花園："+b.label),at(i),r.stageName.textContent=b.label,r.fill.style.width=f.toFixed(1)+"%",r.bar.setAttribute("aria-valuenow",String(Math.round(f))),r.bar.setAttribute("aria-valuetext",g?"已完成 "+Math.round(f)+"%":"持續成長中"),r.error.classList.add("hidden");var $=null;try{$=localStorage.getItem("tbc_garden_stage")}catch{}for(var w=-1,s=0;s<e.STAGES.length;s++)e.STAGES[s].id===$&&(w=s);w>=0&&o>w?(r.banner.textContent=e.BANNER,r.banner.classList.remove("hidden")):r.banner.classList.add("hidden");try{localStorage.setItem("tbc_garden_stage",b.id)}catch{}}function Y(){O(0,!0),r.total.textContent="—",r.stageName.textContent="暫時無法顯示",r.fill.style.width="0%",r.bar.removeAttribute("aria-valuenow"),r.bar.setAttribute("aria-valuetext","無法讀取"),r.banner.classList.add("hidden"),r.error.classList.remove("hidden")}function rt(){r.stageName.textContent="載入中",r.total.classList.add("garden-skeleton"),r.error.classList.add("hidden")}function j(){if(!B){B=!0,rt();var i=typeof AbortController<"u"?new AbortController:null,u=setTimeout(function(){i&&i.abort()},e.TIMEOUT_MS);fetch(e.SUPABASE_URL+"/rest/v1/rpc/"+e.RPC_NAME,{method:"POST",headers:{apikey:e.SUPABASE_KEY,"Content-Type":"application/json"},body:"{}",signal:i?i.signal:void 0}).then(function(o){if(!o.ok)throw new Error("HTTP "+o.status);return o.json()}).then(function(o){var b=Number(o);if(o===null||typeof o=="object"||!isFinite(b)||b<0)throw new Error("bad data");N=Date.now(),r.total.classList.remove("garden-skeleton"),Q(Math.floor(b))}).catch(function(o){console.error("讀取禱告回應總數失敗:",o),r.total.classList.remove("garden-skeleton"),Y()}).then(function(){clearTimeout(u),B=!1})}}r.retry.addEventListener("click",j),document.addEventListener("visibilitychange",function(){document.visibilityState==="visible"&&N&&Date.now()-N>e.REFRESH_AFTER_MS&&j()}),j()})();
 
-    // ==========================================
-    // 守望花園設定：所有數字與文字都集中在這裡，要調整只改這一處
-    // ==========================================
-    var GARDEN = {
-      SUPABASE_URL: window.TBC_CONFIG.SUPABASE_URL,
-      SUPABASE_KEY: window.TBC_CONFIG.SUPABASE_KEY,
-      RPC_NAME: "get_prayer_total",   // 資料庫函式：只回傳「已核准且公開」貼文的回應總數
-      BANNER: '讓我們繼續用禱告灌溉，期待美好的花朵綻放',   // 進入新階段時顯示
-      TIMEOUT_MS: 8000,
-      REFRESH_AFTER_MS: 60000,        // 回到分頁時，超過這個時間才重新讀取
-      // 階段：min 是該階段起算的次數（依小到大排列）
-      STAGES: [
-        { id: 'seed',   name: '種子睡著了', label: '種子睡著了', min: 0 },
-        { id: 'sprout', name: '小芽冒出來', label: '小芽冒出來', min: 100 },
-        { id: 'grow',   name: '小苗長大了', label: '小苗長大了', min: 500 },
-        { id: 'bloom',  name: '花兒悄悄綻放', label: '花兒悄悄綻放', min: 1000 },
-        { id: 'garden', name: '生命豐盛成長', label: '生命豐盛成長', min: 2000, full: 3000 }   // full：花園完全長成的次數
-      ]
-    };
-
-    // ==========================================
-    // 花園場景（簡潔抽象風）：用「成長進度 p」一次畫出整個畫面
-    // p 的意思：0–1 種子、1–2 發芽、2–3 成長、3–4 開花、4–5 花園蔓延
-    // 畫面只用四種東西：一條地平線、細線（莖）、半透明的圓（花）、柔和的半圓色塊（背景）
-    // 每個元素有自己的開始時間與緩動，所以不會同時出現、也不會機械式排列
-    // ==========================================
-    function buildScene(svg) {
-      var NS = 'http://www.w3.org/2000/svg';
-      function mk(tag, attrs, parent) {
-        var e = document.createElementNS(NS, tag);
-        for (var k in attrs) e.setAttribute(k, attrs[k]);
-        if (parent) parent.appendChild(e);
-        return e;
-      }
-      function c01(v) { return Math.max(0, Math.min(1, v)); }
-      function eio(t) { t = c01(t); return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }   // 慢—快—慢
-      function eo(t) { t = c01(t); return 1 - Math.pow(1 - t, 3); }                                      // 先快後慢
-      // 固定的亂數種子：每次看到的花園都長得一樣，但看起來自然不規則
-      var seedN = 20261030;
-      function rnd() {
-        seedN = (seedN + 0x6D2B79F5) | 0;
-        var t = Math.imul(seedN ^ (seedN >>> 15), 1 | seedN);
-        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-      }
-      function rr(a, b) { return a + (b - a) * rnd(); }
-      function r1(n) { return Math.round(n * 10) / 10; }
-      function r2(n) { return Math.round(n * 100) / 100; }
-
-      var GROUND_Y = 200;   // 地平線的高度
-
-      // ---- 莖：用曲線取樣，之後可以問「長到 f 的位置在哪、朝向哪裡」----
-      function Stem(x, h, lean, bend) {
-        var P = [
-          { x: x, y: GROUND_Y },
-          { x: x - bend, y: GROUND_Y - h * 0.38 },
-          { x: x + lean * 0.85 + bend * 0.3, y: GROUND_Y - h * 0.72 },
-          { x: x + lean, y: GROUND_Y - h }
-        ];
-        var N = 40, pts = [], cum = [0], i, t, u;
-        for (i = 0; i <= N; i++) {
-          t = i / N; u = 1 - t;
-          pts.push({
-            x: u * u * u * P[0].x + 3 * u * u * t * P[1].x + 3 * u * t * t * P[2].x + t * t * t * P[3].x,
-            y: u * u * u * P[0].y + 3 * u * u * t * P[1].y + 3 * u * t * t * P[2].y + t * t * t * P[3].y
-          });
-          if (i > 0) cum.push(cum[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));
-        }
-        var total = cum[N];
-        this.d = 'M' + r1(P[0].x) + ' ' + r1(P[0].y) + 'C' + r1(P[1].x) + ' ' + r1(P[1].y) + ' ' + r1(P[2].x) + ' ' + r1(P[2].y) + ' ' + r1(P[3].x) + ' ' + r1(P[3].y);
-        this.at = function (f) {
-          var target = c01(f) * total, k = 1;
-          while (k < N && cum[k] < target) k++;
-          var seg = cum[k] - cum[k - 1] || 1, w = (target - cum[k - 1]) / seg;
-          var a = pts[k - 1], b = pts[k];
-          return { x: a.x + (b.x - a.x) * w, y: a.y + (b.y - a.y) * w, a: Math.atan2(b.x - a.x, -(b.y - a.y)) * 180 / Math.PI };
-        };
-      }
-
-      // ---- 葉：一片簡單的橄欖形（兩條弧線）----
-      function Leaf(parent, color) {
-        var g = mk('g', {}, parent);
-        mk('path', { d: 'M0 0C-6 -6 -6 -17 0 -24C6 -17 6 -6 0 0Z', fill: color, opacity: 0.85 }, g);
-        return g;
-      }
-
-      // ---- 花：三種幾何造型 ----
-      //  petals：一圈半透明的圓，重疊處顏色自然加深
-      //  fan   ：由大到小疊起來的半圓（像日出）
-      //  orb   ：由內向外擴開的同心圓
-      var CENTER = '#f8d77f';
-      function Head(parent, R, pal, type, n, double) {
-        var g = mk('g', {}, parent);
-        var parts = [], center = null, i;
-
-        if (type === 'petals') {
-          var rings = double
-            ? [{ n: n, d: 0.52, r: 0.5,  off: 0,       cols: [pal[1], pal[2]], op: 0.55 },
-               { n: n, d: 0.26, r: 0.27, off: 180 / n, cols: [pal[0], pal[0]], op: 0.6 }]
-            : [{ n: n, d: 0.52, r: 0.5,  off: 0,       cols: [pal[1], pal[2]], op: 0.6 }];
-          rings.forEach(function (rg, ri) {
-            for (var k = 0; k < rg.n; k++) {
-              parts.push({
-                el: mk('circle', { cx: 0, cy: 0, r: 1, fill: rg.cols[k % 2], opacity: rg.op }, g),
-                ang: (rg.off + k * 360 / rg.n) * Math.PI / 180,
-                d: R * rg.d, r: R * rg.r, str: ri * 0.12 + (k / rg.n) * 0.18
-              });
-            }
-          });
-          center = mk('circle', { cx: 0, cy: 0, r: r1(R * 0.15), fill: CENTER }, g);
-        } else if (type === 'fan') {
-          [[1, pal[2]], [0.66, pal[1]], [0.34, pal[0]]].forEach(function (f, k) {
-            var rad = r1(R * f[0]);
-            parts.push({ el: mk('path', { d: 'M' + (-rad) + ' 0A' + rad + ' ' + rad + ' 0 0 1 ' + rad + ' 0Z', fill: f[1] }, g), str: k * 0.12 });
-          });
-        } else {   // orb
-          [[1, pal[2], 0.6, 0], [0.62, pal[1], 0.85, 0], [0.3, pal[0], 1, 1.5]].forEach(function (f, k) {
-            parts.push({ el: mk('circle', { cx: 0, cy: 0, r: r1(R * f[0]), fill: f[1], opacity: f[2] }, g), rad: R * f[0], str: (2 - k) * 0.14, bud: f[3] });
-          });
-        }
-
-        return {
-          g: g,
-          // bp：含苞（0→1 慢慢鼓起來）　op：綻放（0→1 慢慢展開）
-          set: function (bp, op) {
-            var hb = eo(bp);
-            if (hb <= 0.001) { g.setAttribute('opacity', 0); return; }
-            g.setAttribute('opacity', 1);
-            var oc = eio(op), ext = 0;   // ext：花朵往下延伸的距離，用來讓花永遠「坐」在莖尖上
-            for (i = 0; i < parts.length; i++) {
-              var P = parts[i], o = eio((op - P.str) / 0.7);
-              if (type === 'petals') {
-                var pr = P.r * (0.55 + 0.45 * o), pd = P.d * o;
-                P.el.setAttribute('cx', r1(Math.sin(P.ang) * pd));
-                P.el.setAttribute('cy', r1(-Math.cos(P.ang) * pd));
-                P.el.setAttribute('r', r1(pr));
-                ext = Math.max(ext, pd + pr);
-              } else if (type === 'fan') {
-                P.el.setAttribute('transform', 'scale(' + r2(0.35 + 0.65 * o) + ')');
-              } else {
-                var sc = P.bud + (1 - P.bud) * o;
-                P.el.setAttribute('transform', 'scale(' + r2(sc) + ')');
-                ext = Math.max(ext, P.rad * sc);
-              }
-            }
-            g.setAttribute('transform', 'translate(0 ' + r1(-ext * hb) + ') scale(' + r2(hb) + ')' + (type === 'petals' ? ' rotate(' + r1(-30 * (1 - oc)) + ')' : ''));
-            if (center) {
-              var co = eio((op - 0.25) / 0.6);
-              center.setAttribute('opacity', co);
-              center.setAttribute('transform', 'scale(' + r2(0.3 + 0.7 * co) + ')');
-            }
-          }
-        };
-      }
-
-      // ---- 一株植物 = 一條細線莖 + 幾片葉 + 一朵花 ----
-      var PALS = {
-        purple:   ['#8806ce', '#a747db', '#c17ee6'],
-        pink:     ['#d4609f', '#e58fc0', '#f4b8d9'],
-        lavender: ['#8a72d8', '#a995ea', '#cfc3f6'],
-        peach:    ['#e98a66', '#f3a98a', '#fac9b0']
-      };
-      var STEM_COLOR = '#86a984';
-      var GREENS = ['#8fb08c', '#a3c1a0', '#7ea27c'];
-
-      function Plant(parent, o) {
-        var root = mk('g', { 'class': 'sway' }, parent);
-        root.style.transformOrigin = o.x + 'px ' + GROUND_Y + 'px';
-        root.style.setProperty('--amp', o.amp + 'deg');
-        root.style.animationDuration = o.dur + 's';
-        root.style.animationDelay = '-' + o.delay + 's';
-        var stem = new Stem(o.x, o.h, o.lean, o.bend);
-        var path = mk('path', { d: stem.d, fill: 'none', stroke: STEM_COLOR, 'stroke-width': o.sw, 'stroke-linecap': 'round', pathLength: 1, 'stroke-dasharray': 1, 'stroke-dashoffset': 1, opacity: 0 }, root);
-        var leaves = [];
-        for (var i = 0; i < o.leaves.length; i++) {
-          var L = o.leaves[i];
-          leaves.push({ el: Leaf(root, GREENS[Math.floor(rnd() * GREENS.length)]), f: L.f, side: L.side, ang: rr(30, 52), size: L.size });
-        }
-        var headPos = mk('g', {}, root);
-        var head = Head(headPos, o.R, PALS[o.pal], o.type, o.n, o.double);
-        return {
-          start: o.start, dur: o.dur2,
-          update: function (sp, bp, op) {
-            path.setAttribute('opacity', sp > 0.002 ? 1 : 0);
-            path.setAttribute('stroke-dashoffset', r1((1 - sp) * 1000) / 1000);
-            for (var i = 0; i < leaves.length; i++) {
-              var L = leaves[i], lp = eio((sp - L.f) / 0.25);
-              if (lp <= 0.001) { L.el.setAttribute('opacity', 0); continue; }
-              var pos = stem.at(Math.min(L.f, sp));
-              L.el.setAttribute('opacity', 1);
-              L.el.setAttribute('transform', 'translate(' + r1(pos.x) + ' ' + r1(pos.y) + ') rotate(' + r1(pos.a + L.side * (10 + L.ang * lp)) + ') scale(' + r2(L.size * lp) + ')');
-            }
-            var tip = stem.at(sp);
-            headPos.setAttribute('transform', 'translate(' + r1(tip.x) + ' ' + r1(tip.y) + ') rotate(' + r1(tip.a * 0.6) + ')');
-            head.set(bp, op);
-          }
-        };
-      }
-
-      // ================= 建立畫面（由後往前疊）=================
-      svg.innerHTML = '';
-
-      // 1) 背景色塊：從地平線慢慢升起的柔和半圓
-      var sunLayer = mk('g', { 'class': 'g-suns' }, svg);
-      var suns = [
-        { cx: 160, r: 72, col: '#c9b8f2', op: 0.20, s: 2.3, d: 1.2 },
-        { cx: 238, r: 46, col: '#f4b8d9', op: 0.22, s: 3.4, d: 1.1 },
-        { cx: 82,  r: 38, col: '#fac9b0', op: 0.26, s: 3.7, d: 1.1 }
-      ].map(function (s) {
-        s.el = mk('path', { d: 'M' + (-s.r) + ' 0A' + s.r + ' ' + s.r + ' 0 0 1 ' + s.r + ' 0Z', fill: s.col, opacity: s.op, transform: 'translate(' + s.cx + ' ' + GROUND_Y + ') scale(0)' }, sunLayer);
-        return s;
-      });
-
-      // 2) 地平線：一條細線，從中間慢慢向兩側延伸
-      var horizon = mk('line', { x1: 108, y1: GROUND_Y, x2: 212, y2: GROUND_Y, 'class': 'g-horizon', 'stroke-width': 1.2, 'stroke-linecap': 'round' }, svg);
-
-      // 3) 地平線上的小圓點（花園長成後才出現）
-      var dots = [[44, '#c17ee6'], [70, '#f4b8d9'], [118, '#fac9b0'], [205, '#cfc3f6'], [246, '#c17ee6'], [272, '#fac9b0']].map(function (d) {
-        return { el: mk('circle', { cx: d[0], cy: GROUND_Y - 1.8, r: 0, fill: d[1] }, svg), start: 4.0 + Math.abs(d[0] - 160) / 160 * 0.5 };
-      });
-
-      // 4) 種子：一顆小圓點 + 一圈慢慢呼吸的細環
-      var seedG = mk('g', {}, svg);
-      var seedRing = mk('circle', { cx: 160, cy: 195, r: 9, fill: 'none', stroke: '#c17ee6', 'stroke-width': 1, opacity: 0, 'class': 'seed-ring' }, seedG);
-      var seedDot = mk('circle', { cx: 160, cy: 195, r: 4.5, fill: '#a747db' }, seedG);
-
-      // 5) 花：位置、高度、大小、造型、顏色都手排，刻意不對稱
-      var secondary = [
-        { x: -120, h: 46,  R: 10, pal: 'lavender', type: 'orb',    back: 1 },
-        { x: -95,  h: 70,  R: 14, pal: 'pink',     type: 'petals', n: 5, back: 1 },
-        { x: -62,  h: 100, R: 19, pal: 'peach',    type: 'fan',    back: 1 },
-        { x: -78,  h: 36,  R: 8,  pal: 'purple',   type: 'orb',    back: 0 },
-        { x: -30,  h: 58,  R: 13, pal: 'pink',     type: 'fan',    back: 0 },
-        { x: 28,   h: 78,  R: 13, pal: 'lavender', type: 'petals', n: 5, back: 0 },
-        { x: 45,   h: 38,  R: 8,  pal: 'peach',    type: 'orb',    back: 0 },
-        { x: 62,   h: 104, R: 19, pal: 'pink',     type: 'petals', n: 6, back: 1 },
-        { x: 98,   h: 64,  R: 16, pal: 'purple',   type: 'fan',    back: 1 },
-        { x: 124,  h: 52,  R: 11, pal: 'lavender', type: 'orb',    back: 0 }
-      ];
-      var layerBack = mk('g', {}, svg), layerMain = mk('g', {}, svg), layerFront = mk('g', {}, svg);
-      var plants = [];
-      secondary.forEach(function (s) {
-        var x = 160 + s.x, ds = Math.abs(s.x) / 160;
-        var leavesDef = [{ f: 0.34, side: -1, size: rr(0.55, 0.75) }, { f: 0.55, side: 1, size: rr(0.5, 0.7) }];
-        if (s.h > 90) leavesDef.push({ f: 0.2, side: 1, size: rr(0.65, 0.8) });
-        var pl = Plant(s.back ? layerBack : layerFront, {
-          x: x, h: s.h, lean: rr(-12, 12), bend: rr(-8, 8), sw: 1.5, R: s.R, pal: s.pal, type: s.type, n: s.n,
-          leaves: leavesDef, amp: r1(rr(0.7, 1.4)), dur: r1(rr(7, 11)), delay: r1(rr(0, 8)),
-          start: 4.06 + ds * 0.5 + rr(0, 0.08), dur2: 0.4
-        });
-        plants.push(pl);
-      });
-
-      // 中央第一朵花（兩圈圓，像一朵簡化的曼陀羅）
-      var main = Plant(layerMain, {
-        x: 160, h: 112, lean: 4, bend: 6, sw: 2.2, R: 26, pal: 'purple', type: 'petals', n: 6, double: true,
-        leaves: [
-          { f: 0.08, side: -1, size: 0.7 }, { f: 0.1, side: 1, size: 0.66 },
-          { f: 0.34, side: -1, size: 1.0 }, { f: 0.5, side: 1, size: 1.0 },
-          { f: 0.68, side: -1, size: 0.8 }
-        ],
-        amp: 0.9, dur: 9.5, delay: 1.5, start: 0, dur2: 1
-      });
-
-      // 6) 光點（花園長成後，非常緩慢地飄起）
-      var lights = mk('g', { opacity: 0 }, svg);
-      var lightCols = ['#f4b8d9', '#fac9b0', '#cfc3f6'];
-      for (var l = 0; l < 8; l++) {
-        var dot = mk('circle', { cx: r1(rr(30, 290)), cy: r1(rr(70, 180)), r: r1(rr(1, 1.8)), fill: lightCols[l % 3], opacity: 0.7 }, lights);
-        dot.setAttribute('class', 'mote');
-        dot.style.animationDuration = r1(rr(9, 15)) + 's';
-        dot.style.animationDelay = '-' + r1(rr(0, 12)) + 's';
-      }
-
-      function set(p) {
-        // 地平線：從中間向兩側慢慢延伸
-        var hw = 52 + 84 * eio(p / 4.6);
-        horizon.setAttribute('x1', r1(160 - hw));
-        horizon.setAttribute('x2', r1(160 + hw));
-        // 種子：稍微鼓起，發芽後淡成莖底的一個小點，細環消失
-        var sw = c01(p / 0.6);
-        seedDot.setAttribute('r', r2(4.5 + 0.7 * sw));
-        seedRing.setAttribute('opacity', r2(0.55 * c01(p / 0.25) * (1 - c01((p - 1.2) / 0.6))));
-        seedG.setAttribute('opacity', r2(1 - 0.45 * c01((p - 1.2) / 1.2)));
-        // 背景半圓：從地平線慢慢升起
-        for (var s = 0; s < suns.length; s++) {
-          var S = suns[s];
-          S.el.setAttribute('transform', 'translate(' + S.cx + ' ' + GROUND_Y + ') scale(' + r2(eo((p - S.s) / S.d)) + ')');
-        }
-        // 中央主莖：發芽 → 抽高 → 長葉，之後含苞、開花
-        main.update(eio((p - 0.45) / 2.05), eio((p - 2.5) / 0.5), eio((p - 3) / 1));
-        // 其他花：從中心向外蔓延
-        for (var j = 0; j < plants.length; j++) {
-          var q = (p - plants[j].start) / plants[j].dur;
-          plants[j].update(eio(q / 0.6), eio((q - 0.45) / 0.2), eio((q - 0.6) / 0.4));
-        }
-        for (var k = 0; k < dots.length; k++) dots[k].el.setAttribute('r', r2(1.8 * eo((p - dots[k].start) / 0.4)));
-        lights.setAttribute('opacity', r2(eio((p - 4.3) / 0.6)));
-      }
-      set(0);
-      return { set: set };
-    }
-
-    var $ = function (id) { return document.getElementById(id); };
-    var els = {
-      total: $('garden-total'), stageName: $('garden-stage-name'), bar: $('garden-bar'), fill: $('garden-fill'),
-      banner: $('garden-banner'), error: $('garden-error'),
-      retry: $('garden-retry'), plant: $('plant'), glow: $('garden-glow')
-    };
-    var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    var lastLoad = 0;
-    var loading = false;
-
-    function stageIndexFor(total) {
-      var idx = 0;
-      for (var i = 0; i < GARDEN.STAGES.length; i++) { if (total >= GARDEN.STAGES[i].min) idx = i; }
-      return idx;
-    }
-
-    var scene = buildScene(els.plant);
-    var grow = { p: 0, target: 0, raf: 0, visible: false };
-
-    function setP(p) {
-      grow.p = p;
-      scene.set(p);
-      els.glow.style.opacity = String(0.3 + 0.7 * Math.min(1, p / 4));
-    }
-    function runTo() {
-      cancelAnimationFrame(grow.raf);
-      var from = grow.p, to = grow.target;
-      if (Math.abs(to - from) < 0.001) return;
-      // 走得越遠，花的時間越長（約 1.2~16 秒）；全程慢—快—慢，比以前更悠哉
-      var dur = Math.max(1200, Math.min(16000, Math.abs(to - from) * 3200 + 1200));
-      var t0 = null;
-      function step(ts) {
-        if (t0 === null) t0 = ts;
-        var u = Math.min(1, (ts - t0) / dur);
-        var e = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
-        setP(from + (to - from) * e);
-        if (u < 1) grow.raf = requestAnimationFrame(step); else setP(to);
-      }
-      grow.raf = requestAnimationFrame(step);
-    }
-    function growTo(p, snap) {
-      grow.target = p;
-      if (reduceMotion || snap) { cancelAnimationFrame(grow.raf); setP(p); return; }
-      if (grow.visible) runTo();
-    }
-    // 畫面捲到花園時才開始長
-    if ('IntersectionObserver' in window) {
-      new IntersectionObserver(function (entries) {
-        if (entries[0].isIntersecting && !grow.visible) { grow.visible = true; if (!reduceMotion) runTo(); }
-      }, { threshold: 0.4 }).observe(els.plant);
-    } else {
-      grow.visible = true;
-    }
-
-    function formatNum(n) { return Number(n).toLocaleString('zh-TW'); }
-
-    function animateNumber(to) {
-      if (reduceMotion || to === 0) { els.total.textContent = formatNum(to); return; }
-      var start = null, dur = 900;
-      function step(ts) {
-        if (start === null) start = ts;
-        var p = Math.min(1, (ts - start) / dur);
-        els.total.textContent = formatNum(Math.round(to * (1 - Math.pow(1 - p, 3))));
-        if (p < 1) requestAnimationFrame(step); else els.total.textContent = formatNum(to);
-      }
-      requestAnimationFrame(step);
-    }
-
-    function render(total) {
-      var idx = stageIndexFor(total);
-      var cur = GARDEN.STAGES[idx];
-      var next = GARDEN.STAGES[idx + 1];
-      var pct;
-      var span = next ? (next.min - cur.min) : (cur.full ? (cur.full - cur.min) : 0);
-      var frac = span > 0 ? Math.max(0, Math.min(1, (total - cur.min) / span)) : 1;
-      pct = frac * 100;
-      pct = Math.max(0, Math.min(100, pct));
-
-      growTo(idx + frac);
-      els.plant.setAttribute('aria-label', '守望花園：' + cur.label);
-      animateNumber(total);
-      els.stageName.textContent = cur.label;
-      els.fill.style.width = pct.toFixed(1) + '%';
-      els.bar.setAttribute('aria-valuenow', String(Math.round(pct)));
-      els.bar.setAttribute('aria-valuetext', next ? ('已完成 ' + Math.round(pct) + '%') : '持續成長中');
-      els.error.classList.add('hidden');
-
-      // 達成新階段時，顯示簡短鼓勵訊息（只在比上次來訪更高的階段才顯示）
-      var seen = null;
-      try { seen = localStorage.getItem('tbc_garden_stage'); } catch (e) {}
-      var seenIdx = -1;
-      for (var i = 0; i < GARDEN.STAGES.length; i++) { if (GARDEN.STAGES[i].id === seen) seenIdx = i; }
-      if (seenIdx >= 0 && idx > seenIdx) {
-        els.banner.textContent = GARDEN.BANNER;
-        els.banner.classList.remove('hidden');
-      } else {
-        els.banner.classList.add('hidden');
-      }
-      try { localStorage.setItem('tbc_garden_stage', cur.id); } catch (e) {}
-    }
-
-    function renderFailure() {
-      // 讀取失敗：維持穩定的預設畫面（播種），不顯示任何數字或進度
-      growTo(0, true);
-      els.total.textContent = '—';
-      els.stageName.textContent = '暫時無法顯示';
-      els.fill.style.width = '0%';
-      els.bar.removeAttribute('aria-valuenow');
-      els.bar.setAttribute('aria-valuetext', '無法讀取');
-      els.banner.classList.add('hidden');
-      els.error.classList.remove('hidden');
-    }
-
-    function renderLoading() {
-      els.stageName.textContent = '載入中';
-      els.total.classList.add('garden-skeleton');
-      els.error.classList.add('hidden');
-    }
-
-    function load() {
-      if (loading) return;
-      loading = true;
-      renderLoading();
-      var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-      var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, GARDEN.TIMEOUT_MS);
-      fetch(GARDEN.SUPABASE_URL + '/rest/v1/rpc/' + GARDEN.RPC_NAME, {
-        method: 'POST',
-        headers: { 'apikey': GARDEN.SUPABASE_KEY, 'Content-Type': 'application/json' },
-        body: '{}',
-        signal: ctrl ? ctrl.signal : undefined
-      })
-        .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
-        .then(function (data) {
-          var n = Number(data);
-          if (data === null || typeof data === 'object' || !isFinite(n) || n < 0) throw new Error('bad data');
-          lastLoad = Date.now();
-          els.total.classList.remove('garden-skeleton');
-          render(Math.floor(n));
-        })
-        .catch(function (err) {
-          console.error('讀取禱告回應總數失敗:', err);
-          els.total.classList.remove('garden-skeleton');
-          renderFailure();
-        })
-        .then(function () { clearTimeout(timer); loading = false; });
-    }
-
-    els.retry.addEventListener('click', load);
-    document.addEventListener('visibilitychange', function () {
-      if (document.visibilityState === 'visible' && lastLoad && Date.now() - lastLoad > GARDEN.REFRESH_AFTER_MS) load();
-    });
-    load();
-  })();
-  </script>
+</script>
 </body>
 </html>

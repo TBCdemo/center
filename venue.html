@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- TBC ONE 場地預約（會友端） — 由原始碼打包（src/center/venue），勿手動修改 -->
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
@@ -10,11 +11,12 @@
 <script src="../management/tbc-config.js"></script>
 <style>
   /* 風格：TBC ONE（圓角、細框、不加陰影）＋ Together 紫色 #8806ce */
+  /* TBC 會友端共用樣式：色彩、深色模式、字體大小、基本重設（全站只有這一份，改這裡所有會友端頁面一起更新） */
   :root{
   --btn:#334155; --btn-hover:#1e293b; --btn-press:#0f172a; --on-btn:#ffffff;
  --bg:#ffffff; --card:#f7f9fa; --text:#262626; --sub:#595959; --mute:#8c8c8c; --border:#e8e8e8;
          --primary:#8806ce; --primary-hover:#7205ad; --primary-tint:#f7eefc; --primary-ink:#5c048c;
-         --good:#8806ce; --adhoc:#f2f4cd; --busy:#c9c9c9; --bad:#d4380d; --bad-bg:#fff1f0; --green:#1f7a45; --green-bg:#e8f6ee; }
+         --good:#8806ce; --adhoc:#f5f5f0; --busy:#c9c9c9; --bad:#d4380d; --bad-bg:#fff1f0; --green:#1f7a45; --green-bg:#e8f6ee; }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
   --btn:#f1f5f9; --btn-hover:#e2e8f0; --btn-press:#cbd5e1; --on-btn:#0b1120;
@@ -31,13 +33,14 @@
   input,select,textarea{ font:inherit; font-size:16px; color:var(--text); }
   svg{ display:block; flex:none; }
   .sr{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
-
-  /* 頂端列（與守望花園、我的服事相同）：左漢堡選單＋標題、右功能圖示 */
-  .top{ position:sticky; top:0; z-index:30; background:var(--primary); border-bottom:1px solid var(--primary); color:#fff; padding-top:env(safe-area-inset-top,0px); }
   :root{ --fs:15px; --hov:#f4f4f5; --hov-soft:#fafafa; --menu-ink:#52525b; --menu-ink-hi:#18181b; --menu-line:#f4f4f5; }
   @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
   --btn:#f1f5f9; --btn-hover:#e2e8f0; --btn-press:#cbd5e1; --on-btn:#0b1120;
  --hov:#334155; --hov-soft:#273449; --menu-ink:#94a3b8; --menu-ink-hi:#f1f5f9; --menu-line:#334155; } }
+
+
+  /* 頂端列（與守望花園、我的服事相同）：左漢堡選單＋標題、右功能圖示 */
+  .top{ position:sticky; top:0; z-index:30; background:var(--primary); border-bottom:1px solid var(--primary); color:#fff; padding-top:env(safe-area-inset-top,0px); }
   .top-in{ max-width:672px; margin:0 auto; height:56px; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:0 12px; position:relative; }
   @media (min-width:640px){ .top-in{ padding:0 20px; } }
   .top-l{ display:flex; align-items:center; min-width:0; }
@@ -51,6 +54,21 @@
   @media (min-width:360px){ .top h1{ font-size:18px; } }
   @media (max-width:359px){ .menu-btn,.hr button{ width:40px; height:40px; } }
   .hr{ display:flex; align-items:center; flex:none; }
+  .hr .morew{ display:none; position:relative; }
+  .hr .more-pop{ position:absolute; top:calc(100% + 8px); right:0; z-index:60; width:224px; overflow:hidden; border-radius:8px; background:var(--bg); border:1px solid var(--menu-line); box-shadow:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -4px rgba(0,0,0,.1); animation:menuIn .25s ease-out; }
+  .hr .more-pop button{ display:flex; align-items:center; gap:12px; width:100%; height:auto; border-radius:0; justify-content:flex-start; padding:14px 16px; font-size:14px; font-weight:500; color:var(--menu-ink); text-align:left; transition:background-color .15s ease,color .15s ease; }
+  .hr .more-pop button + button{ border-top:1px solid var(--menu-line); }
+  .hr .more-pop button:hover{ background:var(--hov-soft); color:var(--menu-ink-hi); }
+  .hr .more-pop button:active{ background:var(--hov); }
+  .hr .more-pop .cnt{ margin-left:auto; min-width:22px; height:22px; padding:0 6px; border-radius:9999px; background:#dc2626; color:#fff; font-size:13px; font-weight:500; line-height:22px; text-align:center; }
+  .hr .morew > button.open{ background:rgba(255,255,255,.25); border-radius:12px; }
+  @media (max-width:479px){ .hr .wide{ display:none; } .hr .morew{ display:block; } }
+  .rv{ flex-wrap:wrap; }
+  .rv .acts{ flex-basis:100%; display:flex; gap:10px; margin-top:4px; }
+  .rv .acts .btn{ flex:1; height:46px; font-weight:500; gap:8px; }
+  .rv .acts .btn.rj{ color:var(--bad); border-color:#fca5a5; background:var(--bg); }
+  .rv .acts .btn.rj:hover{ background:var(--bad-bg); }
+  .hr button .bdg{ position:absolute; top:-2px; right:-2px; min-width:20px; height:20px; padding:0 5px; border-radius:9999px; background:#dc2626; color:#fff; font-size:12px; font-weight:500; line-height:20px; text-align:center; font-variant-numeric:tabular-nums; box-shadow:0 0 0 2px var(--primary); pointer-events:none; }
   .idrow{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px 10px; }
   .who{ display:flex; align-items:center; gap:8px; font-size:15px; font-weight:500; min-width:0; }
   .who b{ font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -71,39 +89,10 @@
 
   main{ max-width:672px; margin:0 auto; padding-bottom:40px; }
 
-  /* 登入畫面（與守望花園登入相同：整頁、返回鈕＋標題、白色卡片） */
-  :root{ --lg-bg:#f8fafc; --lg-line:#f1f5f9; --lg-field:#f8fafc; --lg-field-line:#e2e8f0; }
-  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --lg-bg:#0b1120; --lg-line:#334155; --lg-field:#0f172a; --lg-field-line:#334155; } }
-  .lgov{ position:fixed; inset:0; z-index:60; background:var(--lg-bg); overflow-y:auto; }
-  .lgov::before,.lgov::after{ content:""; position:fixed; width:50vw; height:50vw; border-radius:50%; background:rgba(136,6,206,.10); filter:blur(120px); pointer-events:none; }
-  .lgov::before{ top:-10%; left:-10%; } .lgov::after{ bottom:-10%; right:-10%; }
-  .lg-in{ min-height:100%; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding:16px; position:relative; }
-  @media (min-width:640px){ .lg-in{ justify-content:center; padding:32px 16px; } }
-  .lg-head{ width:100%; max-width:448px; display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; position:relative; z-index:2; }
-  .lg-head i{ width:44px; height:44px; }
-  .lg-head span{ font-size:18px; font-weight:600; color:var(--text); }
-  .lg-x{ width:44px; height:44px; border-radius:50%; background:var(--bg); border:1px solid var(--lg-line); display:flex; align-items:center; justify-content:center; color:var(--text); transition:background-color .15s ease; }
-  .lg-x:hover{ background:var(--hov-soft); } .lg-x:active{ background:var(--hov); }
-  .lg-card{ width:100%; max-width:448px; background:var(--bg); border:1px solid var(--lg-line); border-radius:8px; padding:24px; position:relative; z-index:2; animation:menuIn .25s ease-out; }
-  @media (min-width:640px){ .lg-card{ padding:32px; } }
-  .lg-f{ margin-bottom:16px; } .lg-f label{ display:block; font-size:12px; font-weight:500; color:var(--sub); margin:0 0 6px 4px; }
-  .lg-w{ position:relative; }
-  .lg-ic{ position:absolute; left:16px; top:50%; transform:translateY(-50%); color:#94a3b8; pointer-events:none; display:flex; }
-  .lg-inp{ width:100%; background:var(--lg-field); border:1px solid var(--lg-field-line); border-radius:8px; padding:14px 16px 14px 44px; font-weight:600; color:var(--text); outline:none; transition:border-color .15s ease, box-shadow .15s ease; }
-  .lg-inp:hover{ border-color:#cbd5e1; }
-  .lg-inp:focus{ border-color:var(--primary); box-shadow:0 0 0 2px var(--primary-tint); }
-  .lg-inp.pw{ padding-right:48px; }
-  .lg-eye{ position:absolute; right:8px; top:50%; transform:translateY(-50%); padding:8px; border-radius:8px; color:#94a3b8; display:flex; }
-  .lg-eye:hover{ color:var(--primary); } .lg-eye:active{ background:var(--hov); }
-  .lg-err{ display:flex; align-items:flex-start; gap:8px; color:var(--bad); background:rgba(220,38,38,.07); border:1px solid rgba(220,38,38,.18); border-radius:8px; padding:10px 12px; font-size:14px; font-weight:500; margin-bottom:16px; }
-  .lg-err[hidden]{ display:none; }
-  .lg-sub{ width:100%; height:48px; margin-top:8px; font-size:16px; }
-  .lg-links{ margin-top:24px; display:flex; flex-direction:column; gap:16px; text-align:center; font-size:14px; font-weight:500; color:var(--sub); }
-  .lg-links a{ color:var(--primary); font-weight:500; padding:4px 2px; text-decoration:none; }
-  .lg-note{ font-size:12px; color:#94a3b8; padding-top:16px; border-top:1px solid var(--lg-line); }
+  /* 登入畫面的樣式由外框 shell/auth.js 自帶（src/center/shell/auth.js） */
 
   /* 工具列：分頁籤（紫色）左＝天／月、右＝今天；選取的分頁與下方內容相連 */
-  .tb{ display:flex; align-items:flex-end; justify-content:space-between; gap:8px; margin:8px 12px 0; padding:12px 16px 0; background:var(--primary); border-radius:16px 16px 0 0; }
+  .tb{ display:flex; align-items:flex-end; justify-content:center; gap:8px; margin:8px 12px 0; padding:12px 16px 0; background:var(--primary); border-radius:16px 16px 0 0; }
   .vtabs{ display:flex; align-items:flex-end; }
   .vtab{ position:relative; height:40px; min-width:60px; padding:0 16px; border-radius:12px 12px 0 0; font-weight:500; color:#fff; transition:background-color .15s ease; }
   .vtab:hover{ background:rgba(255,255,255,.15); }
@@ -151,8 +140,10 @@
   .dayhead{ display:flex; align-items:center; gap:10px; padding:4px 4px 4px 16px; }
   .vcard{ margin:0 12px; background:var(--card); border-radius:0 0 16px 16px; overflow:hidden; }
   .grid + .dayhead{ margin-top:12px; }
-  .vlist{ margin:12px 12px 0; border:1px solid var(--border); border-radius:16px; overflow:hidden; background:var(--bg); }
+  .vcard:has(+ .vlist){ border-radius:0; }
+  .vlist{ margin:0 12px; border:1px solid var(--border); border-top:0; border-radius:0 0 16px 16px; overflow:hidden; background:var(--bg); }
   .vlist .ev:last-child{ border-bottom:0; }
+  .vlist .ev:last-child .ev-t{ border-bottom-left-radius:15px; }  /* 最後一列的左下角跟著卡片圓角走，審核中的藍色外框才不會被切掉 */
   .dayhead b{ font-size:calc(var(--fs) + 2px); font-weight:700; }
   .dayhead span.d{ color:var(--sub); font-size:14px; margin-left:auto; }
   .list{ margin:0; padding:0; list-style:none; }
@@ -189,7 +180,8 @@
   .sh-foot > *{ flex:1; }
   .btn{ height:46px; border-radius:9999px; font-weight:600; font-size:16px; display:inline-flex; align-items:center; justify-content:center; gap:6px; border:1px solid var(--border); background:var(--bg); }
   .btn:hover{ background:var(--card); }
-  .btn.primary{ background:var(--btn); border-color:var(--btn); color:var(--on-btn); }
+  .sheet .btn{ font-weight:400; }   /* 彈窗內按鈕（取消、送出申請、預約…）：標準字、不加粗 */
+.btn.primary{ background:var(--btn); border-color:var(--btn); color:var(--on-btn); }
   .btn.primary:active{ background:var(--btn-press); border-color:var(--btn-press); }
   .btn.primary:hover{ background:var(--btn-hover); border-color:var(--btn-hover); }
   .btn:disabled{ opacity:.45; cursor:not-allowed; }
@@ -199,6 +191,8 @@
   .inp{ width:100%; height:46px; padding:0 12px; border:1px solid var(--border); border-radius:8px; background:var(--card); }
   textarea.inp{ height:84px; padding:10px 12px; resize:vertical; }
   .inp:focus{ border-color:var(--primary); }
+  .inp.bad,.inp.bad:focus{ border-color:var(--bad); }   /* 必填沒填：送出時紅框＋跳到該欄位 */
+  .inp.bad:focus-visible{ outline-color:var(--bad); }
   select.inp,.selbtn{ appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; padding-right:34px; }
   .selbtn{ text-align:left; }
   .pills{ display:flex; flex-wrap:wrap; gap:8px; }
@@ -223,15 +217,22 @@
   .tl-why{ font-size:13px; color:var(--bad); margin-top:6px; }
   .wait{ text-align:center; color:var(--sub); font-size:14px; margin:14px 0 4px; }
   .tab{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
-.tab .pill{ border-color:var(--border); background:var(--bg); color:var(--sub); transition:background-color .15s ease; }
+.tab{ flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; }
+  .tab::-webkit-scrollbar{ display:none; }
+  .tab .pill{ flex:none; height:auto; padding:8px 16px; font-size:14px; line-height:20px; white-space:nowrap; border-color:var(--border); background:var(--bg); color:var(--sub); transition:background-color .15s ease; }
 .tab .pill:hover{ background:var(--hov-soft); }
 .tab .pill[aria-pressed="true"]{ background:var(--text); border-color:var(--text); color:var(--bg); }
-  .mine{ border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:10px; }
-  .mine-top{ display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
-  .mine-top b{ font-size:16px; overflow-wrap:anywhere; }
-  .tag{ flex:none; font-size:12px; font-weight:600; padding:3px 10px; border-radius:9999px; background:var(--card); color:var(--sub); }
-  .tag.pending{ background:#fff7e0; color:#a36a00; } .tag.approved{ background:var(--green-bg); color:var(--green); } .tag.rejected{ background:var(--bad-bg); color:var(--bad); }
-  .mine .m{ font-size:14px; color:var(--sub); margin-top:6px; }
+
+  /* 我的預約卡片（比照場地條列）：左＝日期＋星期；右＝標題、場地與時間、（全部分頁才有）圖示＋狀態 */
+  .mine{ display:flex; align-items:flex-start; gap:14px; border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:10px; }
+  .mdate{ flex:none; width:64px; padding:8px 0; border-radius:8px; background:var(--card); text-align:center; line-height:1.25; }
+  .mdate small{ display:block; font-size:12px; color:var(--sub); }
+  .mdate b{ display:block; font-size:22px; font-weight:700; color:var(--text); }
+  .mbody{ flex:1; min-width:0; }
+  .mbody .t{ font-size:16px; font-weight:700; overflow-wrap:anywhere; }
+  .mine .m{ font-size:14px; color:var(--sub); margin-top:4px; }
+  .mst{ display:flex; align-items:center; gap:6px; margin-top:8px; font-size:14px; color:var(--sub); }
+  .mst.pending{ color:#a36a00; } .mst.approved{ color:var(--primary); } .mst.rejected{ color:var(--bad); }
   .why{ margin-top:10px; padding:10px 12px; border-radius:8px; background:var(--bad-bg); color:var(--bad); font-size:14px; overflow-wrap:anywhere; }
   .why small{ display:block; font-size:12px; opacity:.85; }
   details{ border-top:1px solid var(--border); padding:10px 0; }
@@ -260,8 +261,8 @@
   .qsum{ font-size:14px; color:var(--sub); margin:8px 0; }
   .qsum b{ color:var(--text); }
   .sp-panel{ margin-top:8px; padding:8px 12px; border:1px solid var(--border); border-radius:8px; }
-  .sp-panel .h{ display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--sub); margin-bottom:4px; }
-  .sp-panel .h button{ color:var(--primary); font-weight:600; padding:4px 6px; }
+  .sp-panel .h{ display:flex; justify-content:flex-start; align-items:center; font-size:13px; color:var(--sub); margin-bottom:4px; }
+  .sp-panel .h button{ color:var(--primary); font-weight:400; padding:4px 6px 4px 0; margin-right:12px; }
   .sp-panel label{ display:flex; align-items:center; gap:10px; padding:8px 0; }
   .sp-panel input{ width:20px; height:20px; accent-color:var(--primary); margin:0; }
   .sp-panel i{ width:12px; height:12px; border-radius:3px; background:var(--c); }
@@ -274,7 +275,9 @@
   .login small{ display:block; text-align:center; color:var(--sub); margin-top:14px; }
   .login small a{ color:var(--primary); font-weight:600; }
 
-  .toast{ position:fixed; left:50%; bottom:calc(24px + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); z-index:80; max-width:min(92vw,420px); padding:12px 18px; border-radius:8px; background:#262626; color:#fff; font-size:14px; animation:up .2s ease-out; }
+  .toast{ position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:80; width:max-content; max-width:min(92vw,420px); padding:14px 20px; border-radius:8px; background:#262626; color:#fff; font-size:15px; line-height:1.5; text-align:center; animation:toastIn .2s ease-out; }
+  @keyframes toastIn{ from{ opacity:0; transform:translate(-50%,-46%); } to{ opacity:1; transform:translate(-50%,-50%); } }
+  @media (prefers-reduced-motion:reduce){ .toast{ animation:none; } }
 </style>
 </head>
 <body>
@@ -283,545 +286,171 @@
 <div id="layer"></div>
 
 <script type="module">
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-const { SUPABASE_URL, SUPABASE_KEY } = window.TBC_CONFIG;
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-/* ============ 小工具 ============ */
-const $ = (s, r = document) => r.querySelector(s);
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const pad = (n) => String(n).padStart(2, '0');
-const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
-const todayStr = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei' }).format(new Date());
-const parse = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)); };
-const fmt = (d) => `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
-const addDays = (s, n) => { const d = parse(s); d.setUTCDate(d.getUTCDate() + n); return fmt(d); };
-const addMonths = (s, n) => { const d = parse(s); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() + n); return fmt(d); };
-const monthStart = (s) => s.slice(0, 7) + '-01';
-const dow = (s) => parse(s).getUTCDay();
-const dim = (s) => new Date(Date.UTC(+s.slice(0, 4), +s.slice(5, 7), 0)).getUTCDate();
-const monthGrid = (first) => { const lead = dow(first); const weeks = Math.ceil((lead + dim(first)) / 7); const st = addDays(first, -lead); return Array.from({ length: weeks * 7 }, (_, i) => addDays(st, i)); };
-const hm = (t) => String(t).slice(0, 5);
-const tmin = (t) => { const [h, m] = hm(t).split(':').map(Number); return h * 60 + m; };
-const m2hm = (m) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
-const opts = (a, b) => { const o = []; for (let m = tmin(a); m <= tmin(b); m += 15) o.push(m2hm(m)); return o; };
-const nowHm = () => new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date());
-const mdw = (d) => `${+d.slice(5, 7)}/${+d.slice(8, 10)}（${WEEK[dow(d)]}）`;
-const COLORS = ['#0070d5', '#0f8b8d', '#d9822b', '#8a5cd0', '#d4609f', '#4a9c5d', '#c25b4a', '#5b6b7a', '#b08900', '#2f6fb0'];
-const START_OPTS = opts('08:00', '22:45');
-const END_OPTS = opts('08:15', '23:45');
-const DURS = [[60, '1 小時'], [90, '1.5 小時'], [120, '2 小時'], [180, '3 小時']];
-const PAGE = 8;
-
-const IC = {
-  left: '<path d="m15 18-6-6 6-6"/>', right: '<path d="m9 18 6-6-6-6"/>', back: '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
-  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>', search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
-  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
-  menu: '<path d="M4 12h16"/><path d="M4 6h16"/><path d="M4 18h16"/>',
-  home: '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
-  hand: '<path d="M11 14h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 16"/><path d="m7 20 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9"/><path d="m2 15 6 6"/><path d="M19.5 8.5c.7-.7 1.5-1.6 1.5-2.7A2.73 2.73 0 0 0 16 4a2.78 2.78 0 0 0-5 1.8c0 1.2.8 2 1.5 2.8L16 12Z"/>',
-  cal: '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
-  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
-  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/>',
-  logout: '<path d="m16 17 5-5-5-5"/><path d="M21 12H9"/><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>',
-  login: '<path d="m10 17 5-5-5-5"/><path d="M15 12H3"/><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>',
-  list: '<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>',
-  usercheck: '<path d="m16 11 2 2 4-4"/><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>',
-  folder: '<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/>',
-  star: '<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>',
-  cap: '<path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/>',
-  shield: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',
-  sqplus: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/>',
-  user: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
-  lock: '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
-  eye: '<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>',
-  eyeoff: '<path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/>',
-};
-const svg = (n, s = 20) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n]}</svg>`;
-
-/* ============ 資料 ============ */
-const state = { role: 'member', fs: 'md', menu: false, view: 'month', sel: todayStr(), month: monthStart(todayStr()), page: 0, spaces: [], err: '', loading: true, session: null, name: '' };
-const cache = new Map();
-let lastLoad = 0;
-
-const colorOf = (id) => { const i = state.spaces.findIndex((s) => s.id === id); return COLORS[(i < 0 ? 0 : i) % COLORS.length]; };
-
-async function loadMonth(first, force) {
-  if (!force && cache.has(first)) return cache.get(first);
-  const g = monthGrid(first);
-  const { data, error } = await supabase.rpc('get_venue_public_events', { p_from: g[0], p_to: g[g.length - 1] });
-  if (error) throw error;
-  cache.set(first, data || []);
-  lastLoad = Date.now();
-  return data || [];
-}
-const eventsOn = (d) => (cache.get(monthStart(d)) || []).filter((e) => e.booking_date === d);
-const ensureDates = (dates) => Promise.all([...new Set(dates.map(monthStart))].map((m) => loadMonth(m)));
-
-async function loadSpaces() {
-  const { data, error } = await supabase.rpc('venue_list_public_spaces');
-  if (error) throw error;
-  state.spaces = data || [];
-}
-
-/* ============ 畫面：頂端列 ============ */
-const shortName = (n) => { n = (n || '').trim(); return /^[\u4e00-\u9fff]{2,3}$/.test(n) ? n.slice(1) : n; };   // 去掉姓氏
-const ROLE_INFO = { member: ['user', '會友'], coworker: ['usercheck', '同工'], admin_staff: ['folder', '行政'], leader: ['star', '區長', 1], pastor: ['cap', '牧者', 1], admin: ['shield', '管理員', 1] };
-const roleOf = () => ROLE_INFO[state.role] || ['user', state.role === 'r_wt7kod' ? '服事管家' : '會友'];
-const FONTS = [{ id: 'sm', px: 13, btn: 9, label: '小字' }, { id: 'md', px: 15, btn: 13, label: '標準字' }, { id: 'lg', px: 18, btn: 18, label: '大字' }];
-const FONT_KEY = 'tbc_venue_fontsize';
-const applyFont = (id) => { const f = FONTS.find((x) => x.id === id) || FONTS[1]; state.fs = f.id; document.documentElement.style.setProperty('--fs', f.px + 'px'); };
-try { applyFont(localStorage.getItem(FONT_KEY) || 'md'); } catch (e) { applyFont('md'); }
-function renderTop() {
-  $('#top').innerHTML = `
+var Ht="@tbc.gmail.com",vt="tbc_fontsize",X="tbc_user";var Dt=t=>{let e=(t||"").trim();return e.includes("@")?e:e+Ht};var It=t=>{if(t){try{localStorage.setItem(X,t)}catch{}try{let e=new Date;e.setTime(e.getTime()+720*60*60*1e3),document.cookie=`${X}=${encodeURIComponent(t)}; expires=${e.toUTCString()}; path=/`}catch{}}},Ot=()=>{try{localStorage.removeItem(X)}catch{}try{document.cookie=`${X}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`}catch{}};var tt=[{id:"sm",px:13,btn:9,label:"小字"},{id:"md",px:15,btn:13,label:"標準字"},{id:"lg",px:18,btn:18,label:"大字"}],Ut=t=>tt.some(e=>e.id===t),qt=(t=[])=>{try{let e=localStorage.getItem(vt);if(Ut(e))return e;for(let n of t){let a=localStorage.getItem(n);if(Ut(a))return a}}catch{}return"md"},zt=t=>{try{localStorage.setItem(vt,t)}catch{}},Ft=t=>{let e=tt.find(n=>n.id===t)||tt[1];return document.documentElement.style.setProperty("--fs",e.px+"px"),e};import{createClient as ve}from"https://esm.sh/@supabase/supabase-js@2.45.4";var Nt=()=>{let{SUPABASE_URL:t,SUPABASE_KEY:e}=window.TBC_CONFIG;return ve(t,e)};var ge={left:'<path d="m15 18-6-6 6-6"/>',x:'<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',home:'<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',hand:'<path d="M11 14h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 16"/><path d="m7 20 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9"/><path d="m2 15 6 6"/><path d="M19.5 8.5c.7-.7 1.5-1.6 1.5-2.7A2.73 2.73 0 0 0 16 4a2.78 2.78 0 0 0-5 1.8c0 1.2.8 2 1.5 2.8L16 12Z"/>',clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',calendar:'<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/>',flame:'<path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/>',sparkle:'<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>',user:'<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',usercheck:'<path d="m16 11 2 2 4-4"/><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>',folder:'<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/>',star:'<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>',cap:'<path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/>',shield:'<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',lock:'<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',eye:'<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>',eyeoff:'<path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/>',alert:'<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>'},j=(t,e=20,n={})=>`<svg${e?` width="${e}" height="${e}"`:""} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${n.sw||2}" stroke-linecap="round" stroke-linejoin="round"${n.cls?` class="${n.cls}"`:""} aria-hidden="true">${ge[t]||""}</svg>`;var xe={member:["user","會友"],coworker:["usercheck","同工"],admin_staff:["folder","行政"],leader:["star","區長",1],pastor:["cap","牧者",1],admin:["shield","管理員",1]},gt=t=>xe[t]||["user",t==="r_wt7kod"?"服事管家":"會友"];async function Rt(t,{share:e=!0}={}){let{data:n,error:a}=await t.rpc("my_access");a&&console.error("my_access 失敗:",a);let i=n&&n.name||"",l=n&&n.roles||[];return e&&i&&It(i),{name:i,roles:l,top:n&&n.top_role||"member",features:n&&n.features||[],isAdmin:l.includes("admin")}}var Yt=async t=>{Ot(),await t.auth.signOut()};var $e=`
+:root{ --lg-bg:#f8fafc; --lg-line:#f1f5f9; --lg-field:#f8fafc; --lg-field-line:#e2e8f0; --lg-warn-bg:#fffbeb; --lg-warn-ink:#b45309; --lg-warn-line:#fef3c7; }
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --lg-bg:#0b1120; --lg-line:#334155; --lg-field:#0f172a; --lg-field-line:#334155; --lg-warn-bg:rgba(245,158,11,.12); --lg-warn-ink:#fbbf24; --lg-warn-line:rgba(245,158,11,.25); } }
+.tbc-lg{ position:fixed; inset:0; z-index:100; background:var(--lg-bg); overflow-y:auto; color:var(--text,#262626); font-family:'Open Sans','Noto Sans TC',-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:var(--fs,15px); line-height:1.5; }
+.tbc-lg *{ box-sizing:border-box; }
+.tbc-lg [hidden]{ display:none !important; }
+.tbc-lg::before,.tbc-lg::after{ content:""; position:fixed; width:50vw; height:50vw; border-radius:50%; background:rgba(136,6,206,.10); filter:blur(120px); pointer-events:none; }
+.tbc-lg::before{ top:-10%; left:-10%; } .tbc-lg::after{ bottom:-10%; right:-10%; }
+:where(.tbc-lg) button{ font:inherit; color:inherit; background:none; border:0; padding:0; margin:0; cursor:pointer; }
+:where(.tbc-lg) input{ font:inherit; font-size:16px; color:inherit; margin:0; }
+.tbc-lg button:focus-visible{ outline:2px solid var(--primary,#8806ce); outline-offset:2px; }
+.tbc-lg-in{ min-height:100%; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding:16px; position:relative; }
+@media (min-width:640px){ .tbc-lg-in{ justify-content:center; padding:32px 16px; } }
+.tbc-lg-head{ width:100%; max-width:448px; display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; position:relative; z-index:2; }
+.tbc-lg-head i{ width:44px; height:44px; flex:none; }
+.tbc-lg-head span{ font-size:18px; font-weight:600; }
+.tbc-lg-x{ width:44px; height:44px; flex:none; border-radius:50%; background:var(--bg,#fff); border:1px solid var(--lg-line) !important; display:flex; align-items:center; justify-content:center; transition:background-color .15s ease; }
+.tbc-lg-x:hover{ background:var(--hov-soft,#fafafa); } .tbc-lg-x:active{ background:var(--hov,#f4f4f5); }
+.tbc-lg-card{ width:100%; max-width:448px; background:var(--bg,#fff); border:1px solid var(--lg-line); border-radius:8px; padding:24px; position:relative; z-index:2; animation:tbcLgIn .25s ease-out; }
+@media (min-width:640px){ .tbc-lg-card{ padding:32px; } }
+@keyframes tbcLgIn{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
+@media (prefers-reduced-motion:reduce){ .tbc-lg-card{ animation:none; } }
+.tbc-lg-f{ margin-bottom:16px; }
+.tbc-lg-f label{ display:block; font-size:12px; font-weight:500; color:var(--sub,#64748b); margin:0 0 6px 4px; }
+.tbc-lg-f label b{ color:#ef4444; font-weight:500; }
+.tbc-lg-w{ position:relative; }
+.tbc-lg-ic{ position:absolute; left:16px; top:50%; transform:translateY(-50%); color:#94a3b8; pointer-events:none; display:flex; }
+.tbc-lg-inp{ width:100%; background:var(--lg-field); border:1px solid var(--lg-field-line); border-radius:8px; padding:14px 16px 14px 44px; font-weight:600; color:var(--text,#262626); outline:none; transition:border-color .15s ease, box-shadow .15s ease; }
+.tbc-lg-inp:hover{ border-color:#cbd5e1; }
+.tbc-lg-inp:focus{ border-color:var(--primary,#8806ce); box-shadow:0 0 0 2px var(--primary-tint,#f2e5fb); }
+.tbc-lg .tbc-lg-inp:focus-visible{ outline:none; }
+.tbc-lg-inp.pw{ padding-right:48px; }
+.tbc-lg-eye{ position:absolute; right:8px; top:50%; transform:translateY(-50%); padding:8px !important; border-radius:8px; color:#94a3b8; display:flex; }
+.tbc-lg-eye:hover{ color:var(--primary,#8806ce); } .tbc-lg-eye:active{ background:var(--hov,#f4f4f5); }
+.tbc-lg-tip{ display:flex; align-items:flex-start; gap:8px; font-size:12px; font-weight:500; line-height:1.6; color:var(--lg-warn-ink); background:var(--lg-warn-bg); border:1px solid var(--lg-warn-line); border-radius:8px; padding:12px; margin-bottom:16px; }
+.tbc-lg-tip svg{ margin-top:2px; }
+.tbc-lg-err{ display:flex; align-items:flex-start; gap:8px; color:var(--bad,#d4380d); background:rgba(220,38,38,.07); border:1px solid rgba(220,38,38,.18); border-radius:8px; padding:10px 12px; font-size:14px; font-weight:500; margin-bottom:16px; }
+.tbc-lg-err svg{ margin-top:2px; }
+.tbc-lg-sub{ width:100%; height:48px; margin-top:8px !important; border-radius:9999px; font-size:16px; font-weight:500; background:var(--btn,#334155); color:var(--on-btn,#fff); transition:background-color .15s ease; }
+.tbc-lg-sub:hover{ background:var(--btn-hover,#1e293b); } .tbc-lg-sub:active{ background:var(--btn-press,#0f172a); }
+.tbc-lg-sub:disabled{ opacity:.5; cursor:not-allowed; pointer-events:none; }
+.tbc-lg-links{ margin-top:24px; display:flex; flex-direction:column; gap:16px; text-align:center; font-size:14px; font-weight:500; color:var(--sub,#64748b); }
+.tbc-lg-links button{ color:var(--primary,#8806ce); font-weight:500; padding:4px 2px; }
+.tbc-lg-links button:hover{ color:var(--primary-hover,#7205ad); }
+.tbc-lg-note{ font-size:12px; color:#94a3b8; padding-top:16px; border-top:1px solid var(--lg-line); }
+`,Pt=!1,ye=()=>{if(Pt)return;Pt=!0;let t=document.createElement("style");t.setAttribute("data-tbc","shell-auth"),t.textContent=$e,document.head.appendChild(t)},we=(t,e)=>{let n=t&&t.message||"";return/Invalid login credentials/i.test(n)?"登入失敗：帳號或密碼錯誤":/User already registered/i.test(n)?"Oops！帳號已經註冊過了":/Password should be at least/i.test(n)?"密碼長度至少需 6 個字元":/查無此帳號|驗證時發生錯誤|兩次輸入的密碼不同/.test(n)?n:e?n||"註冊發生問題，稍後再試":"登入發生問題，稍後再試"};function Vt({supabase:t,signup:e=!1,cancel:n="close",homeHref:a="./index.html",onCancel:i,onSuccess:l}={}){ye();let d=!1,h=!1,g=!1,f=document.body.style.overflow;document.body.style.overflow="hidden";let p=document.createElement("div");p.className="tbc-lg",p.setAttribute("role","dialog"),p.setAttribute("aria-modal","true"),p.setAttribute("aria-labelledby","tbc-lg-title"),p.innerHTML=`<div class="tbc-lg-in">
+    <div class="tbc-lg-head">
+      <button type="button" class="tbc-lg-x" data-x aria-label="${n==="back"?"回上一頁":"關閉登入畫面"}">${j(n==="back"?"left":"x",22)}</button>
+      <span id="tbc-lg-title"></span><i></i>
+    </div>
+    <div class="tbc-lg-card">
+      <form id="tbc-lg-form">
+        <div class="tbc-lg-f"><label for="tbc-la">帳號</label><div class="tbc-lg-w"><span class="tbc-lg-ic">${j("user",18)}</span><input id="tbc-la" class="tbc-lg-inp" type="text" autocomplete="username" placeholder="電話號碼或電子郵件" required></div></div>
+        <div class="tbc-lg-f"><label for="tbc-lp">密碼</label><div class="tbc-lg-w"><span class="tbc-lg-ic">${j("lock",18)}</span><input id="tbc-lp" class="tbc-lg-inp pw" type="password" autocomplete="current-password" placeholder="6位以上英數組合" required><button type="button" class="tbc-lg-eye" data-eye="tbc-lp" aria-label="顯示密碼">${j("eye",18)}</button></div></div>
+        <div class="tbc-lg-f" data-su hidden><label for="tbc-lc">確認密碼 <b>*</b></label><div class="tbc-lg-w"><span class="tbc-lg-ic">${j("lock",18)}</span><input id="tbc-lc" class="tbc-lg-inp pw" type="password" autocomplete="new-password" placeholder="再次輸入密碼"><button type="button" class="tbc-lg-eye" data-eye="tbc-lc" aria-label="顯示密碼">${j("eye",18)}</button></div></div>
+        <div class="tbc-lg-tip" data-su hidden>${j("alert",16)}<span>僅限本會弟兄姊妹註冊，「帳號申請」洽行政辦公室</span></div>
+        <div class="tbc-lg-err" id="tbc-lg-err" role="alert" hidden>${j("alert",16)}<span></span></div>
+        <button type="submit" class="tbc-lg-sub" id="tbc-lg-sub">登入</button>
+      </form>
+      <div class="tbc-lg-links">
+        <div data-in>首次設定密碼？請<button type="button" data-go="up">點這裡</button></div>
+        <div data-su hidden>已有帳號？ <button type="button" data-go="in">登入</button></div>
+        <div class="tbc-lg-note" data-in>沒有帳號、忘記密碼？請聯絡行政辦公室</div>
+      </div>
+    </div>
+  </div>`,document.body.appendChild(p);let r=$=>p.querySelector($),u=r("#tbc-la"),b=r("#tbc-lp"),m=r("#tbc-lc"),o=r("#tbc-lg-sub"),c=r("#tbc-lg-err"),k=$=>{c.hidden=!$,c.querySelector("span").textContent=$||""},E=($,S)=>{let q=r("#"+$.dataset.eye);q.type=S?"text":"password",$.innerHTML=j(S?"eyeoff":"eye",18),$.setAttribute("aria-label",S?"隱藏密碼":"顯示密碼")},M=$=>{d=$,r("#tbc-lg-title").textContent=$?"歡迎註冊":"歡迎登入",p.querySelectorAll("[data-su]").forEach(S=>{S.hidden=!$}),p.querySelectorAll("[data-in]").forEach(S=>{S.hidden=$}),m.required=$,m.value="",b.autocomplete=$?"new-password":"current-password",o.textContent=$?"註冊":"登入",p.querySelectorAll("[data-eye]").forEach(S=>E(S,!1)),k("")};M(e);let L=()=>{g||(g=!0,document.removeEventListener("keydown",v),p.remove(),document.body.style.overflow=f)},x=()=>{if(n==="back"){window.history.length>1?window.history.back():window.location.href=a;return}L(),i&&i()},v=$=>{$.key==="Escape"&&n==="close"&&x()};return document.addEventListener("keydown",v),p.addEventListener("click",$=>{if($.target.closest("[data-x]"))return x();let S=$.target.closest("[data-eye]");if(S)return E(S,r("#"+S.dataset.eye).type==="password");let q=$.target.closest("[data-go]");q&&(M(q.dataset.go==="up"),u.focus())}),r("#tbc-lg-form").addEventListener("submit",async $=>{if($.preventDefault(),h)return;h=!0,o.disabled=!0,o.textContent="處理中...",k("");let S=u.value,q=b.value,At=d,ht=!1;try{let W=Dt(S);if(At){if(q!==m.value)throw new Error("兩次輸入的密碼不同");let{data:st,error:jt}=await t.rpc("check_member_exists",{p_account:S});if(jt)throw console.error("驗證錯誤:",jt),new Error("驗證時發生錯誤，再試一次，或聯絡行政辦公室");if(!st)throw new Error("查無此帳號，再試一次，或聯絡行政辦公室");let{data:Z,error:ft}=await t.auth.signUp({email:W,password:q}),he=Z&&Z.user&&Z.user.identities&&Z.user.identities.length===0,fe=!ft&&(!Z||!Z.user);if(he||fe)throw new Error("User already registered");if(ft)throw ft;alert("註冊成功"),M(!1)}else{let{error:st}=await t.auth.signInWithPassword({email:W,password:q});if(st)throw st;ht=!0}}catch(W){/查無此帳號|兩次輸入|Invalid login|already registered/i.test(W.message||"")||console.error(W),k(we(W,At))}finally{h=!1,o.disabled=!1,ht||(o.textContent=d?"註冊":"登入")}ht&&(L(),l&&l())}),u.focus(),{close:L}}var ot={name:"回首頁",href:"./index.html",menuIcon:"home"},Bt=[{id:"prayer",name:"守望花園",href:"./prayer.html",icon:"flame",menuIcon:"hand",badge:"prayer"},{id:"search",name:"我的服事",href:"./search.html",icon:"users",menuIcon:"clock"},{id:"venue",name:"場地預約",href:"./venue.html",icon:"calendar",menuIcon:"calendar",badge:"venue"}];var Gt="Asia/Taipei",it=t=>String(t).padStart(2,"0"),R=["日","一","二","三","四","五","六"],H=()=>new Intl.DateTimeFormat("en-CA",{timeZone:Gt}).format(new Date),rt=t=>{let[e,n,a]=t.split("-").map(Number);return new Date(Date.UTC(e,n-1,a))},Wt=t=>`${t.getUTCFullYear()}-${it(t.getUTCMonth()+1)}-${it(t.getUTCDate())}`,D=(t,e)=>{let n=rt(t);return n.setUTCDate(n.getUTCDate()+e),Wt(n)},Zt=(t,e)=>{let n=rt(t);return n.setUTCDate(1),n.setUTCMonth(n.getUTCMonth()+e),Wt(n)},Y=t=>t.slice(0,7)+"-01",P=t=>rt(t).getUTCDay(),_e=t=>{let e=rt(t);return new Date(Date.UTC(e.getUTCFullYear(),e.getUTCMonth()+1,0)).getUTCDate()},xt=t=>{let e=P(t),n=Math.ceil((e+_e(t))/7),a=D(t,-e);return Array.from({length:n*7},(i,l)=>D(a,l))};var C=t=>(t||"").slice(0,5),_=t=>{let[e,n]=t.split(":").map(Number);return e*60+(n||0)};var Kt=["#0070d5","#0f8b8d","#d9822b","#8a5cd0","#d4609f","#4a9c5d","#c25b4a","#5b6b7a","#b08900","#2f6fb0"];var U=t=>`${it(Math.floor(t/60))}:${it(t%60)}`;var Jt=(t,e)=>{let n=[];for(let a=_(t);a<=_(e);a+=15)n.push(U(a));return n};var ke=t=>U(Math.ceil(_(t)/15)*15);var $t=()=>new Intl.DateTimeFormat("en-GB",{timeZone:Gt,hour:"2-digit",minute:"2-digit",hour12:!1}).format(new Date),Me="08:00",Se="22:45",Ee=480,Te=1380,V=Jt(Me,Se),yt=Jt("08:15","23:45"),wt=[[60,"1 小時"],[90,"1.5 小時"],[120,"2 小時"],[180,"3 小時"]],lt=(t,e)=>e>t?e:U(Math.min(_(t)+60,_("23:45")));var Qt=t=>{let e=new Map(t.map((n,a)=>[n.id,n.color||Kt[a%Kt.length]]));return n=>e.get(n)||"#8c8c8c"},et=t=>t&&t===H()?ke($t()):"",Xt=(t,e,n,a=0)=>{let i=[];for(let h=Math.max(Ee,a);h+n<=Te;h+=15)t.every(g=>!(_(g.start_time)<h+n&&_(g.end_time)>h))&&i.push(h);let l=i.filter(h=>!(h<780&&h+n>720));l.length&&(i=l),i.sort((h,g)=>Math.abs(h-e)-Math.abs(g-e)||h-g);let d=[];for(let h of i)if(d.every(g=>Math.abs(g-h)>=45)&&d.push(h),d.length>=3)break;return d.sort((h,g)=>h-g)};var A=Nt(),T=(t,e=document)=>e.querySelector(t),y=t=>String(t??"").replace(/[&<>"']/g,e=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[e]),se=t=>String(t).padStart(2,"0"),Tt=t=>`${+t.slice(5,7)}/${+t.slice(8,10)}（${R[P(t)]}）`,ct=8,Le={left:'<path d="m15 18-6-6 6-6"/>',right:'<path d="m9 18 6-6-6-6"/>',back:'<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',plus:'<path d="M5 12h14"/><path d="M12 5v14"/>',search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',x:'<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',menu:'<path d="M4 12h16"/><path d="M4 6h16"/><path d="M4 18h16"/>',home:'<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',hand:'<path d="M11 14h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 16"/><path d="m7 20 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9"/><path d="m2 15 6 6"/><path d="M19.5 8.5c.7-.7 1.5-1.6 1.5-2.7A2.73 2.73 0 0 0 16 4a2.78 2.78 0 0 0-5 1.8c0 1.2.8 2 1.5 2.8L16 12Z"/>',cal:'<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/>',logout:'<path d="m16 17 5-5-5-5"/><path d="M21 12H9"/><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>',login:'<path d="m10 17 5-5-5-5"/><path d="M15 12H3"/><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>',list:'<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>',usercheck:'<path d="m16 11 2 2 4-4"/><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>',folder:'<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/>',star:'<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>',cap:'<path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/>',shield:'<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',sqplus:'<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/>',user:'<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',bell:'<path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/>',review:'<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/>',check:'<path d="M20 6 9 17l-5-5"/>',undo:'<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/>',vdots:'<circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/>',dots:'<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',help:'<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',ok:'<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',no:'<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>'},w=(t,e=20)=>`<svg width="${e}" height="${e}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${Le[t]}</svg>`,s={role:"member",fs:"md",menu:!1,view:"month",sel:H(),month:Y(H()),page:0,spaces:[],err:"",loading:!0,session:null,name:"",unread:0},N=new Map,kt=0,te=null,ee=null,Mt=t=>(ee!==s.spaces&&(te=Qt(s.spaces),ee=s.spaces),te(t));async function ut(t,e){if(!e&&N.has(t))return N.get(t);let n=xt(t),{data:a,error:i}=await A.rpc("get_venue_public_events",{p_from:n[0],p_to:n[n.length-1]});if(i)throw i;return N.set(t,a||[]),kt=Date.now(),a||[]}var St=t=>(N.get(Y(t))||[]).filter(e=>e.booking_date===t),oe=t=>Promise.all([...new Set(t.map(Y))].map(e=>ut(e)));async function Ce(){let{data:t,error:e}=await A.rpc("venue_list_public_spaces");if(e)throw e;s.spaces=t||[]}var ie=t=>{s.fs=Ft(t).id};ie(qt(["tbc_venue_fontsize"]));function I(){T("#top").innerHTML=`
     <div class="top-l">
       <div class="mwrap">
-        <button class="menu-btn${state.menu ? ' open' : ''}" data-act="menu" aria-label="${state.menu ? '關閉選單' : '開啟選單'}" aria-expanded="${state.menu}">${svg(state.menu ? 'x' : 'menu', 24)}</button>
-        ${state.menu ? `<div class="menu-bg" data-act="menu"></div><nav class="menu" aria-label="主選單">
-          <a href="./index.html">${svg('home')}回首頁</a>
-          <a href="./prayer.html">${svg('hand')}守望花園</a>
-          <a href="./search.html">${svg('clock')}我的服事</a>
-          <a href="./venue.html">${svg('cal')}場地預約</a>
-          ${state.session ? `<button data-act="logout">${svg('logout')}登出</button>` : `<button data-act="login">${svg('login')}登入</button>`}
-        </nav>` : ''}
+        <button class="menu-btn${s.menu?" open":""}" data-act="menu" aria-label="${s.menu?"關閉選單":"開啟選單"}" aria-expanded="${s.menu}">${w(s.menu?"x":"menu",24)}</button>
+        ${s.menu?`<div class="menu-bg" data-act="menu"></div><nav class="menu" aria-label="主選單">
+          <a href="${ot.href}">${j(ot.menuIcon)}${y(ot.name)}</a>
+          ${Bt.map(t=>`<a href="${y(t.href)}">${j(t.menuIcon||t.icon)}${y(t.name)}</a>`).join("")}
+          ${s.session?`<button data-act="logout">${w("logout")}登出</button>`:`<button data-act="login">${w("login")}登入</button>`}
+        </nav>`:""}
       </div>
       <h1>場地預約</h1>
     </div>
     <div class="hr">
-      <button data-act="new" aria-label="新增預約" title="新增預約">${svg('sqplus', 24)}</button>
-      <button data-act="find" aria-label="快速找場地" title="快速找場地">${svg('search', 24)}</button>
-      <button data-act="mine" aria-label="我的預約" title="我的預約">${svg('list', 24)}</button>
-    </div>`;
-}
-function idRow() {
-  const [ic, , high] = state.session ? roleOf() : ['user', '訪客'];
-  return `<div class="idrow"><div class="who"><span class="avatar${high ? ' high' : ''}" aria-hidden="true">${svg(ic, 20)}</span><b>${esc(state.session ? (state.name || '會友') : '訪客')}</b></div>
-    <div class="fsw" role="group" aria-label="文字大小">${FONTS.map((f) => `<button data-act="fs" data-id="${f.id}" aria-pressed="${state.fs === f.id}" aria-label="${f.label}" title="${f.label}" style="font-size:${f.btn}px">A</button>`).join('')}</div></div>`;
-}
-
-/* ============ 畫面：主畫面（月曆＋當天條列） ============ */
-function render() {
-  renderTop();
-  const today = todayStr();
-  const sel = state.sel;
-  const first = monthStart(sel);
-  const monthEvents = cache.get(state.view === 'month' ? state.month : first) || null;
-  let h = idRow() + `
+      ${s.manage?`
+      <button class="wide" data-act="new" aria-label="新增預約" title="新增預約">${w("sqplus",24)}</button>
+      <button class="wide" data-act="find" aria-label="快速找場地" title="快速找場地">${w("search",24)}</button>
+      <button class="wide" data-act="notices" aria-label="通知" title="通知">${w("bell",24)}${s.unread>0?`<span class="bdg">${s.unread>99?"99+":s.unread}</span>`:""}</button>
+      <button class="wide" data-act="mine" aria-label="我的預約" title="我的預約">${w("list",24)}</button>
+      <button class="wide" data-act="review" aria-label="審查預約" title="審查預約">${w("review",24)}${s.pending>0?`<span class="bdg">${s.pending>99?"99+":s.pending}</span>`:""}</button>
+      <div class="morew"><button class="${s.more?"open":""}" data-act="more" aria-label="${s.more?"關閉選單":"更多功能"}" aria-expanded="${s.more}" title="更多">${s.more?w("x",24):w("vdots",24)+(s.pending+s.unread>0?`<span class="bdg">${s.pending+s.unread>99?"99+":s.pending+s.unread}</span>`:"")}</button>
+        ${s.more?`<div class="menu-bg" data-act="more"></div><div class="more-pop" role="menu">
+          <button data-act="new" role="menuitem">${w("sqplus")}新增預約</button>
+          <button data-act="find" role="menuitem">${w("search")}快速找場地</button>
+          <button data-act="notices" role="menuitem">${w("bell")}通知${s.unread>0?`<span class="cnt">${s.unread}</span>`:""}</button>
+          <button data-act="mine" role="menuitem">${w("list")}我的預約</button>
+          <button data-act="review" role="menuitem">${w("review")}審查預約${s.pending>0?`<span class="cnt">${s.pending}</span>`:""}</button></div>`:""}</div>`:`
+      <button data-act="new" aria-label="新增預約" title="新增預約">${w("sqplus",24)}</button>
+      <button data-act="find" aria-label="快速找場地" title="快速找場地">${w("search",24)}</button>
+      <button data-act="notices" aria-label="${s.session&&s.unread>0?`通知，${s.unread} 則未讀`:"通知"}" title="通知">${w("bell",24)}${s.session&&s.unread>0?`<span class="bdg">${s.unread>99?"99+":s.unread}</span>`:""}</button>
+      <button data-act="mine" aria-label="我的預約" title="我的預約">${w("list",24)}</button>`}
+    </div>`}function Ae(){let[t,,e]=s.session?gt(s.role):["user","訪客"];return`<div class="idrow"><div class="who"><span class="avatar${e?" high":""}" aria-hidden="true">${w(t,20)}</span><b>${y(s.session?s.name||"會友":"訪客")}</b></div>
+    <div class="fsw" role="group" aria-label="文字大小">${tt.map(n=>`<button data-act="fs" data-id="${n.id}" aria-pressed="${s.fs===n.id}" aria-label="${n.label}" title="${n.label}" style="font-size:${n.btn}px">A</button>`).join("")}</div></div>`}function O(){I();let t=H(),e=s.sel,n=Y(e),a=N.get(s.view==="month"?s.month:n)||null,i=Ae()+`
     <div class="tb">
       <div class="vtabs" role="group" aria-label="檢視方式">
-        <button class="vtab" data-act="view" data-v="day" aria-pressed="${state.view === 'day'}">天</button>
-        <button class="vtab" data-act="view" data-v="month" aria-pressed="${state.view === 'month'}">月</button>
+        <button class="vtab" data-act="view" data-v="day" aria-pressed="${s.view==="day"}">天</button>
+        <button class="vtab" data-act="view" data-v="month" aria-pressed="${s.view==="month"}">月</button>
       </div>
-    </div>`;
-
-  if (state.err) h += `<div class="note" role="alert">${esc(state.err)} <button class="link" data-act="retry">重新載入</button></div>`;
-
-  h += '<div class="vcard">';
-  if (state.view === 'month') {
-    const g = monthGrid(state.month);
-    const by = new Map();
-    for (const e of monthEvents || []) { if (!by.has(e.booking_date)) by.set(e.booking_date, []); by.get(e.booking_date).push(e); }
-    h += `<div class="nav"><h2>${state.month.slice(0, 4)}年${+state.month.slice(5, 7)}月</h2>
-      <div class="arrows"><button data-act="mprev" aria-label="上個月">${svg('left')}</button><button data-act="mnext" aria-label="下個月">${svg('right')}</button></div></div>
-      <div class="wk">${WEEK.map((w) => `<span>${w}</span>`).join('')}</div>
-      <div class="grid" role="grid" aria-label="月曆">${g.map((d) => {
-        const n = (by.get(d) || []).length;
-        return `<button class="cell${d.slice(0, 7) !== state.month.slice(0, 7) ? ' out' : ''}${d < today ? ' past' : ''}${d === sel ? ' sel' : ''}${d === today ? ' today' : ''}" data-act="pick" data-d="${d}" role="gridcell" aria-label="${+d.slice(5, 7)} 月 ${+d.slice(8, 10)} 日${n ? `，${n} 筆預約` : ''}">
-          <span class="n">${+d.slice(8, 10)}</span><span class="dots">${n ? '<i></i>' : ''}</span></button>`;
-      }).join('')}</div>`;
-  }
-
-  const relWord = sel === today ? '今天' : sel === addDays(today, 1) ? '明天' : sel === addDays(today, -1) ? '昨天' : '';
-  const left = relWord || `${+sel.slice(5, 7)}月${+sel.slice(8, 10)}日`;
-  const right = relWord ? `${sel.slice(0, 4)}年${+sel.slice(5, 7)}月${+sel.slice(8, 10)}日` : `星期${WEEK[dow(sel)]}`;
-  h += `<div class="dayhead"><b>${left}</b><span class="d">${right}</span>
-    <div class="arrows"><button data-act="dprev" aria-label="前一天">${svg('left')}</button><button data-act="dnext" aria-label="後一天">${svg('right')}</button></div></div></div>`;
-
-  const evs = (monthEvents || []).filter((e) => e.booking_date === sel).sort((a, b) => a.start_time.localeCompare(b.start_time) || a.space_name.localeCompare(b.space_name, 'zh-TW'));
-  if (!monthEvents && !state.err) h += `<div class="skeleton">載入中…</div>`;
-  else if (!evs.length) h += `<div class="empty">沒有人預約，歡迎來卡位</div>`;
-  else {
-    const pages = Math.ceil(evs.length / PAGE);
-    const pg = Math.min(state.page, pages - 1);
-    h += `<div class="vlist"><ul class="list">${evs.slice(pg * PAGE, pg * PAGE + PAGE).map((e) => `
-      <li class="ev ${e.kind === 'pending' ? 'pending' : ''}${e.is_recurring ? ' rec' : ''}" style="--c:${colorOf(e.space_id)}">
-        <div class="ev-t"><b>${hm(e.start_time)}</b><small>${hm(e.end_time)}</small></div>
-        <div class="ev-b"><span class="ev-sp">${esc(e.space_name)}</span><span class="ev-ti">${esc(e.title)}</span></div>
-      </li>`).join('')}</ul></div>`;
-    if (pages > 1) h += `<div class="pager"><button class="pbtn" data-act="pprev" ${pg === 0 ? 'disabled' : ''}>‹ 上一頁</button><button class="pbtn" data-act="pnext" ${pg >= pages - 1 ? 'disabled' : ''}>下一頁 ›</button></div>`;
-  }
-  $('#main').innerHTML = h;
-}
-
-async function select(d) {
-  state.sel = d; state.page = 0; state.month = monthStart(d);
-  render();
-  try { await loadMonth(state.month); state.err = ''; } catch (e) { state.err = '暫時無法讀取預約，請稍後再試'; console.error(e); }
-  render();
-}
-async function reload(force) {
-  state.err = '';
-  try { cache.clear(); await loadMonth(state.month, true); } catch (e) { state.err = '暫時無法讀取預約，請稍後再試'; console.error(e); }
-  render();
-}
-
-$('#main').addEventListener('click', (ev) => {
-  const b = ev.target.closest('[data-act]'); if (!b) return;
-  const a = b.dataset.act, today = todayStr();
-  if (a === 'today') select(today);
-  else if (a === 'view') { state.view = b.dataset.v; state.month = monthStart(state.sel); select(state.sel); }
-  else if (a === 'pick') select(b.dataset.d);
-  else if (a === 'mprev' || a === 'mnext') {
-    const m = addMonths(state.month, a === 'mprev' ? -1 : 1);
-    const d = state.sel.slice(0, 7) === m.slice(0, 7) ? state.sel : (m.slice(0, 7) === today.slice(0, 7) ? today : m);
-    select(d);
-  }
-  else if (a === 'dprev') select(addDays(state.sel, -1));
-  else if (a === 'dnext') select(addDays(state.sel, 1));
-  else if (a === 'pprev') { state.page = Math.max(0, state.page - 1); render(); }
-  else if (a === 'pnext') { state.page += 1; render(); }
-  else if (a === 'retry') { reload(); }
-  else if (a === 'fs') { applyFont(b.dataset.id); try { localStorage.setItem(FONT_KEY, b.dataset.id); } catch (e) { /* 略過 */ } render(); }
-  else if (a === 'find') openFind();
-  else if (a === 'mine') needLogin(openMine);
-  else if (a === 'new') needLogin(() => openBooking({ date: state.sel >= todayStr() ? state.sel : todayStr() }));
-});
-$('#top').addEventListener('click', (ev) => {
-  const b = ev.target.closest('[data-act]'); if (!b) return;
-  const a = b.dataset.act;
-  if (a === 'menu') { state.menu = !state.menu; renderTop(); return; }
-  if (state.menu) { state.menu = false; renderTop(); }
-  if (a === 'login') openLogin();
-  if (a === 'logout') supabase.auth.signOut();
-  if (a === 'find') openFind();
-  if (a === 'mine') needLogin(openMine);
-  if (a === 'new') needLogin(() => openBooking({ date: state.sel >= todayStr() ? state.sel : todayStr() }));
-});
-
-/* ============ 通用：彈出視窗、提示 ============ */
-let openCount = 0;
-function sheet(title, body, foot, cls = '') {
-  const ov = document.createElement('div');
-  ov.className = 'ov ' + cls;
-  ov.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}">
-    <div class="sh-head"><h3>${esc(title)}</h3><button class="x" data-close aria-label="關閉">${svg('x', 22)}</button></div>
-    <div class="sh-body">${body}</div>${foot ? `<div class="sh-foot">${foot}</div>` : ''}</div>`;
-  $('#layer').appendChild(ov);
-  document.body.style.overflow = 'hidden'; openCount++;
-  const api = { el: ov, onClose: null, closed: false };
-  api.close = () => {
-    if (api.closed) return; api.closed = true;
-    document.removeEventListener('keydown', onKey);
-    ov.remove(); openCount--; if (!openCount) document.body.style.overflow = '';
-    if (api.onClose) api.onClose();
-  };
-  const onKey = (e) => { if (e.key === 'Escape' && ov === $('#layer').lastElementChild) api.close(); };
-  document.addEventListener('keydown', onKey);
-  ov.addEventListener('click', (e) => { if (e.target.closest('[data-close]')) api.close(); });
-  return api;
-}
-let toastTimer;
-function toast(msg) {
-  document.querySelectorAll('.toast').forEach((t) => t.remove());
-  const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); t.textContent = msg;
-  document.body.appendChild(t); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.remove(), 5000);
-}
-
-/* ============ 登入（會友以上；帳號規則同其他 Together 頁面） ============ */
-const VDOM = '@tbc.gmail.com';
-const toEmail = (a) => { const t = (a || '').trim(); return t.includes('@') ? t : t + VDOM; };
-let afterLogin = null;
-function needLogin(fn) { if (state.session) fn(); else { afterLogin = fn; openLogin(); } }
-function openLogin() {
-  const ov = document.createElement('div');
-  ov.className = 'lgov';
-  ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-labelledby', 'lg-title');
-  ov.innerHTML = `<div class="lg-in">
-    <div class="lg-head"><button type="button" class="lg-x" data-close aria-label="關閉登入畫面">${svg('x', 22)}</button><span id="lg-title">歡迎登入</span><i></i></div>
-    <div class="lg-card">
-      <form id="lf">
-        <div class="lg-f"><label for="la">帳號</label><div class="lg-w"><span class="lg-ic">${svg('user', 18)}</span><input id="la" class="lg-inp" autocomplete="username" placeholder="電話號碼或電子郵件" required></div></div>
-        <div class="lg-f"><label for="lp">密碼</label><div class="lg-w"><span class="lg-ic">${svg('lock', 18)}</span><input id="lp" class="lg-inp pw" type="password" autocomplete="current-password" placeholder="6位以上英數組合" required><button type="button" class="lg-eye" id="lq" aria-label="顯示密碼">${svg('eye', 18)}</button></div></div>
-        <div class="lg-err" id="le" role="alert" hidden></div>
-        <button class="btn primary lg-sub" type="submit" id="lb">登入</button>
-      </form>
-      <div class="lg-links"><div>首次設定密碼？請<a href="./manager.html#signup">點這裡</a></div><div class="lg-note">沒有帳號、忘記密碼？請聯絡行政辦公室</div></div>
-    </div></div>`;
-  $('#layer').appendChild(ov);
-  document.body.style.overflow = 'hidden'; openCount++;
-  const s = { el: ov, onClose: null, closed: false };
-  const onKey = (e) => { if (e.key === 'Escape' && ov === $('#layer').lastElementChild) s.close(); };
-  s.close = () => {
-    if (s.closed) return; s.closed = true;
-    document.removeEventListener('keydown', onKey);
-    ov.remove(); openCount--; if (!openCount) document.body.style.overflow = '';
-    if (s.onClose) s.onClose();
-  };
-  document.addEventListener('keydown', onKey);
-  ov.addEventListener('click', (e) => { if (e.target.closest('[data-close]')) s.close(); });
-  $('#la', ov).focus();
-  $('#lq', ov).addEventListener('click', () => {
-    const p = $('#lp', ov), show = p.type === 'password';
-    p.type = show ? 'text' : 'password';
-    $('#lq', ov).innerHTML = svg(show ? 'eyeoff' : 'eye', 18);
-    $('#lq', ov).setAttribute('aria-label', show ? '隱藏密碼' : '顯示密碼');
-  });
-  $('#lf', ov).addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn = $('#lb', ov), err = $('#le', ov); btn.disabled = true; btn.textContent = '處理中';
-    const { error } = await supabase.auth.signInWithPassword({ email: toEmail($('#la', ov).value), password: $('#lp', ov).value });
-    btn.disabled = false; btn.textContent = '登入';
-    if (error) { err.hidden = false; err.textContent = /Invalid login/i.test(error.message) ? '登入失敗：帳號或密碼錯誤' : '登入發生問題，稍後再試'; return; }
-    s.onClose = null; s.close();
-  });
-  s.onClose = () => { afterLogin = null; };
-}
-
-async function onSession(session) {
-  state.session = session; state.name = ''; state.role = 'member';
-  render();
-  if (session) {
-    try { const { data } = await supabase.rpc('my_access'); if (data && data.name) state.name = data.name; if (data && data.top_role) state.role = data.top_role; } catch (e) { /* 沒有姓名也能用 */ }
-    render();
-    if (afterLogin) { const f = afterLogin; afterLogin = null; f(); }
-  }
-}
-
-/* ============ 共用：時間與時長選擇 ============ */
-const durHtml = (st, id) => `
-  <div class="f"><label for="${id}-st">開始時間</label>
-    <select class="inp" id="${id}-st">${(START_OPTS.includes(st.start) ? START_OPTS : [...START_OPTS, st.start].sort()).map((t) => `<option ${t === st.start ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+    </div>`;if(s.err&&(i+=`<div class="note" role="alert">${y(s.err)} <button class="link" data-act="retry">重新載入</button></div>`),i+='<div class="vcard">',s.view==="month"){let f=xt(s.month),p=new Map;for(let r of a||[])p.has(r.booking_date)||p.set(r.booking_date,[]),p.get(r.booking_date).push(r);i+=`<div class="nav"><h2>${s.month.slice(0,4)}年${+s.month.slice(5,7)}月</h2>
+      <div class="arrows"><button data-act="mprev" aria-label="上個月">${w("left")}</button><button data-act="mnext" aria-label="下個月">${w("right")}</button></div></div>
+      <div class="wk">${R.map(r=>`<span>${r}</span>`).join("")}</div>
+      <div class="grid" role="grid" aria-label="月曆">${f.map(r=>{let u=(p.get(r)||[]).length;return`<button class="cell${r.slice(0,7)!==s.month.slice(0,7)?" out":""}${r<t?" past":""}${r===e?" sel":""}${r===t?" today":""}" data-act="pick" data-d="${r}" role="gridcell" aria-label="${+r.slice(5,7)} 月 ${+r.slice(8,10)} 日${u?`，${u} 筆預約`:""}">
+          <span class="n">${+r.slice(8,10)}</span><span class="dots">${u?"<i></i>":""}</span></button>`}).join("")}</div>`}let l=e===t?"今天":e===D(t,1)?"明天":e===D(t,-1)?"昨天":"",d=l||`${+e.slice(5,7)}月${+e.slice(8,10)}日`,h=l?`${e.slice(0,4)}年${+e.slice(5,7)}月${+e.slice(8,10)}日`:`星期${R[P(e)]}`;i+=`<div class="dayhead"><b>${d}</b><span class="d">${h}</span>
+    <div class="arrows"><button data-act="dprev" aria-label="前一天">${w("left")}</button><button data-act="dnext" aria-label="後一天">${w("right")}</button></div></div></div>`;let g=(a||[]).filter(f=>f.booking_date===e).sort((f,p)=>f.start_time.localeCompare(p.start_time)||f.space_name.localeCompare(p.space_name,"zh-TW"));if(!a&&!s.err)i+='<div class="skeleton">載入中…</div>';else if(!g.length)i+='<div class="empty">沒有人預約，歡迎來卡位</div>';else{let f=Math.ceil(g.length/ct),p=Math.min(s.page,f-1);i+=`<div class="vlist"><ul class="list">${g.slice(p*ct,p*ct+ct).map(r=>`
+      <li class="ev ${r.kind==="pending"?"pending":""}${r.is_recurring?" rec":""}" style="--c:${Mt(r.space_id)}">
+        <div class="ev-t"><b>${C(r.start_time)}</b><small>${C(r.end_time)}</small></div>
+        <div class="ev-b"><span class="ev-sp">${y(r.space_name)}</span><span class="ev-ti">${y(r.title)}</span></div>
+      </li>`).join("")}</ul></div>`,f>1&&(i+=`<div class="pager"><button class="pbtn" data-act="pprev" ${p===0?"disabled":""}>‹ 上一頁</button><button class="pbtn" data-act="pnext" ${p>=f-1?"disabled":""}>下一頁 ›</button></div>`)}T("#main").innerHTML=i}async function B(t){s.sel=t,s.page=0,s.month=Y(t),O();try{await ut(s.month),s.err=""}catch(e){s.err="暫時無法讀取預約，請稍後再試",console.error(e)}O()}async function re(t){s.err="";try{N.clear(),await ut(s.month,!0)}catch(e){s.err="暫時無法讀取預約，請稍後再試",console.error(e)}O()}T("#main").addEventListener("click",t=>{let e=t.target.closest("[data-act]");if(!e)return;let n=e.dataset.act,a=H();if(n==="today")B(a);else if(n==="view")s.view=e.dataset.v,s.month=Y(s.sel),B(s.sel);else if(n==="pick")B(e.dataset.d);else if(n==="mprev"||n==="mnext"){let i=Zt(s.month,n==="mprev"?-1:1),l=s.sel.slice(0,7)===i.slice(0,7)?s.sel:i.slice(0,7)===a.slice(0,7)?a:i;B(l)}else n==="dprev"?B(D(s.sel,-1)):n==="dnext"?B(D(s.sel,1)):n==="pprev"?(s.page=Math.max(0,s.page-1),O()):n==="pnext"?(s.page+=1,O()):n==="retry"?re():n==="fs"?(ie(e.dataset.id),zt(e.dataset.id),O()):n==="find"?Lt():n==="mine"?z(me):n==="new"&&z(()=>bt({date:s.sel>=H()?s.sel:H()}))});T("#top").addEventListener("click",t=>{let e=t.target.closest("[data-act]");if(!e)return;let n=e.dataset.act;if(n==="menu"){s.menu=!s.menu,s.more=!1,I();return}if(n==="more"){s.more=!s.more,s.menu=!1,I();return}s.more&&(s.more=!1,I()),s.menu&&(s.menu=!1,I()),n==="login"&&le(),n==="logout"&&Yt(A),n==="find"&&Lt(),n==="notices"&&z(He),n==="review"&&z(Ie),n==="mine"&&z(me),n==="new"&&z(()=>bt({date:s.sel>=H()?s.sel:H()}))});var _t=0;function J(t,e,n,a=""){let i=document.createElement("div");i.className="ov "+a,i.innerHTML=`<div class="sheet" role="dialog" aria-modal="true" aria-label="${y(t)}">
+    <div class="sh-head"><h3>${y(t)}</h3><button class="x" data-close aria-label="關閉">${w("x",22)}</button></div>
+    <div class="sh-body">${e}</div>${n?`<div class="sh-foot">${n}</div>`:""}</div>`,T("#layer").appendChild(i),document.body.style.overflow="hidden",_t++;let l={el:i,onClose:null,closed:!1};l.close=()=>{l.closed||(l.closed=!0,document.removeEventListener("keydown",d),i.remove(),_t--,_t||(document.body.style.overflow=""),l.onClose&&l.onClose())};let d=h=>{h.key==="Escape"&&i===T("#layer").lastElementChild&&l.close()};return document.addEventListener("keydown",d),i.addEventListener("click",h=>{h.target.closest("[data-close]")&&l.close()}),l}var ae;function G(t){document.querySelectorAll(".toast").forEach(n=>n.remove());let e=document.createElement("div");e.className="toast",e.setAttribute("role","status"),e.textContent=t,document.body.appendChild(e),clearTimeout(ae),ae=setTimeout(()=>e.remove(),5e3)}var at=null;function z(t){s.session?t():(at=t,le())}function le(){Vt({supabase:A,cancel:"close",onCancel:()=>{at=null}})}async function ne(t){if(s.session=t,s.name="",s.role="member",s.unread=0,s.manage=!1,s.pending=0,s.more=!1,O(),t){try{let e=await Rt(A);s.name=e.name,s.role=e.top,s.manage=!!(e.isAdmin||(e.roles||[]).includes("admin")||(e.features||[]).includes("venue.manage"))}catch{}if(O(),mt(),Ct(),at){let e=at;at=null,e()}}}var ce=t=>{let e=lt(t.start,t.customEnd);return yt.filter(n=>n>t.start).map(n=>`<option ${n===e?"selected":""}>${n}</option>`).join("")},de=(t,e)=>`
+  <div class="f"><label for="${e}-st">開始時間</label>
+    <select class="inp" id="${e}-st">${(V.includes(t.start)?V:[...V,t.start].sort()).map(n=>`<option ${n===t.start?"selected":""}>${n}</option>`).join("")}</select></div>
   <div class="f"><span class="lb">用多久</span>
-    <div class="pills" id="${id}-du">${DURS.map(([m, l]) => `<button type="button" class="pill" data-m="${m}" aria-pressed="${st.dur === m}">${l}</button>`).join('')}<button type="button" class="pill" data-m="0" aria-pressed="${st.dur === 0}">自訂</button></div>
-    <div id="${id}-ce" ${st.dur === 0 ? '' : 'hidden'} style="margin-top:8px"><label for="${id}-ed" class="hint" style="display:block;margin:0 0 4px">結束時間</label>
-      <select class="inp" id="${id}-ed">${END_OPTS.map((t) => `<option ${t === st.customEnd ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
-    <div class="big" id="${id}-big"></div></div>`;
-const durMin = (st) => st.dur || (tmin(st.customEnd) - tmin(st.start));
-const endOf = (st) => m2hm(tmin(st.start) + durMin(st));
-const timeValid = (st) => { const d = durMin(st); return d > 0 && tmin(st.start) + d <= 24 * 60 - 1; };
-function bindDur(root, st, id, onChange) {
-  const sync = () => {
-    root.querySelectorAll(`#${id}-du .pill`).forEach((p) => p.setAttribute('aria-pressed', String(+p.dataset.m === st.dur)));
-    $(`#${id}-ce`, root).hidden = st.dur !== 0;
-    $(`#${id}-big`, root).textContent = timeValid(st) ? `${st.start} – ${endOf(st)}` : '';
-  };
-  $(`#${id}-st`, root).addEventListener('change', (e) => { st.start = e.target.value; sync(); onChange(); });
-  $(`#${id}-ed`, root).addEventListener('change', (e) => { st.customEnd = e.target.value; sync(); onChange(); });
-  $(`#${id}-du`, root).addEventListener('click', (e) => {
-    const p = e.target.closest('.pill'); if (!p) return;
-    const m = +p.dataset.m;
-    if (m === 0 && st.dur !== 0) { const e2 = timeValid(st) ? endOf(st) : ''; if (e2 && END_OPTS.includes(e2)) { st.customEnd = e2; $(`#${id}-ed`, root).value = e2; } }
-    st.dur = m; sync(); onChange();
-  });
-  sync();
-}
-
-/* ============ 新增預約 ============ */
-function openBooking(init, onBack) {
-  const today = todayStr();
-  const b = { title: '', space: init.spaceId || (state.spaces[0] && state.spaces[0].id) || '', date: init.date, start: init.start || '19:00', dur: init.dur ?? 120, customEnd: init.customEnd || '21:00',
-              repeat: false, weeks: 4, contact: state.name || '', org: '', phone: '', note: '', skip: false };
-  if (init.dur === undefined && init.durMin) { b.dur = DURS.some(([m]) => m === init.durMin) ? init.durMin : 0; if (b.dur === 0) b.customEnd = m2hm(tmin(b.start) + init.durMin); }
-  const s = sheet('新增預約', `
+    <div class="pills" id="${e}-du">${wt.map(([n,a])=>`<button type="button" class="pill" data-m="${n}" aria-pressed="${t.dur===n}">${a}</button>`).join("")}<button type="button" class="pill" data-m="0" aria-pressed="${t.dur===0}">自訂</button></div>
+    <div id="${e}-ce" ${t.dur===0?"":"hidden"} style="margin-top:8px"><label for="${e}-ed" style="display:block;font-weight:600;font-size:14px;margin:0 0 6px">結束時間</label>
+      <select class="inp" id="${e}-ed">${ce(t)}</select></div>
+    <div class="big" id="${e}-big"></div></div>`,dt=t=>{let e=et(t.date);return!e||t.start>=e?"":V.some(n=>n>=e)?"不能預約已過去的時間":"今天已沒有可預約的時間，請改選其他日期"};function pt(t,e,n){let a=et(e.date);if(a&&e.start<a){let i=V.find(l=>l>=a);i&&(e.start=i)}T(`#${n}-st`,t).innerHTML=V.filter(i=>!a||i>=a||i===e.start).map(i=>`<option ${i===e.start?"selected":""}>${i}</option>`).join(""),Et(t,e,n),T(`#${n}-big`,t).textContent=F(e)?`${e.start} – ${nt(e)}`:""}var Q=t=>t.dur||_(lt(t.start,t.customEnd))-_(t.start);function Et(t,e,n){e.customEnd=lt(e.start,e.customEnd),T(`#${n}-ed`,t).innerHTML=ce(e)}var nt=t=>U(_(t.start)+Q(t)),F=t=>{let e=Q(t);return e>0&&_(t.start)+e<=1439};function pe(t,e,n,a){let i=()=>{t.querySelectorAll(`#${n}-du .pill`).forEach(l=>l.setAttribute("aria-pressed",String(+l.dataset.m===e.dur))),T(`#${n}-ce`,t).hidden=e.dur!==0,T(`#${n}-big`,t).textContent=F(e)?`${e.start} – ${nt(e)}`:""};T(`#${n}-st`,t).addEventListener("change",l=>{e.start=l.target.value,Et(t,e,n),i(),a()}),T(`#${n}-ed`,t).addEventListener("change",l=>{e.customEnd=l.target.value,i(),a()}),T(`#${n}-du`,t).addEventListener("click",l=>{let d=l.target.closest(".pill");if(!d)return;let h=+d.dataset.m;if(h===0&&e.dur!==0){let g=F(e)?nt(e):"";g&&yt.includes(g)&&(e.customEnd=g,Et(t,e,n))}e.dur=h,i(),a()}),i()}function bt(t,e){let n=H(),a={title:"",space:t.spaceId||s.spaces[0]&&s.spaces[0].id||"",date:t.date,start:t.start||"19:00",dur:t.dur??120,customEnd:t.customEnd||"21:00",repeat:!1,weeks:4,contact:s.name||"",org:"",phone:"",note:"",skip:!1};t.dur===void 0&&t.durMin&&(a.dur=wt.some(([o])=>o===t.durMin)?t.durMin:0,a.dur===0&&(a.customEnd=U(_(a.start)+t.durMin)));let i=J("新增預約",`
     <form id="bf" novalidate>
       <div class="f"><label for="bt">活動名稱 <span class="req">*</span></label><input id="bt" class="inp" maxlength="200" placeholder="例如：小組聚會、敬拜團練" data-first></div>
-      <div class="f"><label for="bs">場地 <span class="req">*</span></label><select id="bs" class="inp">${state.spaces.map((x) => `<option value="${x.id}" ${x.id === b.space ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div>
-      <div class="f"><label for="bd">日期 <span class="req">*</span></label><input id="bd" class="inp" type="date" min="${today}" value="${b.date}"></div>
-      ${durHtml(b, 'b')}
+      <div class="f"><label for="bs">場地 <span class="req">*</span></label><select id="bs" class="inp">${s.spaces.map(o=>`<option value="${o.id}" ${o.id===a.space?"selected":""}>${y(o.name)}</option>`).join("")}</select></div>
+      <div class="f"><label for="bd">日期 <span class="req">*</span></label><input id="bd" class="inp" type="date" min="${n}" value="${a.date}"></div>
+      ${de(a,"b")}
       <div class="tl" id="bav" aria-live="polite"></div>
-      <div class="f" style="margin-top:14px"><label for="bc">聯絡人 <span class="req">*</span></label><input id="bc" class="inp" maxlength="50" value="${esc(b.contact)}"></div>
+      <div class="f" style="margin-top:14px"><label for="bc">聯絡人 <span class="req">*</span></label><input id="bc" class="inp" maxlength="50" value="${y(a.contact)}"></div>
       <details><summary>更多資訊</summary><div>
         <div class="f"><label for="bo">借用單位</label><input id="bo" class="inp" maxlength="100"></div>
         <div class="f"><label for="bp">聯絡電話</label><input id="bp" class="inp" type="tel" inputmode="tel" maxlength="30"></div>
         <div class="f"><label for="bn">備註</label><textarea id="bn" class="inp" maxlength="500"></textarea></div>
       </div></details>
       <p class="wait">申請要審核，請耐心等候</p>
-      <div class="err" id="ber" role="alert"></div>
-    </form>`,
-    `<button type="button" class="btn" data-close>取消</button><button type="submit" form="bf" class="btn primary" id="bsub">送出申請</button>`);
-  const r = s.el, g = (id) => $(id, r);
-  let saved = false, token = 0;
-  s.onClose = () => { if (!saved && onBack) onBack(); };
-  setTimeout(() => { const f = r.querySelector('[data-first]'); if (f) f.focus(); }, 50);
-
-  const dates = () => [b.date];
-  const clash = (d) => eventsOn(d).filter((e) => e.space_id === b.space && tmin(e.start_time) < tmin(b.start) + durMin(b) && tmin(e.end_time) > tmin(b.start));
-  const errors = () => {
-    if (!b.title.trim()) return '請填寫活動名稱';
-    if (!b.date) return '請選擇日期';
-    if (b.date < today) return '不能預約過去的日期';
-    if (!timeValid(b)) return '結束時間要晚於開始時間，且不能超過 23:59';
-    if (!b.contact.trim()) return '請填寫聯絡人';
-    return '';
-  };
-  async function refresh() {
-    const my = ++token;
-    const ds = b.date && b.date >= today ? dates() : [];
-    try { await ensureDates(ds); } catch (e) { /* 伺服器送出時還會再檢查一次 */ }
-    if (my !== token || s.closed) return;
-    const av = g('#bav');
-    if (!ds.length) { av.innerHTML = ''; g('#bsub').disabled = false; return; }
-    const day = eventsOn(b.date).filter((e) => e.space_id === b.space);
-    const ok = !timeValid(b) || clash(b.date).length === 0;
-    const pos = (m) => Math.min(100, Math.max(0, (m - 480) / 900 * 100));
-    const seg = (a, z) => `left:${pos(a)}%;width:${Math.max(0, pos(z) - pos(a))}%`;
-    av.innerHTML = `<div class="tl-bar">${day.map((e) => `<i style="${seg(tmin(e.start_time), tmin(e.end_time))}"></i>`).join('')}${timeValid(b) ? `<b class="${ok ? '' : 'bad'}" style="${seg(tmin(b.start), tmin(b.start) + durMin(b))}"></b>` : ''}</div>
-      <div class="tl-ax">${[8, 11, 14, 17, 20, 23].map((h) => `<span style="left:${pos(h * 60)}%">${pad(h)}</span>`).join('')}</div>
-      <div class="tl-lg"><span><i></i>已預約</span>${timeValid(b) ? `<span class="${ok ? 'ok' : 'no'}">${ok ? '可預約' : '不可預約'}</span>` : ''}</div>
-      ${ok ? '' : `<div class="tl-why">${clash(b.date).map((e) => `${hm(e.start_time)}–${hm(e.end_time)}`).join('、')}</div>`}`;
-    g('#bsub').disabled = !ok;
-  }
-  const upd = () => { g('#ber').textContent = ''; refresh(); };
-  bindDur(r, b, 'b', upd);
-  g('#bt').addEventListener('input', (e) => { b.title = e.target.value; });
-  g('#bs').addEventListener('change', (e) => { b.space = e.target.value; upd(); });
-  g('#bd').addEventListener('change', (e) => { b.date = e.target.value; upd(); });
-  g('#bc').addEventListener('input', (e) => { b.contact = e.target.value; });
-  refresh();
-
-  g('#bf').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    b.org = g('#bo').value; b.phone = g('#bp').value; b.note = g('#bn').value;
-    const er = errors(); if (er) { g('#ber').textContent = er; return; }
-    const btn = g('#bsub'); btn.disabled = true; btn.textContent = '送出中…';
-    const ds = dates();
-    const { data, error } = await supabase.rpc('venue_submit_request', {
-      p_space_id: b.space, p_title: b.title.trim(), p_dates: ds, p_start_time: b.start, p_end_time: endOf(b),
-      p_org_unit: b.org.trim() || null, p_contact_name: b.contact.trim(), p_contact_phone: b.phone.trim() || null, p_note: b.note.trim() || null,
-      p_skip_conflicts: false,
-    });
-    btn.textContent = '送出申請';
-    if (error) {
-      btn.disabled = false;
-      if (error.code === '42501' || /請先登入/.test(error.message || '')) { s.close(); needLogin(() => openBooking(init, onBack)); return; }
-      g('#ber').textContent = error.message || '送出失敗，請稍後再試';
-      cache.clear(); refresh();
-      return;
-    }
-    saved = true; s.close();
-    const n = data && data.created || 1, sk = (data && data.skipped || []).length;
-    toast((data && data.status === 'approved' ? `已預約成功（共 ${n} 場）` : `申請送出 （共 ${n} 場），耐心等候`) + (sk ? `；略過 ${sk} 場衝突` : ''));
-    cache.clear(); state.view = 'month'; await select(ds[0]);
-  });
-}
-
-/* ============ 快速找場地 ============ */
-const LUNCH_FROM = 12 * 60, LUNCH_TO = 13 * 60;
-function alternatives(busy, want, dur) {
-  let c = [];
-  for (let s = 8 * 60; s + dur <= 23 * 60; s += 15) if (busy.every((e) => !(tmin(e.start_time) < s + dur && tmin(e.end_time) > s))) c.push(s);
-  const nl = c.filter((s) => !(s < LUNCH_TO && s + dur > LUNCH_FROM));   // 盡量避開中午 12:00–13:00
-  if (nl.length) c = nl;
-  c.sort((a, b) => Math.abs(a - want) - Math.abs(b - want) || a - b);
-  const out = [];
-  for (const x of c) { if (out.every((o) => Math.abs(o - x) >= 45)) out.push(x); if (out.length >= 3) break; }
-  return out.sort((a, b) => a - b);
-}
-function openFind(prev) {
-  const today = todayStr();
-  const nh = parseInt(nowHm().slice(0, 2), 10);
-  const f = prev || { date: state.sel >= today ? state.sel : today, start: (state.sel === today || state.sel < today) ? `${pad(Math.min(22, Math.max(8, nh + 1)))}:00` : '19:00', dur: 120, customEnd: '21:00', sel: null };
-  const s = sheet('快速找場地', `
-    <div class="f"><label for="qd">日期</label><input id="qd" class="inp" type="date" min="${today}" value="${f.date}"></div>
-    ${durHtml(f, 'q')}
+    </form>`,'<button type="button" class="btn" data-close>取消</button><button type="submit" form="bf" class="btn primary" id="bsub">送出申請</button>'),l=i.el,d=o=>T(o,l),h=!1,g=0;i.onClose=()=>{!h&&e&&e()},setTimeout(()=>{let o=l.querySelector("[data-first]");o&&o.focus()},50);let f=()=>[a.date],p=o=>St(o).filter(c=>c.space_id===a.space&&_(c.start_time)<_(a.start)+Q(a)&&_(c.end_time)>_(a.start)),r=()=>a.title.trim()?a.date?a.date<n?["不能預約過去的日期","#bd"]:dt(a)?[dt(a),"#b-st"]:F(a)?a.contact.trim()?null:["請填寫聯絡人","#bc"]:["結束時間要晚於開始時間，且不能超過 23:59","#b-st"]:["請選擇日期","#bd"]:["請填寫活動名稱","#bt"],u=o=>{let c=d(o);c&&(c.classList.add("bad"),c.focus(),c.scrollIntoView({block:"center",behavior:"smooth"}))};l.addEventListener("input",o=>o.target.classList.remove("bad")),l.addEventListener("change",o=>o.target.classList.remove("bad"));async function b(){let o=++g,c=a.date&&a.date>=n?f():[];try{await oe(c)}catch{}if(o!==g||i.closed)return;let k=d("#bav");if(!c.length){k.innerHTML="",d("#bsub").disabled=!1;return}let E=St(a.date).filter(v=>v.space_id===a.space),M=!F(a)||p(a.date).length===0,L=v=>Math.min(100,Math.max(0,(v-480)/900*100)),x=(v,$)=>`left:${L(v)}%;width:${Math.max(0,L($)-L(v))}%`;k.innerHTML=`<div class="tl-bar">${E.map(v=>`<i style="${x(_(v.start_time),_(v.end_time))}"></i>`).join("")}${F(a)?`<b class="${M?"":"bad"}" style="${x(_(a.start),_(a.start)+Q(a))}"></b>`:""}</div>
+      <div class="tl-ax">${[8,11,14,17,20,23].map(v=>`<span style="left:${L(v*60)}%">${se(v)}</span>`).join("")}</div>
+      <div class="tl-lg"><span><i></i>已預約</span>${F(a)?`<span class="${M?"ok":"no"}">${M?"可預約":"不可預約"}</span>`:""}</div>
+      ${M?"":`<div class="tl-why">${p(a.date).map(v=>`${C(v.start_time)}–${C(v.end_time)}`).join("、")}</div>`}`,d("#bsub").disabled=!M}let m=()=>{b()};pe(l,a,"b",m),pt(l,a,"b"),d("#bt").addEventListener("input",o=>{a.title=o.target.value}),d("#bs").addEventListener("change",o=>{a.space=o.target.value,m()}),d("#bd").addEventListener("change",o=>{a.date=o.target.value,pt(l,a,"b"),m()}),d("#bc").addEventListener("input",o=>{a.contact=o.target.value}),b(),d("#bf").addEventListener("submit",async o=>{o.preventDefault(),a.org=d("#bo").value,a.phone=d("#bp").value,a.note=d("#bn").value;let c=r();if(c){u(c[1]),c[1]!=="#bt"&&c[1]!=="#bc"&&G(c[0]);return}let k=d("#bsub");k.disabled=!0,k.textContent="送出中…";let E=f(),{data:M,error:L}=await A.rpc("venue_submit_request",{p_space_id:a.space,p_title:a.title.trim(),p_dates:E,p_start_time:a.start,p_end_time:nt(a),p_org_unit:a.org.trim()||null,p_contact_name:a.contact.trim(),p_contact_phone:a.phone.trim()||null,p_note:a.note.trim()||null,p_skip_conflicts:!1});if(k.textContent="送出申請",L){if(k.disabled=!1,L.code==="42501"||/請先登入/.test(L.message||"")){i.close(),z(()=>bt(t,e));return}G(L.message||"送出失敗，請稍後再試"),N.clear(),b();return}h=!0,i.close();let x=M&&M.created||1,v=(M&&M.skipped||[]).length;G((M&&M.status==="approved"?`已預約成功（共 ${x} 場）`:`申請送出 ${x} 場，耐心等候`)+(v?`；略過 ${v} 場衝突`:"")),N.clear(),s.view="month",await B(E[0])})}function Lt(t){let e=H(),n=parseInt($t().slice(0,2),10),a=t||{date:s.sel>=e?s.sel:e,start:s.sel===e||s.sel<e?`${se(Math.min(22,Math.max(8,n+1)))}:00`:"19:00",dur:120,customEnd:"21:00",sel:null},i=J("快速找場地",`
+    <div class="f"><label for="qd">日期</label><input id="qd" class="inp" type="date" min="${e}" value="${a.date}"></div>
+    ${de(a,"q")}
     <div class="f"><span class="lb">場地</span>
       <button type="button" class="inp selbtn" id="qsb" aria-expanded="false"></button>
       <div class="sp-panel" id="qsp" hidden></div></div>
-    <div id="qres" aria-live="polite"></div>`, '');
-  const r = s.el, g = (id) => $(id, r);
-  let token = 0;
-  const active = state.spaces;
-  const allOn = () => !f.sel || active.every((x) => f.sel.has(x.id));
-  const label = () => (allOn() ? '全部場地' : !f.sel || f.sel.size === 0 ? '未選場地' : `${f.sel.size} 個場地`);
-  const drawSp = () => {
-    g('#qsb').textContent = label();
-    g('#qsp').innerHTML = `<div class="h"><span>勾選要查詢的場地</span><span><button type="button" data-all="1">全選</button><button type="button" data-all="0">取消</button></span></div>` +
-      active.map((x) => `<label style="--c:${colorOf(x.id)}"><input type="checkbox" data-sp="${x.id}" ${!f.sel || f.sel.has(x.id) ? 'checked' : ''}><i></i>${esc(x.name)}</label>`).join('');
-  };
-  async function run() {
-    const my = ++token, res = g('#qres');
-    if (!f.date || f.date < today) { res.innerHTML = `<div class="err">${f.date ? '不能預約過去的日期' : '請選擇日期'}</div>`; return; }
-    if (!timeValid(f)) { res.innerHTML = '<div class="err">結束時間要晚於開始時間，且不能超過 23:59</div>'; return; }
-    res.innerHTML = '<div class="qsum">查詢中…</div>';
-    try { await ensureDates([f.date]); } catch (e) { res.innerHTML = '<div class="err">暫時無法讀取預約，請稍後再試</div>'; return; }
-    if (my !== token || s.closed) return;
-    const st = tmin(f.start), dur = durMin(f), en = st + dur, day = eventsOn(f.date);
-    const rows = active.filter((x) => !f.sel || f.sel.has(x.id)).map((x) => {
-      const mine = day.filter((e) => e.space_id === x.id);
-      const cl = mine.filter((e) => tmin(e.start_time) < en && tmin(e.end_time) > st);
-      return { x, mine, cl, free: !cl.length, alts: cl.length ? alternatives(mine, st, dur) : [] };
-    }).sort((a, b) => (b.free - a.free) || a.x.name.localeCompare(b.x.name, 'zh-TW'));
-    const n = rows.filter((q) => q.free).length;
-    res.innerHTML = `<div class="qsum">${rows.length ? `<b>${mdw(f.date)} ${f.start}–${endOf(f)}</b>　${n ? `${n} 個場地可預約` : '這個時段都被占用了'}` : '沒有符合的場地'}</div>` +
-      rows.map((q) => `<div class="qr ${q.free ? '' : 'busy'}" style="--c:${colorOf(q.x.id)}"><div style="min-width:0"><b>${esc(q.x.name)}</b>${q.free
-        ? `<span class="ok">可預約</span>${q.mine.length ? `<div class="no" style="color:var(--sub)">不可預約：${q.mine.map((e) => `${hm(e.start_time)}–${hm(e.end_time)}`).join('、')}</div>` : ''}`
-        : `<span class="no">不可預約：${q.cl.map((e) => `${hm(e.start_time)}–${hm(e.end_time)}`).join('、')}</span>${q.alts.length ? `<div class="alts"><span>推薦時間</span>${q.alts.map((a) => `<button type="button" class="pill good" data-pick="${q.x.id}" data-s="${m2hm(a)}">${m2hm(a)}–${m2hm(a + dur)}</button>`).join('')}</div>` : ''}`}</div>
-        ${q.free ? `<button type="button" class="btn primary" style="flex:none;padding:0 14px;height:34px" data-pick="${q.x.id}" data-s="${f.start}">預約</button>` : ''}</div>`).join('');
-  }
-  drawSp();
-  bindDur(r, f, 'q', run);
-  g('#qd').addEventListener('change', (e) => { f.date = e.target.value; run(); });
-  g('#qsb').addEventListener('click', () => { const p = g('#qsp'); p.hidden = !p.hidden; g('#qsb').setAttribute('aria-expanded', String(!p.hidden)); });
-  g('#qsp').addEventListener('click', (e) => {
-    const a = e.target.closest('[data-all]'); if (!a) return;
-    f.sel = a.dataset.all === '1' ? null : new Set(); drawSp(); run();
-  });
-  g('#qsp').addEventListener('change', (e) => {
-    const c = e.target.closest('[data-sp]'); if (!c) return;
-    const n = new Set(f.sel || active.map((x) => x.id)); if (c.checked) n.add(c.dataset.sp); else n.delete(c.dataset.sp);
-    f.sel = active.every((x) => n.has(x.id)) ? null : n; g('#qsb').textContent = label(); run();
-  });
-  g('#qres').addEventListener('click', (e) => {
-    const p = e.target.closest('[data-pick]'); if (!p) return;
-    const pick = { spaceId: p.dataset.pick, start: p.dataset.s };
-    const go = () => openBooking({ date: f.date, spaceId: pick.spaceId, start: pick.start, dur: f.dur, customEnd: f.customEnd, durMin: f.dur ? undefined : durMin(f) },
-                                 () => openFind({ ...f }));   // 預約視窗按關閉，就回到這裡可以直接選別的場地
-    s.onClose = null; s.close();
-    needLogin(go);
-  });
-  run();
-}
+    <div id="qres" aria-live="polite"></div>`,""),l=i.el,d=b=>T(b,l),h=0,g=s.spaces,f=()=>!a.sel||g.every(b=>a.sel.has(b.id)),p=()=>f()?"全部場地":!a.sel||a.sel.size===0?"未選場地":`${a.sel.size} 個場地`,r=()=>{d("#qsb").textContent=p(),d("#qsp").innerHTML='<div class="h"><span><button type="button" data-all="1">全選</button><button type="button" data-all="0">取消</button></span></div>'+g.map(b=>`<label style="--c:${Mt(b.id)}"><input type="checkbox" data-sp="${b.id}" ${!a.sel||a.sel.has(b.id)?"checked":""}><i></i>${y(b.name)}</label>`).join("")};async function u(){let b=++h,m=d("#qres");if(!a.date||a.date<e){m.innerHTML=`<div class="err">${a.date?"不能預約過去的日期":"請選擇日期"}</div>`;return}if(dt(a)){m.innerHTML=`<div class="err">${dt(a)}</div>`;return}if(!F(a)){m.innerHTML='<div class="err">結束時間要晚於開始時間，且不能超過 23:59</div>';return}m.innerHTML='<div class="qsum">查詢中…</div>';try{await oe([a.date])}catch{m.innerHTML='<div class="err">暫時無法讀取預約，請稍後再試</div>';return}if(b!==h||i.closed)return;let o=_(a.start),c=Q(a),k=o+c,E=St(a.date),M=g.filter(x=>!a.sel||a.sel.has(x.id)).map(x=>{let v=E.filter(S=>S.space_id===x.id),$=v.filter(S=>_(S.start_time)<k&&_(S.end_time)>o);return{x,mine:v,cl:$,free:!$.length,alts:$.length?Xt(v,o,c,et(a.date)?_(et(a.date)):0):[]}}).sort((x,v)=>v.free-x.free||x.x.name.localeCompare(v.x.name,"zh-TW")),L=M.filter(x=>x.free).length;m.innerHTML=`<div class="qsum">${M.length?`<b>${Tt(a.date)} ${a.start}–${nt(a)}</b>　${L?"":"無可用場地"}`:"沒有符合的場地"}</div>`+M.map(x=>`<div class="qr ${x.free?"":"busy"}" style="--c:${Mt(x.x.id)}"><div style="min-width:0"><b>${y(x.x.name)}</b>${x.free?`<span class="ok">可預約</span>${x.mine.length?`<div class="no" style="color:var(--sub)">不可預約：${x.mine.map(v=>`${C(v.start_time)}–${C(v.end_time)}`).join("、")}</div>`:""}`:`<span class="no">不可預約：${x.cl.map(v=>`${C(v.start_time)}–${C(v.end_time)}`).join("、")}</span>${x.alts.length?`<div class="alts"><span>推薦時間</span>${x.alts.map(v=>`<button type="button" class="pill good" data-pick="${x.x.id}" data-s="${U(v)}">${U(v)}–${U(v+c)}</button>`).join("")}</div>`:""}`}</div>
+        ${x.free?`<button type="button" class="btn primary" style="flex:none;padding:0 14px;height:34px" data-pick="${x.x.id}" data-s="${a.start}">預約</button>`:""}</div>`).join("")}r(),pe(l,a,"q",u),pt(l,a,"q"),d("#qd").addEventListener("change",b=>{a.date=b.target.value,pt(l,a,"q"),u()}),d("#qsb").addEventListener("click",()=>{let b=d("#qsp");b.hidden=!b.hidden,d("#qsb").setAttribute("aria-expanded",String(!b.hidden))}),d("#qsp").addEventListener("click",b=>{let m=b.target.closest("[data-all]");m&&(a.sel=m.dataset.all==="1"?null:new Set,r(),u())}),d("#qsp").addEventListener("change",b=>{let m=b.target.closest("[data-sp]");if(!m)return;let o=new Set(a.sel||g.map(c=>c.id));m.checked?o.add(m.dataset.sp):o.delete(m.dataset.sp),a.sel=g.every(c=>o.has(c.id))?null:o,d("#qsb").textContent=p(),u()}),d("#qres").addEventListener("click",b=>{let m=b.target.closest("[data-pick]");if(!m)return;let o={spaceId:m.dataset.pick,start:m.dataset.s},c=()=>bt({date:a.date,spaceId:o.spaceId,start:o.start,dur:a.dur,customEnd:a.customEnd,durMin:a.dur?void 0:Q(a)},()=>Lt({...a}));i.onClose=null,i.close(),z(c)}),u()}var ue={pending:"待審查",approved:"已核准",rejected:"已退回"},be={pending:"help",approved:"ok",rejected:"no"};function me(){let t=J("我的預約",'<div class="skeleton">載入中…</div>',""),e=null,n="all",a=t.el.querySelector(".sh-body"),i=()=>{let l=new Map;for(let f of e){let p=f.series_id||f.id;l.has(p)||l.set(p,[]),l.get(p).push(f)}let d=[...l.values()].map(f=>f.sort((p,r)=>p.booking_date.localeCompare(r.booking_date)||p.start_time.localeCompare(r.start_time))).sort((f,p)=>p[0].created_at.localeCompare(f[0].created_at)),h=d.filter(f=>n==="all"||f[0].status===n),g=f=>d.filter(p=>f==="all"||p[0].status===f).length;a.innerHTML=`<div class="tab" role="tablist">${[["all","全部"],["pending","待審查"],["approved","已核准"],["rejected","已退回"]].map(([f,p])=>`<button class="pill" role="tab" data-cat="${f}" aria-pressed="${n===f}">${p}</button>`).join("")}</div>`+(h.length?h.map(f=>{let p=f[0],r=p.booking_date;return`<article class="mine">
+        <div class="mdate"><small>${+r.slice(5,7)}月</small><b>${+r.slice(8,10)}</b><small>星期${R[P(r)]}</small></div>
+        <div class="mbody"><div class="t">${y(p.title)}</div>
+        <div class="m">${y(p.space_name)}　${C(p.start_time)} – ${C(p.end_time)}</div>
+        ${f.length>1?`<div class="dates">${f.map(u=>`<span class="dchip">${Tt(u.booking_date)}</span>`).join("")}</div>`:""}
+        ${n==="all"?`<div class="mst ${y(p.status)}">${w(be[p.status]||"help",18)}<span>${y(ue[p.status]||p.status)}</span></div>`:""}
+        ${p.status==="rejected"?`<div class="why"><small>退回原因</small>${y(p.review_note||"（沒有填寫）")}</div>`:""}</div></article>`}).join(""):'<div class="empty">預約全數過關</div>')};a.addEventListener("click",l=>{let d=l.target.closest("[data-cat]");d&&e&&(n=d.dataset.cat,i())}),A.rpc("venue_my_requests").then(({data:l,error:d})=>{if(!t.closed){if(d){a.innerHTML='<div class="err">暫時無法讀取，請稍後再試</div>';return}e=l||[],i()}})}async function Ct(){if(s.session)try{let{data:t,error:e}=await A.rpc("venue_my_notices");if(e)throw e;s.unread=(t||[]).length,I()}catch{}}var je=t=>`<article class="mine">
+  <div class="mdate"><small>${+t.booking_date.slice(5,7)}月</small><b>${+t.booking_date.slice(8,10)}</b><small>星期${R[P(t.booking_date)]}</small></div>
+  <div class="mbody"><div class="t">${y(t.title)}</div>
+  <div class="m">${y(t.space_name)}　${C(t.start_time)} – ${C(t.end_time)}</div>
+  <div class="mst ${y(t.status)}">${w(be[t.status]||"help",18)}<span>${y(ue[t.status]||t.status)}</span></div>
+  ${t.status==="rejected"?`<div class="why"><small>退回原因</small>${y(t.review_note||"（沒有填寫）")}</div>`:""}</div></article>`;function He(){let t=J("通知",'<div class="skeleton">載入中…</div>',""),e=t.el.querySelector(".sh-body");A.rpc("venue_my_notices").then(({data:n,error:a})=>{if(t.closed)return;if(a){e.innerHTML='<div class="err">暫時無法讀取，請稍後再試</div>';return}let i=n||[];e.innerHTML=i.length?i.map(je).join(""):'<div class="empty">目前沒有通知</div>',A.rpc("venue_mark_seen").then(()=>{},()=>{}),s.unread=0,I()})}var K=t=>t.series_id||t.id;async function mt(){if(!(!s.session||!s.manage))try{let{data:t,error:e}=await A.from("venue_bookings").select("id,series_id").eq("status","pending").limit(2e3);if(e)throw e;s.pending=new Set((t||[]).map(K)).size,I()}catch{}}async function De(t,e){let n=[],a=t;for(;a<=e;){let i=D(a,360)<e?D(a,360):e,{data:l,error:d}=await A.rpc("venue_list_bookings",{p_from:a,p_to:i});if(d)throw d;n.push(...l||[]),a=D(i,1)}return n}function Ie(){if(!s.manage){G("沒有審查權限");return}let t=J("審查預約",'<div class="skeleton">載入中…</div>',""),e=null,n="pending",a=!1,i=t.el.querySelector(".sh-body");t.onClose=()=>mt();let l=()=>{let r=new Map;for(let u of e){let b=K(u);r.has(b)||r.set(b,[]),r.get(b).push(u)}return[...r.values()].map(u=>u.sort((b,m)=>b.booking_date.localeCompare(m.booking_date)||b.start_time.localeCompare(m.start_time)))},d=()=>{let r=l(),u=r.filter(o=>o[0].status==="pending").sort((o,c)=>+!!c[0].overdue-+!!o[0].overdue||o[0].created_at.localeCompare(c[0].created_at)),b=r.filter(o=>o[0].status==="rejected").sort((o,c)=>(c[0].reviewed_at||"").localeCompare(o[0].reviewed_at||"")),m=n==="pending"?u:b;i.innerHTML=`<div class="tab" role="tablist">${[["pending","待審查"],["rejected","已退回"]].map(([o,c])=>`<button class="pill" role="tab" data-cat="${o}" aria-pressed="${n===o}">${c}</button>`).join("")}</div>`+(m.length?m.map(o=>{let c=o[0],k=c.booking_date,E=[c.requester_name||c.contact_name,c.org_unit].filter(Boolean).join("　");return`<article class="mine rv" data-k="${y(K(c))}">
+        <div class="mdate"><small>${+k.slice(5,7)}月</small><b>${+k.slice(8,10)}</b><small>星期${R[P(k)]}</small></div>
+        <div class="mbody"><div class="t">${y(c.title)}</div>
+        <div class="m">${y(c.space_name)}　${C(c.start_time)} – ${C(c.end_time)}</div>
+        ${E?`<div class="m">申請人：${y(E)}</div>`:""}
+        ${o.length>1?`<div class="dates">${o.map(M=>`<span class="dchip">${Tt(M.booking_date)}</span>`).join("")}</div>`:""}
+        ${c.overdue?'<div class="mst rejected">已等待超過 14 天</div>':""}
+        ${c.status==="rejected"?`<div class="why"><small>退回原因</small>${y(c.review_note||"（沒有填寫）")}</div>`:""}</div>
+        ${c.status==="pending"?`<div class="acts"><button class="btn primary" data-ok="${y(K(c))}">${w("check",18)}核准</button><button class="btn rj" data-rej="${y(K(c))}">${w("undo",18)}退回</button></div>`:""}</article>`}).join(""):`<div class="empty">${n==="pending"?"沒有待審查的預約":"沒有已退回的預約"}</div>`)},h=r=>e.filter(u=>K(u)===r&&u.status==="pending").map(u=>u.id),g=(r,u,b,m)=>{for(let o of e)K(o)===r&&o.status==="pending"&&(o.status=u,o.review_note=b||null,o.reviewed_at=new Date().toISOString());s.pending=Math.max(0,s.pending-1),I(),d(),G(u==="approved"?`已核准 ${m} 場`:`已退回 ${m} 場`)},f=async(r,u,b)=>{let m=0;for(let o=0;o<r.length;o+=100){let{data:c,error:k}=await A.rpc("venue_review",{p_ids:r.slice(o,o+100),p_action:u,p_note:b||null});if(k)throw k;m+=+c||0}return m};i.addEventListener("click",async r=>{let u=r.target.closest("[data-cat],[data-ok],[data-rej]");if(!u||!e)return;if(u.dataset.cat){n=u.dataset.cat,d();return}if(a)return;let b=u.dataset.ok||u.dataset.rej,m=h(b);if(!m.length){d();return}if(u.dataset.ok){a=!0,u.disabled=!0,u.textContent="處理中…";try{let o=await f(m,"approve");g(b,"approved",null,o||m.length)}catch(o){G(o.message||"核准失敗，請稍後再試"),d()}a=!1}else{let o=J("退回預約",'<div class="f"><label for="rj-note">退回原因（選填，申請人看得到）</label><textarea class="inp" id="rj-note" rows="3" maxlength="300"></textarea></div>','<button class="btn" data-close>取消</button><button class="btn primary" id="rj-go">退回</button>');o.el.querySelector("#rj-go").addEventListener("click",async c=>{if(a)return;a=!0,c.target.disabled=!0,c.target.textContent="處理中…";let k=o.el.querySelector("#rj-note").value.trim();try{let E=await f(m,"reject",k);o.close(),g(b,"rejected",k,E||m.length)}catch(E){G(E.message||"退回失敗，請稍後再試"),c.target.disabled=!1,c.target.textContent="退回"}a=!1})}});let p=H();De(D(p,-90),D(p,366)).then(r=>{t.closed||(e=r.filter(u=>u.status==="pending"||u.status==="rejected"),d())}).catch(r=>{t.closed||(i.innerHTML='<div class="err">暫時無法讀取，請稍後再試</div>'),console.error(r)})}document.addEventListener("keydown",t=>{t.key==="Escape"&&s.menu&&(s.menu=!1,I())});document.addEventListener("visibilitychange",()=>{document.visibilityState==="visible"&&(kt&&Date.now()-kt>6e4&&re(),Ct(),mt())});setInterval(()=>{document.visibilityState==="visible"&&(Ct(),mt())},6e4);(async()=>{O(),A.auth.onAuthStateChange((t,e)=>{ne(e)}),A.auth.getSession().then(({data:t})=>ne(t.session));try{await Ce()}catch(t){console.error(t),s.err="暫時無法讀取場地，請稍後再試"}try{await ut(s.month)}catch(t){console.error(t),s.err="暫時無法讀取預約，請稍後再試"}s.loading=!1,O()})();
 
-/* ============ 我的預約 ============ */
-const ST = { pending: '待審查', approved: '已核准', rejected: '已退回' };
-function openMine() {
-  const s = sheet('我的預約', '<div class="skeleton">載入中…</div>', '');
-  let rows = null, cat = 'all';
-  const body = s.el.querySelector('.sh-body');
-  const draw = () => {
-    const gs = new Map();
-    for (const r of rows) { const k = r.series_id || r.id; if (!gs.has(k)) gs.set(k, []); gs.get(k).push(r); }
-    const list = [...gs.values()].map((it) => it.sort((a, b) => a.booking_date.localeCompare(b.booking_date) || a.start_time.localeCompare(b.start_time)))
-      .sort((a, b) => b[0].created_at.localeCompare(a[0].created_at));
-    const shown = list.filter((it) => cat === 'all' || it[0].status === cat);
-    const cnt = (c) => list.filter((it) => c === 'all' || it[0].status === c).length;
-    body.innerHTML = `<div class="tab" role="tablist">${[['all', '全部'], ['pending', '待審查'], ['approved', '已核准'], ['rejected', '已退回']].map(([k, l]) => `<button class="pill" role="tab" data-cat="${k}" aria-pressed="${cat === k}">${l}</button>`).join('')}</div>` +
-      (shown.length ? shown.map((it) => { const f = it[0]; return `<article class="mine"><div class="mine-top"><b>${esc(f.title)}</b><span class="tag ${esc(f.status)}">${esc(ST[f.status] || f.status)}</span></div>
-        <div class="m">${esc(f.space_name)}　${hm(f.start_time)} – ${hm(f.end_time)}</div>
-        <div class="dates">${it.map((x) => `<span class="dchip">${mdw(x.booking_date)}</span>`).join('')}</div>
-        ${f.status === 'rejected' ? `<div class="why"><small>退回原因</small>${esc(f.review_note || '（沒有填寫）')}</div>` : ''}</article>`; }).join('')
-        : '<div class="empty">預約全數過關</div>');
-  };
-  body.addEventListener('click', (e) => { const p = e.target.closest('[data-cat]'); if (p && rows) { cat = p.dataset.cat; draw(); } });
-  supabase.rpc('venue_my_requests').then(({ data, error }) => {
-    if (s.closed) return;
-    if (error) { body.innerHTML = '<div class="err">暫時無法讀取，請稍後再試</div>'; return; }
-    rows = data || []; draw();
-  });
-}
-
-/* ============ 啟動 ============ */
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && state.menu) { state.menu = false; renderTop(); } });
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && lastLoad && Date.now() - lastLoad > 60000) reload(); });
-(async () => {
-  render();
-  supabase.auth.onAuthStateChange((_e, s) => { onSession(s); });
-  supabase.auth.getSession().then(({ data }) => onSession(data.session));
-  try { await loadSpaces(); } catch (e) { console.error(e); state.err = '暫時無法讀取場地，請稍後再試'; }
-  try { await loadMonth(state.month); } catch (e) { console.error(e); state.err = '暫時無法讀取預約，請稍後再試'; }
-  state.loading = false; render();
-})();
 </script>
 </body>
 </html>
